@@ -3,9 +3,8 @@ import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
-const String busApiUrl = "https://campus-bus-backend.onrender.com/api/buses";
-const String driverApiUrl =
-    "https://campus-bus-backend.onrender.com/api/drivers";
+const String busApiUrl = "http://192.168.31.104:5000/api/buses";
+const String driverApiUrl = "http://192.168.31.104:5000/api/drivers";
 
 class ManageBusDetailsScreen extends StatefulWidget {
   const ManageBusDetailsScreen({super.key});

@@ -40,7 +40,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     try {
       final response = await http.get(
         Uri.parse(
-          "https://campus-bus-backend.onrender.com/api/notifications/all",
+          "http://192.168.31.104:5000/api/notifications/all",
         ), // 📌 Changed to fetch all notifications
       );
 
@@ -79,9 +79,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
     try {
       final response = await http.post(
-        Uri.parse(
-          "https://campus-bus-backend.onrender.com/api/notifications/send",
-        ),
+        Uri.parse("http://192.168.31.104:5000/api/notifications/send"),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
           "type": _selectedNotificationType,

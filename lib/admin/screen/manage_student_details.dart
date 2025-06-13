@@ -6,8 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 
-const String studentApiUrl =
-    'https://campus-bus-backend.onrender.com/api/students';
+const String studentApiUrl = 'http://192.168.31.104:5000/api/students';
 
 class ManageStudentDetailsScreen extends StatefulWidget {
   const ManageStudentDetailsScreen({super.key});

@@ -18,7 +18,7 @@ class _ViewStudentAttendanceState extends State<ViewStudentAttendance> {
   String? errorMessage;
 
   // Replace with your backend API base URL
-  final String apiBaseUrl = 'https://campus-bus-backend.onrender.com/api';
+  final String apiBaseUrl = 'http://192.168.31.104:5000/api';
 
   // Fetch bus numbers from backend
   final List<String> busNumbers = [];

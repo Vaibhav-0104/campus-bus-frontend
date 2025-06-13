@@ -31,7 +31,7 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
 
   Future<void> fetchStudents() async {
     final response = await http.get(
-      Uri.parse('https://campus-bus-backend.onrender.com:5000/api/students'),
+      Uri.parse('http://192.168.31.104:5000/api/students'),
     );
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
@@ -51,7 +51,7 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
 
   Future<void> fetchBuses() async {
     final response = await http.get(
-      Uri.parse('https://campus-bus-backend.onrender.com/api/buses'),
+      Uri.parse('http://192.168.31.104:5000/api/buses'),
     );
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
@@ -78,9 +78,7 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
 
   Future<void> fetchAllocations() async {
     final response = await http.get(
-      Uri.parse(
-        'https://campus-bus-backend.onrender.com/api/allocations/allocations',
-      ),
+      Uri.parse('http://192.168.31.104:5000/api/allocations/allocations'),
     );
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
@@ -95,9 +93,7 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
         selectedBusId != null &&
         selectedTo != null) {
       final response = await http.post(
-        Uri.parse(
-          'https://campus-bus-backend.onrender.com/api/allocations/allocate',
-        ),
+        Uri.parse('http://192.168.31.104:5000/api/allocations/allocate'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'studentId': selectedStudentId,

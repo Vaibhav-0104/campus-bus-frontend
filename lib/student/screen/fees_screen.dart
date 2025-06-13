@@ -28,7 +28,7 @@ class _FeesPaymentScreenState extends State<FeesPaymentScreen> {
   void _startPayment() async {
     try {
       final response = await http.post(
-        Uri.parse("https://campus-bus-backend.onrender.com/api/fees/pay"),
+        Uri.parse("http://192.168.31.104:5000/api/fees/pay"),
         body: jsonEncode({"envNumber": widget.envNumber}),
         headers: {"Content-Type": "application/json"},
       );

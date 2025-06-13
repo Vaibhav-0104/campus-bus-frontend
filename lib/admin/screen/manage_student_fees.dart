@@ -35,7 +35,7 @@ class _ManageFeesScreenState extends State<ManageFeesScreen> {
     }
 
     final response = await http.post(
-      Uri.parse("https://campus-bus-backend.onrender.com/api/fees/set-fee"),
+      Uri.parse("http://192.168.31.104:5000/api/fees/set-fee"),
       headers: {"Content-Type": "application/json"},
       body: jsonEncode({
         "envNumber": envNumberController.text,

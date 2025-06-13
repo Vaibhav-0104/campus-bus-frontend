@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
-const String apiUrl = "https://campus-bus-backend.onrender.com/api/drivers";
+const String apiUrl = "http://192.168.31.104:5000/api/drivers";
 
 class ManageBusDriverDetailsScreen extends StatefulWidget {
   const ManageBusDriverDetailsScreen({super.key});

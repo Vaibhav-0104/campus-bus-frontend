@@ -18,7 +18,7 @@ class _ViewNotificationsScreenState extends State<ViewNotificationsScreen> {
   Future<void> fetchNotifications() async {
     final response = await http.get(
       Uri.parse(
-        "https://campus-bus-backend.onrender.com/api/notifications/view/${widget.userRole}",
+        "http://192.168.31.104:5000/api/notifications/view/${widget.userRole}",
       ),
     );
     if (response.statusCode == 200) {

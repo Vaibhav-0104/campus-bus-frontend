@@ -125,7 +125,7 @@ class _FaceAttendanceScreenState extends State<FaceAttendanceScreen>
       });
 
       final uri = Uri.parse(
-        'https://campus-bus-backend.onrender.com/api/students/attendance',
+        'http://192.168.31.104:5000/api/students/attendance',
       );
       final request = http.MultipartRequest('POST', uri)
         ..files.add(

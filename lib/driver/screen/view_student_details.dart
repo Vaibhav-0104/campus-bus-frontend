@@ -58,7 +58,7 @@ class _ViewStudentDetailsScreenState extends State<ViewStudentDetailsScreen> {
 
     try {
       final url =
-          'https://campus-bus-backend.onrender.com/api/allocations/allocations/driver/$_driverId';
+          'http://192.168.31.104:5000/api/allocations/allocations/driver/$_driverId';
       print('Request URL: $url');
       final response = await http
           .get(Uri.parse(url), headers: {'Content-Type': 'application/json'})
