@@ -1,11 +1,15 @@
+import 'package:campus_bus_management/student/screen/preview_fees.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:ui'; // Required for ImageFilter for blur effects
+import 'package:intl/intl.dart'; // For date formatting and month names
 import 'package:campus_bus_management/login.dart';
 import 'package:campus_bus_management/student/screen/help.dart';
-import 'package:campus_bus_management/student/screen/fees_screen.dart';
+import 'package:campus_bus_management/student/screen/fees_screen.dart'; // Ensure this is the correct path to FeesPaymentScreen
 import 'package:campus_bus_management/student/screen/attendance_screen.dart';
 import 'package:campus_bus_management/student/screen/notifications_screen.dart';
+import 'package:campus_bus_management/student/screen/monthly_attendance_screen.dart'; // New import for the monthly attendance screen
 
 class StudentDashboardScreen extends StatefulWidget {
   final String studentName;
@@ -27,11 +31,31 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
   String totalFees = "Loading...";
   String attendance = "Loading...";
   String notifications = "Loading...";
+  String currentMonthName = DateFormat('MMMM').format(DateTime.now());
 
   @override
   void initState() {
     super.initState();
     fetchDashboardData();
+  }
+
+  // Helper to calculate total possible days in a month, excluding Sundays
+  int _getTotalPossibleDaysInMonth(int year, int month) {
+    int totalDays = 0;
+    final firstDayOfMonth = DateTime(year, month, 1);
+    final lastDayOfMonth = DateTime(year, month + 1, 0);
+
+    // Loop through each day of the month, ensuring the last day is included
+    for (
+      var d = firstDayOfMonth;
+      !d.isAfter(lastDayOfMonth);
+      d = d.add(const Duration(days: 1))
+    ) {
+      if (d.weekday != DateTime.sunday) {
+        totalDays++;
+      }
+    }
+    return totalDays;
   }
 
   Future<void> fetchDashboardData() async {
@@ -51,15 +75,21 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       if (feesResponse.statusCode == 200) {
         final feesData = jsonDecode(feesResponse.body);
         setState(() {
+          // Check for 'feeAmount' or 'amount' as per backend response
           totalFees =
-              (feesData['totalFees']?.toString() ??
+              (feesData['feeAmount']?.toString() ??
                   feesData['amount']?.toString() ??
-                  '0');
-          if (totalFees == '0') {
+                  '0') +
+              " INR"; // Appending INR for clarity
+          if (totalFees == '0 INR') {
             print(
               'Warning: Total Fees is 0, check if fee record exists for envNumber=${widget.envNumber}',
             );
           }
+        });
+      } else if (feesResponse.statusCode == 404) {
+        setState(() {
+          totalFees = 'No Fee Set'; // Specific message for 404
         });
       } else {
         print(
@@ -70,17 +100,25 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
         });
       }
 
-      // Fetch Attendance
+      // Fetch Attendance for Current Month
+      final now = DateTime.now();
+      final firstDayOfMonth = DateTime(now.year, now.month, 1);
+      final lastDayOfMonth = DateTime(
+        now.year,
+        now.month + 1,
+        0,
+      ); // Last day of current month
+
       final attendanceResponse = await http
           .post(
             Uri.parse(
-              'http://192.168.31.104:5000/api/students/attendance/by-date',
+              'http://192.168.31.104:5000/api/students/attendance/by-date', // This route should map to getAttendancePercentageByDateRange
             ),
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode({
               'envNumber': widget.envNumber,
-              'startDate': '2025-01-01',
-              'endDate': '2025-04-27',
+              'startDate': DateFormat('yyyy-MM-dd').format(firstDayOfMonth),
+              'endDate': DateFormat('yyyy-MM-dd').format(lastDayOfMonth),
             }),
           )
           .timeout(const Duration(seconds: 10));
@@ -90,10 +128,28 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       if (attendanceResponse.statusCode == 200) {
         final attendanceData = jsonDecode(attendanceResponse.body);
         setState(() {
+          int presentDays = 0;
+          if (attendanceData['presentDays'] != null) {
+            presentDays = attendanceData['presentDays'] as int;
+          }
+
+          final int totalPossibleDaysInCurrentMonth =
+              _getTotalPossibleDaysInMonth(now.year, now.month);
+
+          double calculatedPercentage = 0.0;
+          if (totalPossibleDaysInCurrentMonth > 0) {
+            calculatedPercentage =
+                (presentDays / totalPossibleDaysInCurrentMonth) * 100;
+          }
+
           attendance =
-              attendanceData['percentage'] != null
-                  ? '${attendanceData['percentage']}%'
-                  : 'No data';
+              '${presentDays} / ${totalPossibleDaysInCurrentMonth} days (${calculatedPercentage.toStringAsFixed(1)}%)';
+
+          if (attendanceData['message'] != null &&
+              attendanceData['message'].contains("No attendance data")) {
+            attendance =
+                "No data this month"; // More specific for current month
+          }
         });
       } else {
         print(
@@ -142,82 +198,229 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color.fromARGB(255, 252, 252, 253),
-      appBar: AppBar(
-        title: Text(
-          "Welcome, ${widget.studentName}",
-          style: const TextStyle(color: Colors.white),
-        ),
-        backgroundColor: Colors.deepPurple,
-        elevation: 10,
-        iconTheme: const IconThemeData(color: Colors.white),
-      ),
-      drawer: _buildDrawer(context),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              _statCard("Total Fees", totalFees),
-              const SizedBox(height: 16),
-              _statCard("Attendance", attendance),
-              const SizedBox(height: 16),
-              _statCard("Notifications", notifications),
-            ],
+  // A reusable widget to create a "Liquid Glass" style card
+  Widget _buildLiquidGlassCard({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required List<Color> gradientColors,
+    Color iconColor = Colors.white, // Default icon color
+    VoidCallback? onTap, // Added onTap callback
+  }) {
+    return GestureDetector(
+      // Make the card tappable
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 8.0),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(25), // Increased rounded corners
+          child: BackdropFilter(
+            filter: ImageFilter.blur(
+              sigmaX: 15.0,
+              sigmaY: 15.0,
+            ), // Stronger blur effect
+            child: Container(
+              padding: const EdgeInsets.all(25), // Increased padding
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors:
+                      gradientColors
+                          .map((color) => color.withOpacity(0.15))
+                          .toList(), // Slightly more transparent gradient
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(25),
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.2),
+                ), // Lighter border
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(
+                      0.2,
+                    ), // Darker shadow for depth
+                    blurRadius: 25, // Increased blur radius
+                    spreadRadius: 3, // Increased spread radius
+                    offset: const Offset(8, 8), // More pronounced offset
+                  ),
+                  BoxShadow(
+                    // Inner light shadow for a subtle glow
+                    color: Colors.white.withOpacity(0.1),
+                    blurRadius: 10,
+                    spreadRadius: 1,
+                    offset: Offset(-5, -5), // Top-left inner glow
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Icon(
+                    icon,
+                    size: 52, // Even larger icon size
+                    color: iconColor,
+                    shadows: [
+                      Shadow(
+                        blurRadius: 12.0, // More blur for icon shadow
+                        color: Colors.black.withOpacity(0.6),
+                        offset: Offset(3.0, 3.0),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12), // Increased spacing
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 24, // Larger title font size
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      shadows: [
+                        Shadow(
+                          blurRadius: 6.0,
+                          color: Colors.black45,
+                          offset: Offset(1.5, 1.5),
+                        ),
+                      ],
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 10), // Increased spacing
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      fontSize: 19, // Larger subtitle font size
+                      color: Colors.white70,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _statCard(String title, String subtitle) {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(15),
-        gradient: LinearGradient(
-          colors: [Colors.blueAccent, Colors.purpleAccent, Colors.redAccent],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      extendBodyBehindAppBar:
+          true, // Extend body behind app bar for full gradient
+      appBar: AppBar(
+        title: const Text(
+          "Student Dashboard", // Generic title for the dashboard
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black12,
-            blurRadius: 8,
-            spreadRadius: 2,
-            offset: const Offset(2, 4),
+        backgroundColor: Colors.deepPurple.shade700.withOpacity(
+          0.3,
+        ), // Even more transparent app bar
+        iconTheme: const IconThemeData(color: Colors.white),
+        elevation: 0, // Remove shadow for flat look
+        centerTitle: true,
+        flexibleSpace: ClipRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(
+              sigmaX: 10,
+              sigmaY: 10,
+            ), // Increased blur for app bar background
+            child: Container(
+              color: Colors.transparent, // Transparent to allow blur to show
+            ),
           ),
-        ],
+        ),
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(15),
-        child: Container(
-          padding: const EdgeInsets.all(16),
+      drawer: _buildDrawer(context), // The navigation drawer
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Colors.deepPurple.shade900,
+              Colors.deepPurple.shade700,
+              Colors.deepPurple.shade500,
+            ], // Richer gradient background
+            stops: const [
+              0.0,
+              0.5,
+              1.0,
+            ], // Adjusted stops for smoother transition
+          ),
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
-                textAlign: TextAlign.center,
+              SizedBox(
+                height: MediaQuery.of(context).padding.top + 20,
+              ), // Spacing below app bar
+              // Combined Student Name & Email Card
+              _buildLiquidGlassCard(
+                icon: Icons.person_outline,
+                title: "Welcome, ${widget.studentName}!",
+                subtitle: "Email: ${widget.studentEmail}",
+                gradientColors: [Colors.blue.shade300, Colors.cyan.shade600],
+                iconColor: Colors.lightBlueAccent.shade100,
               ),
-              const SizedBox(height: 8),
-              Text(
-                subtitle,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.normal,
-                  color: Colors.white,
-                ),
-                textAlign: TextAlign.center,
+              // Total Fees Card
+              _buildLiquidGlassCard(
+                icon: Icons.payments_outlined,
+                title: "Total Fees",
+                subtitle: totalFees,
+                gradientColors: [Colors.orange.shade300, Colors.red.shade600],
+                iconColor: Colors.orangeAccent.shade100,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder:
+                          (context) =>
+                              PreviewFeesScreen(envNumber: widget.envNumber),
+                    ),
+                  );
+                },
+              ),
+              // Attendance Card (now navigable to MonthlyAttendanceScreen)
+              _buildLiquidGlassCard(
+                icon: Icons.fingerprint,
+                title: "Attendance",
+                subtitle:
+                    "$currentMonthName Average: $attendance", // Display current month average
+                gradientColors: [Colors.purple.shade300, Colors.pink.shade600],
+                iconColor: Colors.purpleAccent.shade100,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder:
+                          (context) => MonthlyAttendanceScreen(
+                            envNumber: widget.envNumber,
+                          ),
+                    ),
+                  );
+                },
+              ),
+              // Notifications Card
+              _buildLiquidGlassCard(
+                icon: Icons.notifications_active_outlined,
+                title: "New Notifications",
+                subtitle: notifications,
+                gradientColors: [Colors.indigo.shade300, Colors.blue.shade600],
+                iconColor: Colors.blueAccent.shade100,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder:
+                          (context) =>
+                              ViewNotificationsScreen(userRole: 'Students'),
+                    ),
+                  );
+                },
               ),
             ],
           ),
@@ -228,79 +431,283 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
 
   Widget _buildDrawer(BuildContext context) {
     return Drawer(
-      child: ListView(
-        padding: EdgeInsets.zero,
-        children: [
-          DrawerHeader(
-            decoration: const BoxDecoration(color: Colors.deepPurple),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  widget.studentName,
-                  style: const TextStyle(
-                    fontSize: 24,
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Colors.deepPurple.shade900,
+              Colors.deepPurple.shade600,
+            ], // Consistent gradient for background
+          ),
+        ),
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            // Liquid Glass Drawer Header
+            DrawerHeader(
+              margin: EdgeInsets.zero, // Remove default margin
+              padding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 15,
+              ), // Adjust padding
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(
+                  20,
+                ), // Rounded corners for liquid glass header
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 15.0, sigmaY: 15.0),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.deepPurple.shade800.withOpacity(
+                            0.4,
+                          ), // Slightly more opaque
+                          Colors.purple.shade400.withOpacity(0.4),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.white.withOpacity(0.25)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.2),
+                          blurRadius: 15,
+                          spreadRadius: 2,
+                          offset: const Offset(5, 5),
+                        ),
+                      ],
+                    ),
+                    alignment:
+                        Alignment.bottomLeft, // Align content to bottom-left
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Text(
+                          widget.studentName,
+                          style: const TextStyle(
+                            fontSize: 22,
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            shadows: [
+                              Shadow(blurRadius: 5, color: Colors.black54),
+                            ],
+                          ),
+                        ),
+                        Text(
+                          widget.studentEmail,
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          "Enrollment: ${widget.envNumber}",
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 12,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-                Text(
-                  widget.studentEmail,
-                  style: const TextStyle(color: Colors.white),
+              ),
+            ),
+            // Liquid Glass Drawer Items
+            _buildDrawerItem(
+              Icons.check_circle_outline,
+              "Attendance",
+              "View your daily attendance records",
+              Colors.lightBlueAccent,
+              const FaceAttendanceScreen(),
+            ),
+            _buildDrawerItem(
+              Icons.payment,
+              "Pay Fees",
+              "Manage and pay your bus fees",
+              Colors.greenAccent,
+              FeesPaymentScreen(envNumber: widget.envNumber),
+            ),
+            _buildDrawerItem(
+              Icons.notifications_none,
+              "Notifications",
+              "Check for new announcements and updates",
+              Colors.orangeAccent,
+              const ViewNotificationsScreen(userRole: 'Students'),
+            ),
+            _buildDrawerItem(
+              Icons.help_outline,
+              "Help & Support",
+              "Get assistance and contact support",
+              Colors.purpleAccent,
+              const HelpSupportScreen(),
+            ),
+            const Divider(color: Colors.white30, height: 20, thickness: 1),
+            // Logout item (can also be liquid glass if desired)
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 10.0,
+                vertical: 5.0,
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(15),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.red.shade400.withOpacity(0.15),
+                          Colors.red.shade700.withOpacity(0.15),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(15),
+                      border: Border.all(color: Colors.red.withOpacity(0.2)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.15),
+                          blurRadius: 10,
+                          spreadRadius: 1,
+                          offset: const Offset(4, 4),
+                        ),
+                      ],
+                    ),
+                    child: ListTile(
+                      leading: const Icon(
+                        Icons.logout,
+                        color: Colors.redAccent,
+                        size: 28,
+                      ),
+                      title: const Text(
+                        "Logout",
+                        style: TextStyle(
+                          fontSize: 17,
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          shadows: [
+                            Shadow(blurRadius: 3, color: Colors.black54),
+                          ],
+                        ),
+                      ),
+                      onTap: () {
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const LoginScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
                 ),
-              ],
+              ),
             ),
-          ),
-          _buildDrawerItem(
-            Icons.check_circle,
-            "Attendance",
-            const FaceAttendanceScreen(),
-          ),
-          _buildDrawerItem(
-            Icons.payment,
-            "Pay Fees",
-            FeesPaymentScreen(envNumber: widget.envNumber),
-          ),
-          _buildDrawerItem(
-            Icons.notifications,
-            "Notifications",
-            const ViewNotificationsScreen(userRole: 'Students'),
-          ),
-          _buildDrawerItem(
-            Icons.help,
-            "Help & Support",
-            const HelpSupportScreen(),
-          ),
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.logout, color: Colors.redAccent),
-            title: const Text(
-              "Logout",
-              style: TextStyle(color: Colors.redAccent),
-            ),
-            onTap: () {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const LoginScreen()),
-              );
-            },
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildDrawerItem(IconData icon, String title, Widget screen) {
-    return ListTile(
-      leading: Icon(icon, color: Colors.deepPurple),
-      title: Text(title, style: const TextStyle(fontSize: 16)),
-      onTap: () {
-        Navigator.pop(context);
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => screen),
-        );
-      },
+  Widget _buildDrawerItem(
+    IconData icon,
+    String title,
+    String description,
+    Color iconColor,
+    Widget screen,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 10.0,
+        vertical: 5.0,
+      ), // Add padding for liquid glass cards
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(
+          15,
+        ), // Rounded corners for each drawer item
+        child: BackdropFilter(
+          filter: ImageFilter.blur(
+            sigmaX: 10.0,
+            sigmaY: 10.0,
+          ), // Blur effect for liquid glass
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Colors.white.withOpacity(0.1),
+                  Colors.deepPurple.shade300.withOpacity(0.1),
+                ], // Subtle gradient for drawer items
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(
+                color: Colors.white.withOpacity(0.15),
+              ), // Light border
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 10,
+                  spreadRadius: 1,
+                  offset: const Offset(4, 4),
+                ),
+              ],
+            ),
+            child: ListTile(
+              leading: Icon(
+                icon,
+                color: iconColor,
+                size: 28,
+              ), // Larger icon with specific color
+              title: Column(
+                // Wrap title and description in a Column
+                crossAxisAlignment:
+                    CrossAxisAlignment.start, // Align text to the left
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 17,
+                      color: Colors.white, // White text for consistency
+                      fontWeight: FontWeight.bold,
+                      shadows: [
+                        Shadow(blurRadius: 3, color: Colors.black54),
+                      ], // Text shadow
+                    ),
+                  ),
+                  const SizedBox(
+                    height: 2,
+                  ), // Small spacing between title and description
+                  Text(
+                    description,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color:
+                          Colors
+                              .white70, // Slightly transparent white for description
+                    ),
+                  ),
+                ],
+              ),
+              onTap: () {
+                Navigator.pop(context); // Close the drawer
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => screen),
+                );
+              },
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

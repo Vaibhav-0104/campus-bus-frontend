@@ -1,10 +1,11 @@
 import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:io';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
+import 'dart:ui'; // Required for ImageFilter for blur effects
 
 const String studentApiUrl = 'http://192.168.31.104:5000/api/students';
 
@@ -37,6 +38,18 @@ class _ManageStudentDetailsScreenState
   void initState() {
     super.initState();
     _fetchStudents();
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _envNumberController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _departmentController.dispose();
+    _mobileController.dispose();
+    _parentContactController.dispose();
+    super.dispose();
   }
 
   Future<void> _fetchStudents() async {
@@ -85,25 +98,33 @@ class _ManageStudentDetailsScreenState
   Future<ImageSource?> _showImageSourceDialog() async {
     return showDialog<ImageSource>(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('Select Image Source'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.camera),
-                  title: const Text('Camera'),
-                  onTap: () => Navigator.of(context).pop(ImageSource.camera),
-                ),
-                ListTile(
-                  leading: const Icon(Icons.photo_library),
-                  title: const Text('Gallery'),
-                  onTap: () => Navigator.of(context).pop(ImageSource.gallery),
-                ),
-              ],
-            ),
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        backgroundColor: Colors.blue.shade800.withOpacity(0.8), // Liquid glass dialog background
+        title: const Text(
+          'Select Image Source',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            shadows: [Shadow(blurRadius: 2, color: Colors.black54)],
           ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Icon(Icons.camera, color: Colors.lightBlueAccent),
+              title: const Text('Camera', style: TextStyle(color: Colors.white)),
+              onTap: () => Navigator.of(context).pop(ImageSource.camera),
+            ),
+            ListTile(
+              leading: Icon(Icons.photo_library, color: Colors.lightBlueAccent),
+              title: const Text('Gallery', style: TextStyle(color: Colors.white)),
+              onTap: () => Navigator.of(context).pop(ImageSource.gallery),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -193,44 +214,120 @@ class _ManageStudentDetailsScreenState
       _nameController.text = student['name'] ?? '';
       _envNumberController.text = student['envNumber'] ?? '';
       _emailController.text = student['email'] ?? '';
-      _passwordController.text = student['password'] ?? '';
+      _passwordController.text = ''; // Do not pre-fill password for security
       _departmentController.text = student['department'] ?? '';
       _mobileController.text = student['mobile'] ?? '';
       _parentContactController.text = student['parentContact'] ?? '';
       _selectedImage = null;
       _selectedImageBytes = null;
+      // You might want to load the existing image if it's available from the backend
+      // and display it, but sending it back to the server on update is complex
+      // without re-selecting it or having a direct image URL.
     });
   }
 
   Future<void> _deleteStudent(String id) async {
-    try {
-      final response = await http.delete(Uri.parse('$studentApiUrl/$id'));
-      if (response.statusCode == 200) {
-        _showSnackBar('Student deleted successfully!', isSuccess: true);
-        _fetchStudents();
-      } else {
-        _showSnackBar('Failed to delete student: ${response.statusCode}');
-      }
-    } catch (e) {
-      _showSnackBar('Error deleting student: $e');
-    }
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          backgroundColor: Colors.blue.shade800.withOpacity(0.8),
+          title: const Text(
+            'Confirm Deletion',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              shadows: [Shadow(blurRadius: 2, color: Colors.black54)],
+            ),
+          ),
+          content: const Text(
+            'Are you sure you want to delete this student record?',
+            style: TextStyle(color: Colors.white70, fontSize: 16),
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text(
+                'Cancel',
+                style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 16),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.of(dialogContext).pop(); // Dismiss dialog
+                try {
+                  final response = await http.delete(Uri.parse('$studentApiUrl/$id'));
+                  if (response.statusCode == 200) {
+                    _showSnackBar('Student deleted successfully!', isSuccess: true);
+                    _fetchStudents();
+                  } else {
+                    _showSnackBar('Failed to delete student: ${response.statusCode}');
+                  }
+                } catch (e) {
+                  _showSnackBar('Error deleting student: $e');
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.redAccent,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              ),
+              child: const Text(
+                'Delete',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      extendBodyBehindAppBar: true, // Extend body behind app bar for full gradient
       appBar: AppBar(
-        backgroundColor: Colors.indigo[800],
         title: const Text(
           'Manage Student Details',
           style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
+        backgroundColor: Colors.blue.shade800.withOpacity(0.3), // Liquid glass app bar
         centerTitle: true,
-        iconTheme: const IconThemeData(color: Colors.white),
+        elevation: 0, // Remove default shadow
+        iconTheme: const IconThemeData(color: Colors.white), // White back button
+        flexibleSpace: ClipRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10), // Blur effect for app bar
+            child: Container(
+              color: Colors.transparent, // Transparent to show blurred content behind
+            ),
+          ),
+        ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Colors.blue.shade900,
+              Colors.blue.shade700,
+              Colors.blue.shade500
+            ], // Blue themed gradient background
+            stops: const [0.0, 0.5, 1.0],
+          ),
+        ),
         child: SingleChildScrollView(
+          padding: EdgeInsets.only(
+            top: AppBar().preferredSize.height + MediaQuery.of(context).padding.top + 16,
+            left: 16.0,
+            right: 16.0,
+            bottom: 16.0,
+          ),
           child: Column(
             children: [
               _buildFormCard(),
@@ -244,46 +341,88 @@ class _ManageStudentDetailsScreenState
   }
 
   Widget _buildFormCard() {
-    return Card(
-      color: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.indigo[800]!, width: 2),
-      ),
-      elevation: 5,
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            children: [
-              _buildTextField(_nameController, 'Full Name'),
-              _buildTextField(_envNumberController, 'Env Number'),
-              _buildTextField(
-                _emailController,
-                'Email',
-                validator: _emailValidator,
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(25), // Rounded corners for liquid glass card
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 20.0, sigmaY: 20.0), // Stronger blur for the card
+        child: Container(
+          padding: const EdgeInsets.all(25), // Increased padding inside the card
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                Colors.blueGrey.shade300.withOpacity(0.15),
+                Colors.blueGrey.shade700.withOpacity(0.15)
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(25),
+            border: Border.all(color: Colors.white.withOpacity(0.3)), // More visible border
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.3), // Stronger shadow
+                blurRadius: 30, // Increased blur
+                spreadRadius: 5, // Increased spread
+                offset: const Offset(10, 10),
               ),
-              _buildTextField(
-                _passwordController,
-                'Password',
-                obscureText: true,
+              BoxShadow(
+                color: Colors.white.withOpacity(0.15), // Inner light glow
+                blurRadius: 15,
+                spreadRadius: 2,
+                offset: const Offset(-8, -8),
               ),
-              _buildTextField(_departmentController, 'Department'),
-              _buildTextField(
-                _mobileController,
-                'Mobile Number',
-                validator: _phoneValidator,
-              ),
-              _buildTextField(
-                _parentContactController,
-                'Parent Contact',
-                validator: _phoneValidator,
-              ),
-              _buildImagePicker(),
-              const SizedBox(height: 16),
-              _buildActionButtons(),
             ],
+          ),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              children: [
+                Text(
+                  _editingStudentId == null ? "Add New Student" : "Edit Student Details",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    shadows: [Shadow(blurRadius: 5, color: Colors.black54)],
+                  ),
+                ),
+                const SizedBox(height: 30),
+                _buildTextField(_nameController, 'Full Name', Icons.person),
+                _buildTextField(_envNumberController, 'Enrollment Number', Icons.format_list_numbered),
+                _buildTextField(
+                  _emailController,
+                  'Email',
+                  Icons.email,
+                  validator: _emailValidator,
+                ),
+                _buildTextField(
+                  _passwordController,
+                  'Password',
+                  Icons.lock,
+                  obscureText: true,
+                ),
+                _buildTextField(_departmentController, 'Department', Icons.school),
+                _buildTextField(
+                  _mobileController,
+                  'Mobile Number',
+                  Icons.phone,
+                  keyboardType: TextInputType.phone,
+                  validator: _phoneValidator,
+                ),
+                _buildTextField(
+                  _parentContactController,
+                  'Parent Contact',
+                  Icons.contacts,
+                  keyboardType: TextInputType.phone,
+                  validator: _phoneValidator,
+                ),
+                const SizedBox(height: 10),
+                _buildImagePicker(),
+                const SizedBox(height: 20),
+                _buildActionButtons(),
+              ],
+            ),
           ),
         ),
       ),
@@ -294,23 +433,91 @@ class _ManageStudentDetailsScreenState
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
-        ElevatedButton(
-          onPressed: _saveStudent,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.indigo[700],
-            foregroundColor: Colors.white,
-          ),
-          child: Text(
-            _editingStudentId == null ? 'Add Student' : 'Update Student',
+        Expanded(
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 5),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(30),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.blue.shade800.withOpacity(0.4),
+                  blurRadius: 20,
+                  spreadRadius: 2,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(30),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+                child: ElevatedButton(
+                  onPressed: _saveStudent,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue.shade600.withOpacity(0.5),
+                    padding: const EdgeInsets.symmetric(vertical: 15),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                      side: BorderSide(color: Colors.white.withOpacity(0.3), width: 1.5),
+                    ),
+                    elevation: 0,
+                  ),
+                  child: Text(
+                    _editingStudentId == null ? 'Add Student' : 'Update Student',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      shadows: [Shadow(blurRadius: 5, color: Colors.black54)],
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ),
         ),
-        ElevatedButton(
-          onPressed: _clearForm,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.grey[400],
-            foregroundColor: Colors.black,
+        Expanded(
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 5),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(30),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.shade800.withOpacity(0.4),
+                  blurRadius: 20,
+                  spreadRadius: 2,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(30),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+                child: ElevatedButton(
+                  onPressed: _clearForm,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.grey.shade600.withOpacity(0.5),
+                    padding: const EdgeInsets.symmetric(vertical: 15),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                      side: BorderSide(color: Colors.white.withOpacity(0.3), width: 1.5),
+                    ),
+                    elevation: 0,
+                  ),
+                  child: const Text(
+                    'Clear',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      shadows: [Shadow(blurRadius: 5, color: Colors.black54)],
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ),
-          child: const Text('Clear'),
         ),
       ],
     );
@@ -318,8 +525,10 @@ class _ManageStudentDetailsScreenState
 
   Widget _buildTextField(
     TextEditingController controller,
-    String label, {
+    String label,
+    IconData icon, { // Added IconData parameter
     bool obscureText = false,
+    TextInputType keyboardType = TextInputType.text, // Added keyboardType
     String? Function(String?)? validator,
   }) {
     return Padding(
@@ -327,9 +536,26 @@ class _ManageStudentDetailsScreenState
       child: TextFormField(
         controller: controller,
         obscureText: obscureText,
+        keyboardType: keyboardType, // Apply keyboardType
+        style: const TextStyle(color: Colors.white, fontSize: 16),
         decoration: InputDecoration(
+          prefixIcon: Icon(icon, color: Colors.lightBlueAccent, size: 24), // Use icon
           labelText: label,
-          border: const OutlineInputBorder(),
+          labelStyle: TextStyle(color: Colors.white.withOpacity(0.8)),
+          filled: true,
+          fillColor: Colors.white.withOpacity(0.08),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(15),
+            borderSide: BorderSide(color: Colors.white.withOpacity(0.3)),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(15),
+            borderSide: BorderSide(color: Colors.white.withOpacity(0.3), width: 1.5),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(15),
+            borderSide: const BorderSide(color: Colors.lightBlueAccent, width: 2.5),
+          ),
         ),
         validator:
             validator ??
@@ -342,104 +568,175 @@ class _ManageStudentDetailsScreenState
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            ElevatedButton(
-              onPressed: _pickImage,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.indigo[700],
-                foregroundColor: Colors.white,
+        Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(15),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.blue.shade800.withOpacity(0.4),
+                blurRadius: 15,
+                spreadRadius: 1,
+                offset: const Offset(0, 5),
               ),
-              child: const Text('Select Image'),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(15),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+              child: ElevatedButton.icon(
+                onPressed: _pickImage,
+                icon: const Icon(Icons.image, color: Colors.white),
+                label: const Text('Select Image', style: TextStyle(color: Colors.white, fontSize: 16)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue.shade600.withOpacity(0.5), // Match button style
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
+                    side: BorderSide(color: Colors.white.withOpacity(0.3), width: 1.5),
+                  ),
+                  elevation: 0,
+                ),
+              ),
             ),
-            const SizedBox(width: 10),
-            if (_selectedImage != null && !kIsWeb)
-              Image.file(
-                _selectedImage!,
-                width: 50,
-                height: 50,
-                fit: BoxFit.cover,
-              ),
-            if (_selectedImageBytes != null && kIsWeb)
-              Image.memory(
-                _selectedImageBytes!,
-                width: 50,
-                height: 50,
-                fit: BoxFit.cover,
-              ),
-          ],
+          ),
         ),
+        const SizedBox(height: 10),
+        if (_selectedImage != null || _selectedImageBytes != null)
+          ClipRRect(
+            borderRadius: BorderRadius.circular(15),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 5.0, sigmaY: 5.0),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(15),
+                  border: Border.all(color: Colors.white.withOpacity(0.2)),
+                ),
+                padding: const EdgeInsets.all(5),
+                child: kIsWeb
+                    ? Image.memory(
+                        _selectedImageBytes!,
+                        width: 100,
+                        height: 100,
+                        fit: BoxFit.cover,
+                      )
+                    : Image.file(
+                        _selectedImage!,
+                        width: 100,
+                        height: 100,
+                        fit: BoxFit.cover,
+                      ),
+              ),
+            ),
+          ),
         const SizedBox(height: 8),
-        const Text(
+        Text(
           'Please upload a clear face image for recognition',
-          style: TextStyle(fontSize: 12, color: Colors.grey),
+          style: TextStyle(fontSize: 12, color: Colors.white.withOpacity(0.7)),
         ),
       ],
     );
   }
 
   Widget _buildStudentTable() {
-    return Card(
-      elevation: 8,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child:
-            _students.isEmpty
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(25),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 20.0, sigmaY: 20.0),
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                Colors.blueGrey.shade300.withOpacity(0.15),
+                Colors.blueGrey.shade700.withOpacity(0.15)
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(25),
+            border: Border.all(color: Colors.white.withOpacity(0.3)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.3),
+                blurRadius: 30,
+                spreadRadius: 5,
+                offset: const Offset(10, 10),
+              ),
+              BoxShadow(
+                color: Colors.white.withOpacity(0.15),
+                blurRadius: 15,
+                spreadRadius: 2,
+                offset: const Offset(-8, -8),
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: _students.isEmpty
                 ? const Center(
-                  child: Text(
-                    'No student details available!',
-                    style: TextStyle(fontSize: 18),
-                  ),
-                )
+                    child: Text(
+                      'No student details available!',
+                      style: TextStyle(fontSize: 18, color: Colors.white70),
+                    ),
+                  )
                 : SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: DataTable(
-                    columns: const [
-                      DataColumn(label: Text('Name')),
-                      DataColumn(label: Text('Env Number')),
-                      DataColumn(label: Text('Email')),
-                      DataColumn(label: Text('Department')),
-                      DataColumn(label: Text('Mobile')),
-                      DataColumn(label: Text('Parent Contact')),
-                      DataColumn(label: Text('Actions')),
-                    ],
-                    rows:
-                        _students.map((student) {
-                          return DataRow(
-                            cells: [
-                              DataCell(Text(student['name'] ?? '')),
-                              DataCell(Text(student['envNumber'] ?? '')),
-                              DataCell(Text(student['email'] ?? '')),
-                              DataCell(Text(student['department'] ?? '')),
-                              DataCell(Text(student['mobile'] ?? '')),
-                              DataCell(Text(student['parentContact'] ?? '')),
-                              DataCell(
-                                Row(
-                                  children: [
-                                    IconButton(
-                                      icon: Icon(
-                                        Icons.edit,
-                                        color: Colors.indigo[700],
-                                      ),
-                                      onPressed: () => _editStudent(student),
+                    scrollDirection: Axis.horizontal,
+                    child: DataTable(
+                      headingRowColor: MaterialStateProperty.resolveWith<Color?>(
+                          (Set<MaterialState> states) => Colors.blue.shade800.withOpacity(0.6)),
+                      dataRowColor: MaterialStateProperty.resolveWith<Color?>(
+                          (Set<MaterialState> states) => Colors.white.withOpacity(0.05)),
+                      columnSpacing: 25,
+                      dataRowHeight: 60,
+                      headingRowHeight: 70,
+                      columns: const [
+                        DataColumn(label: Text('Name', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15))),
+                        DataColumn(label: Text('Env Number', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15))),
+                        DataColumn(label: Text('Email', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15))),
+                        DataColumn(label: Text('Department', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15))),
+                        DataColumn(label: Text('Mobile', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15))),
+                        DataColumn(label: Text('Parent Contact', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15))),
+                        DataColumn(label: Text('Actions', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15))),
+                      ],
+                      rows: _students.map((student) {
+                        return DataRow(
+                          cells: [
+                            DataCell(Text(student['name'] ?? '', style: TextStyle(color: Colors.white70))),
+                            DataCell(Text(student['envNumber'] ?? '', style: TextStyle(color: Colors.white70))),
+                            DataCell(Text(student['email'] ?? '', style: TextStyle(color: Colors.white70))),
+                            DataCell(Text(student['department'] ?? '', style: TextStyle(color: Colors.white70))),
+                            DataCell(Text(student['mobile'] ?? '', style: TextStyle(color: Colors.white70))),
+                            DataCell(Text(student['parentContact'] ?? '', style: TextStyle(color: Colors.white70))),
+                            DataCell(
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.edit,
+                                      color: Colors.lightBlueAccent,
                                     ),
-                                    IconButton(
-                                      icon: Icon(
-                                        Icons.delete,
-                                        color: Colors.indigo[700],
-                                      ),
-                                      onPressed:
-                                          () => _deleteStudent(student['_id']),
+                                    onPressed: () => _editStudent(student),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.delete,
+                                      color: Colors.redAccent,
                                     ),
-                                  ],
-                                ),
+                                    onPressed: () => _deleteStudent(student['_id']),
+                                  ),
+                                ],
                               ),
-                            ],
-                          );
-                        }).toList(),
+                            ),
+                          ],
+                        );
+                      }).toList(),
+                    ),
                   ),
-                ),
+          ),
+        ),
       ),
     );
   }

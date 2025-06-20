@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'dart:ui'; // Required for ImageFilter for blur effects
 
 const String busApiUrl = "http://192.168.31.104:5000/api/buses";
 const String driverApiUrl = "http://192.168.31.104:5000/api/drivers";
@@ -56,7 +57,17 @@ class _ManageBusDetailsScreenState extends State<ManageBusDetailsScreen> {
       if (response.statusCode == 200) {
         setState(() {
           _busList = List<Map<String, dynamic>>.from(
-            json.decode(response.body),
+            json.decode(response.body).map((bus) {
+              // Ensure driverId is processed as an object or string
+              final driverId = bus['driverId'];
+              if (driverId is Map && driverId['_id'] != null) {
+                bus['driverId'] =
+                    driverId['_id'].toString(); // Normalize to string
+              } else if (driverId is String) {
+                bus['driverId'] = driverId; // Already a string
+              }
+              return bus;
+            }),
           );
           debugPrint('Bus list loaded: ${_busList.length} buses');
         });
@@ -73,7 +84,7 @@ class _ManageBusDetailsScreenState extends State<ManageBusDetailsScreen> {
     try {
       final response = await http.get(Uri.parse(driverApiUrl));
       debugPrint(
-        'Driver API response: ${response.statusCode} ${response.body}',
+          'Driver API response: ${response.statusCode} ${response.body}',
       );
       if (response.statusCode == 200) {
         final List<dynamic> drivers = json.decode(response.body);
@@ -83,7 +94,7 @@ class _ManageBusDetailsScreenState extends State<ManageBusDetailsScreen> {
                 final driver = entry.value as Map<String, dynamic>;
                 if (driver['_id'] == null || driver['_id'].toString().isEmpty) {
                   debugPrint(
-                    'Driver with missing _id at index ${entry.key}: $driver',
+                      'Driver with missing _id at index ${entry.key}: $driver',
                   );
                 }
                 return driver;
@@ -118,7 +129,7 @@ class _ManageBusDetailsScreenState extends State<ManageBusDetailsScreen> {
             body: json.encode(busDetails),
           );
           debugPrint(
-            'Add bus response: ${response.statusCode} ${response.body}',
+              'Add bus response: ${response.statusCode} ${response.body}',
           );
           if (response.statusCode != 201) {
             throw Exception('Failed to add bus: ${response.body}');
@@ -132,7 +143,7 @@ class _ManageBusDetailsScreenState extends State<ManageBusDetailsScreen> {
             body: json.encode(busDetails),
           );
           debugPrint(
-            'Update bus response: ${response.statusCode} ${response.body}',
+              'Update bus response: ${response.statusCode} ${response.body}',
           );
           if (response.statusCode != 200) {
             throw Exception('Failed to update bus: ${response.body}');
@@ -145,28 +156,49 @@ class _ManageBusDetailsScreenState extends State<ManageBusDetailsScreen> {
       } catch (e) {
         debugPrint('Error saving bus: $e');
         _showSnackBar(
-          'Failed to save bus: ${e.toString().replaceFirst('Exception: ', '')}',
+            'Failed to save bus: ${e.toString().replaceFirst('Exception: ', '')}',
         );
       }
     }
   }
 
   Future<void> _deleteBus(int index) async {
-    try {
-      String busId = _busList[index]['_id'];
-      final response = await http.delete(Uri.parse('$busApiUrl/$busId'));
-      debugPrint(
-        'Delete bus response: ${response.statusCode} ${response.body}',
-      );
-      if (response.statusCode != 200) {
-        throw Exception('Failed to delete bus: ${response.body}');
-      }
-      _showSnackBar('Bus deleted successfully!');
-      _fetchBuses();
-    } catch (e) {
-      debugPrint('Error deleting bus: $e');
-      _showSnackBar('Failed to delete bus: $e');
-    }
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Confirm Deletion'),
+          content: const Text('Are you sure you want to delete this bus record?'),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.of(context).pop(); // Dismiss dialog
+                try {
+                  String busId = _busList[index]['_id'];
+                  final response = await http.delete(Uri.parse('$busApiUrl/$busId'));
+                  debugPrint(
+                      'Delete bus response: ${response.statusCode} ${response.body}',
+                  );
+                  if (response.statusCode != 200) {
+                    throw Exception('Failed to delete bus: ${response.body}');
+                  }
+                  _showSnackBar('Bus deleted successfully!');
+                  _fetchBuses();
+                } catch (e) {
+                  debugPrint('Error deleting bus: $e');
+                  _showSnackBar('Failed to delete bus: $e');
+                }
+              },
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _editBus(int index) {
@@ -179,7 +211,7 @@ class _ManageBusDetailsScreenState extends State<ManageBusDetailsScreen> {
       _isActive = bus['status'] == 'Active';
       _selectedBusIndex = index;
       debugPrint(
-        'Editing bus with driverId: $_selectedDriverId, bus: ${bus['busNumber']}',
+          'Editing bus with driverId: $_selectedDriverId, bus: ${bus['busNumber']}',
       );
     });
   }
@@ -190,7 +222,9 @@ class _ManageBusDetailsScreenState extends State<ManageBusDetailsScreen> {
     _capacityController.clear();
     _selectedDriverId = null;
     _isActive = true;
-    setState(() {});
+    setState(() {
+      _selectedBusIndex = null; // Clear selected index when clearing form
+    });
   }
 
   void _showSnackBar(String message) {
@@ -200,20 +234,35 @@ class _ManageBusDetailsScreenState extends State<ManageBusDetailsScreen> {
   }
 
   Widget _buildTextField(
-    TextEditingController controller,
-    String label,
-    IconData icon, [
-    TextInputType inputType = TextInputType.text,
-  ]) {
+      TextEditingController controller,
+      String label,
+      IconData icon, [
+        TextInputType inputType = TextInputType.text,
+      ]) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: TextFormField(
         controller: controller,
         keyboardType: inputType,
+        style: const TextStyle(color: Colors.white, fontSize: 16),
         decoration: InputDecoration(
-          prefixIcon: Icon(icon, color: Colors.deepPurple),
+          prefixIcon: Icon(icon, color: Colors.lightBlueAccent, size: 24),
           labelText: label,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          labelStyle: TextStyle(color: Colors.white.withOpacity(0.8)),
+          filled: true,
+          fillColor: Colors.white.withOpacity(0.08),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(15),
+            borderSide: BorderSide(color: Colors.white.withOpacity(0.3)),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(15),
+            borderSide: BorderSide(color: Colors.white.withOpacity(0.3), width: 1.5),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(15),
+            borderSide: const BorderSide(color: Colors.lightBlueAccent, width: 2.5),
+          ),
         ),
         validator: (value) {
           if (value == null || value.isEmpty) {
@@ -239,176 +288,257 @@ class _ManageBusDetailsScreenState extends State<ManageBusDetailsScreen> {
     if (_selectedDriverId != null &&
         !uniqueDrivers.containsKey(_selectedDriverId)) {
       debugPrint(
-        'Invalid _selectedDriverId: $_selectedDriverId, resetting to null',
+          'Invalid _selectedDriverId: $_selectedDriverId, resetting to null',
       );
       _selectedDriverId = null;
     }
 
-    return DropdownButtonFormField<String>(
-      decoration: InputDecoration(
-        labelText: 'Assign Driver',
-        prefixIcon: const Icon(Icons.person, color: Colors.deepPurple),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(
-            color: Color.fromARGB(255, 202, 205, 205),
-            width: 1.5,
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: DropdownButtonFormField<String>(
+        dropdownColor: Colors.blue.shade800.withOpacity(0.7), // Dropdown background color
+        style: TextStyle(color: Colors.white, fontSize: 16), // Items text style
+        decoration: InputDecoration(
+          labelText: 'Assign Driver',
+          labelStyle: TextStyle(color: Colors.white.withOpacity(0.8)),
+          prefixIcon: const Icon(Icons.person, color: Colors.lightBlueAccent, size: 24),
+          filled: true,
+          fillColor: Colors.white.withOpacity(0.08),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(15),
+            borderSide: BorderSide(color: Colors.white.withOpacity(0.3)),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(15),
+            borderSide: BorderSide(color: Colors.white.withOpacity(0.3), width: 1.5),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(15),
+            borderSide: const BorderSide(color: Colors.lightBlueAccent, width: 2.5),
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+            vertical: 12,
+            horizontal: 16,
           ),
         ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.grey, width: 1.0),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(
-            color: Color.fromARGB(255, 202, 205, 205),
-            width: 2.0,
+        value: _selectedDriverId,
+        items: uniqueDrivers.isNotEmpty
+            ? uniqueDrivers.values.map((driver) {
+          final id = driver['_id']?.toString() ?? '';
+          return DropdownMenuItem<String>(
+            value: id,
+            child: Text(driver['name'] ?? 'Unknown'),
+          );
+        }).toList()
+            : [
+          const DropdownMenuItem<String>(
+            value: '',
+            child: Text('No drivers available', style: TextStyle(color: Colors.white70)),
+            enabled: false,
           ),
-        ),
-        contentPadding: const EdgeInsets.symmetric(
-          vertical: 12,
-          horizontal: 16,
-        ),
+        ],
+        validator: (value) {
+          if (value == null || value.isEmpty) {
+            return 'Please select a driver';
+          }
+          return null;
+        },
+        onChanged: uniqueDrivers.isNotEmpty
+            ? (value) => setState(() {
+          _selectedDriverId = value;
+          debugPrint('Selected driverId: $value');
+        })
+            : null,
       ),
-      value: _selectedDriverId,
-      items:
-          uniqueDrivers.isNotEmpty
-              ? uniqueDrivers.values.map((driver) {
-                final id = driver['_id']?.toString() ?? '';
-                return DropdownMenuItem<String>(
-                  value: id,
-                  child: Text(driver['name'] ?? 'Unknown'),
-                );
-              }).toList()
-              : [
-                DropdownMenuItem<String>(
-                  value: '',
-                  child: Text('No drivers available'),
-                  enabled: false,
-                ),
-              ],
-      validator: (value) {
-        if (value == null || value.isEmpty) {
-          return 'Please select a driver';
-        }
-        return null;
-      },
-      onChanged:
-          uniqueDrivers.isNotEmpty
-              ? (value) => setState(() {
-                _selectedDriverId = value;
-                debugPrint('Selected driverId: $value');
-              })
-              : null,
     );
   }
 
   Widget _buildStatusToggle() {
-    return SwitchListTile(
-      title: const Text('Active'),
-      value: _isActive,
-      onChanged: (value) => setState(() => _isActive = value),
-      activeColor: Colors.deepPurple,
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(15),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Colors.white.withOpacity(0.08),
+                  Colors.blue.shade300.withOpacity(0.08)
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
+            ),
+            child: SwitchListTile(
+              title: const Text(
+                'Bus Status: Active',
+                style: TextStyle(color: Colors.white, fontSize: 16),
+              ),
+              value: _isActive,
+              onChanged: (value) => setState(() => _isActive = value),
+              activeColor: Colors.lightBlueAccent,
+              inactiveTrackColor: Colors.grey.shade700.withOpacity(0.5),
+              activeTrackColor: Colors.lightBlueAccent.withOpacity(0.5),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            ),
+          ),
+        ),
+      ),
     );
   }
 
   Widget _buildActionButtons() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: [
-        ElevatedButton(
-          onPressed: _addOrUpdateBus,
-          style: ElevatedButton.styleFrom(
-            foregroundColor: Colors.deepPurple,
-            backgroundColor: Colors.white,
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 20),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          Expanded(
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 5),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(30),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.blue.shade800.withOpacity(0.4),
+                    blurRadius: 20,
+                    spreadRadius: 2,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(30),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+                  child: ElevatedButton(
+                    onPressed: _addOrUpdateBus,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue.shade600.withOpacity(0.5),
+                      padding: const EdgeInsets.symmetric(vertical: 15),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                        side: BorderSide(color: Colors.white.withOpacity(0.3), width: 1.5),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: Text(
+                      _selectedBusIndex == null ? 'Add Bus' : 'Update Bus',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        shadows: [Shadow(blurRadius: 5, color: Colors.black54)],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ),
-          child: Text(_selectedBusIndex == null ? 'Add Bus' : 'Update Bus'),
-        ),
-        ElevatedButton(
-          onPressed: _clearForm,
-          style: ElevatedButton.styleFrom(
-            foregroundColor: Colors.deepPurple,
-            backgroundColor: Colors.white,
+          Expanded(
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 5),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(30),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.shade800.withOpacity(0.4),
+                    blurRadius: 20,
+                    spreadRadius: 2,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(30),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+                  child: ElevatedButton(
+                    onPressed: _clearForm,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.grey.shade600.withOpacity(0.5),
+                      padding: const EdgeInsets.symmetric(vertical: 15),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                        side: BorderSide(color: Colors.white.withOpacity(0.3), width: 1.5),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: const Text(
+                      'Clear',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        shadows: [Shadow(blurRadius: 5, color: Colors.black54)],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ),
-          child: const Text('Clear'),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color.fromARGB(255, 251, 252, 253),
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        backgroundColor: Colors.deepPurple,
         title: const Text(
           'Manage Bus Details',
           style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
+        backgroundColor: Colors.blue.shade800.withOpacity(0.3),
         centerTitle: true,
+        elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
+        flexibleSpace: ClipRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            child: Container(
+              color: Colors.transparent,
+            ),
+          ),
+        ),
       ),
-      body:
-          _isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: SingleChildScrollView(
-                  child: Column(
-                    children: [
-                      _buildFormCard(),
-                      const SizedBox(height: 30),
-                      _buildBusTable(),
-                    ],
-                  ),
-                ),
-              ),
-    );
-  }
-
-  Widget _buildFormCard() {
-    return Card(
-      color: Colors.white,
-      elevation: 10,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: const BorderSide(color: Colors.deepPurple, width: 2),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Form(
-          key: _formKey,
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Colors.blue.shade900,
+              Colors.blue.shade700,
+              Colors.blue.shade500
+            ],
+            stops: const [0.0, 0.5, 1.0],
+          ),
+        ),
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator(color: Colors.white))
+            : SingleChildScrollView(
+          padding: EdgeInsets.only(
+            top: AppBar().preferredSize.height + MediaQuery.of(context).padding.top + 16,
+            left: 16.0,
+            right: 16.0,
+            bottom: 16.0,
+          ),
           child: Column(
             children: [
-              _buildTextField(
-                _busNumberController,
-                'Bus Number',
-                Icons.directions_bus,
-              ),
-              TextFormField(
-                initialValue: 'Uka Tarsadia University',
-                readOnly: true,
-                decoration: InputDecoration(
-                  prefixIcon: Icon(Icons.location_on, color: Colors.deepPurple),
-                  labelText: 'From',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-              SizedBox(height: 8),
-              _buildTextField(_toController, 'To', Icons.location_on),
-              _buildTextField(
-                _capacityController,
-                'Capacity',
-                Icons.people,
-                TextInputType.number,
-              ),
-              _buildDriverDropdown(),
-              _buildStatusToggle(),
-              _buildActionButtons(),
+              _buildFormCard(),
+              const SizedBox(height: 30),
+              _buildBusTable(),
             ],
           ),
         ),
@@ -416,79 +546,226 @@ class _ManageBusDetailsScreenState extends State<ManageBusDetailsScreen> {
     );
   }
 
-  Widget _buildBusTable() {
-    return Card(
-      elevation: 8,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child:
-            _busList.isEmpty
-                ? const Center(
-                  child: Text(
-                    'No bus details available!',
-                    style: TextStyle(fontSize: 18),
+  Widget _buildFormCard() {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(25),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 20.0, sigmaY: 20.0),
+        child: Container(
+          padding: const EdgeInsets.all(25),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                Colors.blueGrey.shade300.withOpacity(0.15),
+                Colors.blueGrey.shade700.withOpacity(0.15)
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(25),
+            border: Border.all(color: Colors.white.withOpacity(0.3)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.3),
+                blurRadius: 30,
+                spreadRadius: 5,
+                offset: const Offset(10, 10),
+              ),
+              BoxShadow(
+                color: Colors.white.withOpacity(0.15),
+                blurRadius: 15,
+                spreadRadius: 2,
+                offset: const Offset(-8, -8),
+              ),
+            ],
+          ),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              children: [
+                Text(
+                  _selectedBusIndex == null ? "Add New Bus" : "Edit Bus Details",
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    shadows: [Shadow(blurRadius: 5, color: Colors.black54)],
                   ),
-                )
-                : SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: DataTable(
-                    columns: const [
-                      DataColumn(label: Text('Bus Number')),
-                      DataColumn(label: Text('From')),
-                      DataColumn(label: Text('To')),
-                      DataColumn(label: Text('Capacity')),
-                      DataColumn(label: Text('Driver')),
-                      DataColumn(label: Text('Status')),
-                      DataColumn(label: Text('Actions')),
-                    ],
-                    rows:
-                        _busList.asMap().entries.map((entry) {
-                          int index = entry.key;
-                          var bus = entry.value;
-                          final busDriverId = bus['driverId']?.toString();
-                          final driver = _driverList.firstWhere(
-                            (d) => d['_id']?.toString() == busDriverId,
-                            orElse: () {
-                              debugPrint(
-                                'No driver found for bus driverId: $busDriverId, bus: ${bus['busNumber']}',
-                              );
-                              return {'name': 'Unknown'};
-                            },
-                          );
-                          return DataRow(
-                            cells: [
-                              DataCell(Text(bus['busNumber'] ?? '')),
-                              DataCell(Text(bus['from'] ?? '')),
-                              DataCell(Text(bus['to'] ?? '')),
-                              DataCell(Text((bus['capacity'] ?? 0).toString())),
-                              DataCell(Text(driver['name'] ?? 'Unknown')),
-                              DataCell(Text(bus['status'] ?? '')),
-                              DataCell(
-                                Row(
-                                  children: [
-                                    IconButton(
-                                      icon: const Icon(
-                                        Icons.edit,
-                                        color: Colors.deepPurple,
-                                      ),
-                                      onPressed: () => _editBus(index),
-                                    ),
-                                    IconButton(
-                                      icon: const Icon(
-                                        Icons.delete,
-                                        color: Colors.deepPurple,
-                                      ),
-                                      onPressed: () => _deleteBus(index),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          );
-                        }).toList(),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 30),
+                _buildTextField(
+                  _busNumberController,
+                  'Bus Number',
+                  Icons.directions_bus,
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: TextFormField(
+                    initialValue: 'Uka Tarsadia University',
+                    readOnly: true,
+                    style: const TextStyle(color: Colors.white, fontSize: 16),
+                    decoration: InputDecoration(
+                      prefixIcon: Icon(Icons.location_on, color: Colors.lightBlueAccent, size: 24),
+                      labelText: 'From',
+                      labelStyle: TextStyle(color: Colors.white.withOpacity(0.8)),
+                      filled: true,
+                      fillColor: Colors.white.withOpacity(0.08),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(15),
+                        borderSide: BorderSide(color: Colors.white.withOpacity(0.3)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(15),
+                        borderSide: BorderSide(color: Colors.white.withOpacity(0.3), width: 1.5),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(15),
+                        borderSide: const BorderSide(color: Colors.lightBlueAccent, width: 2.5),
+                      ),
+                    ),
                   ),
                 ),
+                _buildTextField(_toController, 'To', Icons.location_on),
+                _buildTextField(
+                  _capacityController,
+                  'Capacity',
+                  Icons.people,
+                  TextInputType.number,
+                ),
+                _buildDriverDropdown(),
+                _buildStatusToggle(),
+                _buildActionButtons(),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBusTable() {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(25),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 20.0, sigmaY: 20.0),
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                Colors.blueGrey.shade300.withOpacity(0.15),
+                Colors.blueGrey.shade700.withOpacity(0.15)
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(25),
+            border: Border.all(color: Colors.white.withOpacity(0.3)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.3),
+                blurRadius: 30,
+                spreadRadius: 5,
+                offset: const Offset(10, 10),
+              ),
+              BoxShadow(
+                color: Colors.white.withOpacity(0.15),
+                blurRadius: 15,
+                spreadRadius: 2,
+                offset: const Offset(-8, -8),
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: _busList.isEmpty
+                ? const Center(
+              child: Text(
+                'No bus details available!',
+                style: TextStyle(fontSize: 18, color: Colors.white70),
+              ),
+            )
+                : SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: DataTable(
+                headingRowColor: MaterialStateProperty.resolveWith<Color?>(
+                        (Set<MaterialState> states) => Colors.blue.shade800.withOpacity(0.6)), // Header background
+                dataRowColor: MaterialStateProperty.resolveWith<Color?>(
+                        (Set<MaterialState> states) => Colors.white.withOpacity(0.05)), // Row background
+                columnSpacing: 30, // Increase column spacing
+                dataRowHeight: 60, // Increase row height
+                headingRowHeight: 70, // Increase heading row height
+                columns: const [
+                  DataColumn(label: Text('Bus Number', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16))),
+                  DataColumn(label: Text('From', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16))),
+                  DataColumn(label: Text('To', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16))),
+                  DataColumn(label: Text('Capacity', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16))),
+                  DataColumn(label: Text('Driver', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16))),
+                  DataColumn(label: Text('Status', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16))),
+                  DataColumn(label: Text('Actions', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16))),
+                ],
+                rows: _busList.asMap().entries.map((entry) {
+                  int index = entry.key;
+                  var bus = entry.value;
+                  final busDriverId =
+                      bus['driverId'] is Map
+                          ? bus['driverId']['_id'].toString()
+                          : bus['driverId'].toString();
+                  final driverName =
+                      bus['driverId'] is Map
+                          ? bus['driverId']['name']
+                          : _driverList.firstWhere(
+                        (d) => d['_id']?.toString() == busDriverId,
+                        orElse: () => {'name': 'Unknown'},
+                      )['name'];
+                  return DataRow(
+                    cells: [
+                      DataCell(Text(bus['busNumber'] ?? '', style: TextStyle(color: Colors.white70))),
+                      DataCell(Text(bus['from'] ?? '', style: TextStyle(color: Colors.white70))),
+                      DataCell(Text(bus['to'] ?? '', style: TextStyle(color: Colors.white70))),
+                      DataCell(Text((bus['capacity'] ?? 0).toString(), style: TextStyle(color: Colors.white70))),
+                      DataCell(Text(driverName ?? 'Unknown', style: TextStyle(color: Colors.white70))),
+                      DataCell(
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: (bus['status'] == 'Active' ? Colors.green : Colors.red).withOpacity(0.6),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            bus['status'] ?? '',
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ),
+                      DataCell(
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(
+                                Icons.edit,
+                                color: Colors.lightBlueAccent, // Blue icon
+                              ),
+                              onPressed: () => _editBus(index),
+                            ),
+                            IconButton(
+                              icon: const Icon(
+                                Icons.delete,
+                                color: Colors.redAccent, // Red icon
+                              ),
+                              onPressed: () => _deleteBus(index),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
