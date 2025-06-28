@@ -89,10 +89,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
       if (query.isEmpty) {
         _filteredFeeHistory = _allFeeHistory;
       } else {
-        _filteredFeeHistory = _allFeeHistory
-            .where((fee) =>
-                fee.studentName.toLowerCase().contains(query.toLowerCase()))
-            .toList();
+        _filteredFeeHistory =
+            _allFeeHistory
+                .where(
+                  (fee) => fee.studentName.toLowerCase().contains(
+                    query.toLowerCase(),
+                  ),
+                )
+                .toList();
       }
     });
   }
@@ -108,14 +112,16 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
     try {
       final response = await http.get(
-        Uri.parse('http://192.168.31.104:5000/api/fees/all'), // Fetch all fees
+        Uri.parse('http://172.20.10.9:5000/api/fees/all'), // Fetch all fees
       );
 
       if (response.statusCode == 200) {
         final List<dynamic> responseData = json.decode(response.body);
         setState(() {
-          _allFeeHistory = responseData.map((json) => Fee.fromJson(json)).toList();
-          _filteredFeeHistory = _allFeeHistory; // Initially show all fetched data
+          _allFeeHistory =
+              responseData.map((json) => Fee.fromJson(json)).toList();
+          _filteredFeeHistory =
+              _allFeeHistory; // Initially show all fetched data
           _isLoading = false;
         });
 
@@ -138,7 +144,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
             textColor: Colors.white,
             fontSize: 14.0,
           );
-          debugPrint('Info: Fee history loaded successfully. Found ${_allFeeHistory.length} records.');
+          debugPrint(
+            'Info: Fee history loaded successfully. Found ${_allFeeHistory.length} records.',
+          );
         }
       } else {
         setState(() {
@@ -194,9 +202,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
         flexibleSpace: ClipRect(
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-            child: Container(
-              color: Colors.transparent,
-            ),
+            child: Container(color: Colors.transparent),
           ),
         ),
       ),
@@ -247,17 +253,28 @@ class _ReportsScreenState extends State<ReportsScreen> {
         textInputAction: TextInputAction.search, // Show search icon on keyboard
         decoration: InputDecoration(
           hintText: 'Search student by name...',
-          hintStyle: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 16 + 2),
-          prefixIcon: Icon(Icons.search, color: Colors.white.withOpacity(0.8), size: 28),
-          suffixIcon: _searchController.text.isNotEmpty
-              ? IconButton(
-                  icon: Icon(Icons.clear, color: Colors.white.withOpacity(0.8)),
-                  onPressed: () {
-                    _searchController.clear();
-                    _filterFeeHistory(''); // Show all results when cleared
-                  },
-                )
-              : null,
+          hintStyle: TextStyle(
+            color: Colors.white.withOpacity(0.6),
+            fontSize: 16 + 2,
+          ),
+          prefixIcon: Icon(
+            Icons.search,
+            color: Colors.white.withOpacity(0.8),
+            size: 28,
+          ),
+          suffixIcon:
+              _searchController.text.isNotEmpty
+                  ? IconButton(
+                    icon: Icon(
+                      Icons.clear,
+                      color: Colors.white.withOpacity(0.8),
+                    ),
+                    onPressed: () {
+                      _searchController.clear();
+                      _filterFeeHistory(''); // Show all results when cleared
+                    },
+                  )
+                  : null,
           border: InputBorder.none,
           focusedBorder: InputBorder.none,
           enabledBorder: InputBorder.none,
@@ -275,9 +292,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
           fontSize: 22 + 2,
           fontWeight: FontWeight.bold,
           color: Colors.white,
-          shadows: [
-            Shadow(blurRadius: 5, color: Colors.black54),
-          ],
+          shadows: [Shadow(blurRadius: 5, color: Colors.black54)],
         ),
       ),
     );
@@ -290,10 +305,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
     return ClipRRect(
       borderRadius: BorderRadius.circular(25),
       child: BackdropFilter(
-        filter: ImageFilter.blur(
-          sigmaX: 20.0,
-          sigmaY: 20.0,
-        ),
+        filter: ImageFilter.blur(sigmaX: 20.0, sigmaY: 20.0),
         child: Container(
           padding: padding ?? const EdgeInsets.all(25),
           decoration: BoxDecoration(
@@ -306,9 +318,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(25),
-            border: Border.all(
-              color: Colors.white.withOpacity(0.3),
-            ),
+            border: Border.all(color: Colors.white.withOpacity(0.3)),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.3),
@@ -365,12 +375,15 @@ class _ReportsScreenState extends State<ReportsScreen> {
       );
     } else {
       return Column(
-        children: _filteredFeeHistory
-            .map((fee) => Padding(
-                  padding: const EdgeInsets.only(bottom: 15.0),
-                  child: _buildFeeHistoryCard(fee),
-                ))
-            .toList(),
+        children:
+            _filteredFeeHistory
+                .map(
+                  (fee) => Padding(
+                    padding: const EdgeInsets.only(bottom: 15.0),
+                    child: _buildFeeHistoryCard(fee),
+                  ),
+                )
+                .toList(),
       );
     }
   }
@@ -403,31 +416,25 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 const SizedBox(height: 5),
                 Text(
                   "Enrollment: ${fee.envNumber}",
-                  style: TextStyle(
-                    fontSize: 14 + 2,
-                    color: Colors.white70,
-                  ),
+                  style: TextStyle(fontSize: 14 + 2, color: Colors.white70),
                 ),
                 Text(
                   "Route: ${fee.route}",
-                  style: TextStyle(
-                    fontSize: 14 + 2,
-                    color: Colors.white70,
-                  ),
+                  style: TextStyle(fontSize: 14 + 2, color: Colors.white70),
                 ),
                 Text(
                   "Amount: ₹${fee.feeAmount.toStringAsFixed(2)}",
-                  style: TextStyle(
-                    fontSize: 14 + 2,
-                    color: Colors.white70,
-                  ),
+                  style: TextStyle(fontSize: 14 + 2, color: Colors.white70),
                 ),
                 const SizedBox(height: 8),
                 Row(
                   children: [
                     Icon(
                       fee.isPaid ? Icons.check_circle : Icons.warning_rounded,
-                      color: fee.isPaid ? Colors.lightGreenAccent : Colors.redAccent,
+                      color:
+                          fee.isPaid
+                              ? Colors.lightGreenAccent
+                              : Colors.redAccent,
                       size: 20,
                     ),
                     const SizedBox(width: 8),
@@ -436,7 +443,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       style: TextStyle(
                         fontSize: 16 + 2,
                         fontWeight: FontWeight.bold,
-                        color: fee.isPaid ? Colors.lightGreenAccent : Colors.redAccent,
+                        color:
+                            fee.isPaid
+                                ? Colors.lightGreenAccent
+                                : Colors.redAccent,
                         shadows: [Shadow(blurRadius: 2, color: Colors.black54)],
                       ),
                     ),
@@ -446,20 +456,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   const SizedBox(height: 5),
                   Text(
                     "Paid On: ${DateFormat('dd MMM BCE').format(fee.paymentDate!)}",
-                    style: TextStyle(
-                      fontSize: 14 + 2,
-                      color: Colors.white70,
-                    ),
+                    style: TextStyle(fontSize: 14 + 2, color: Colors.white70),
                   ),
                 ],
                 if (fee.isPaid && fee.transactionId != null) ...[
                   const SizedBox(height: 5),
                   Text(
                     "Txn ID: ${fee.transactionId}",
-                    style: TextStyle(
-                      fontSize: 14 + 2,
-                      color: Colors.white70,
-                    ),
+                    style: TextStyle(fontSize: 14 + 2, color: Colors.white70),
                   ),
                 ],
               ],

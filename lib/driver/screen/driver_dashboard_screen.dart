@@ -37,7 +37,7 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
       // Fetch allocations to get total students
       final allocationResponse = await http.get(
         Uri.parse(
-          'http://192.168.31.104:5000/api/allocations/allocations/driver/${widget.driverId}',
+          'http://172.20.10.9:5000/api/allocations/allocations/driver/${widget.driverId}',
         ),
       );
       if (allocationResponse.statusCode == 200) {
@@ -51,7 +51,7 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
 
       // Fetch notifications for driver role
       final notificationResponse = await http.get(
-        Uri.parse('http://192.168.31.104:5000/api/notifications/view/Drivers'),
+        Uri.parse('http://172.20.10.9:5000/api/notifications/view/Drivers'),
       );
       if (notificationResponse.statusCode == 200) {
         final notifications = jsonDecode(notificationResponse.body) as List;
@@ -66,7 +66,7 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
 
       // Fetch driver email
       final driverResponse = await http.get(
-        Uri.parse('http://192.168.31.104:5000/api/drivers/${widget.driverId}'),
+        Uri.parse('http://172.20.10.9:5000/api/drivers/${widget.driverId}'),
       );
       if (driverResponse.statusCode == 200) {
         final driverData = jsonDecode(driverResponse.body);

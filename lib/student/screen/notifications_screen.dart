@@ -31,27 +31,35 @@ class _ViewNotificationsScreenState extends State<ViewNotificationsScreen> {
       errorMessage = '';
     });
     try {
-      final response = await http.get(
-        Uri.parse(
-          "http://192.168.31.104:5000/api/notifications/view/${widget.userRole}",
-        ),
-      ).timeout(const Duration(seconds: 15)); // Added timeout
+      final response = await http
+          .get(
+            Uri.parse(
+              "http://172.20.10.9:5000/api/notifications/view/${widget.userRole}",
+            ),
+          )
+          .timeout(const Duration(seconds: 15)); // Added timeout
 
       if (response.statusCode == 200) {
         final List<dynamic> fetchedNotifications = jsonDecode(response.body);
         setState(() {
           // Sort notifications by date in descending order (most recent first)
           // Safely parse date strings. If parsing fails, treat as a very old date (epoch).
-          notifications = fetchedNotifications.toList()
-            ..sort((a, b) {
-              DateTime dateA = DateTime.tryParse(a['date']?.toString() ?? '') ?? DateTime(0);
-              DateTime dateB = DateTime.tryParse(b['date']?.toString() ?? '') ?? DateTime(0);
-              return dateB.compareTo(dateA); // Descending order
-            });
+          notifications =
+              fetchedNotifications.toList()..sort((a, b) {
+                DateTime dateA =
+                    DateTime.tryParse(a['date']?.toString() ?? '') ??
+                    DateTime(0);
+                DateTime dateB =
+                    DateTime.tryParse(b['date']?.toString() ?? '') ??
+                    DateTime(0);
+                return dateB.compareTo(dateA); // Descending order
+              });
           isLoading = false;
         });
       } else {
-        print('API Error: Status=${response.statusCode}, Body=${response.body}');
+        print(
+          'API Error: Status=${response.statusCode}, Body=${response.body}',
+        );
         setState(() {
           errorMessage = 'Failed to load notifications: ${response.statusCode}';
           isLoading = false;
@@ -60,7 +68,8 @@ class _ViewNotificationsScreenState extends State<ViewNotificationsScreen> {
     } catch (e) {
       print('Error fetching notifications: $e');
       setState(() {
-        errorMessage = 'Failed to load notifications. Please check your network or try again later.';
+        errorMessage =
+            'Failed to load notifications. Please check your network or try again later.';
         isLoading = false;
       });
     }
@@ -69,13 +78,16 @@ class _ViewNotificationsScreenState extends State<ViewNotificationsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBodyBehindAppBar: true, // Extend body behind app bar for full gradient
+      extendBodyBehindAppBar:
+          true, // Extend body behind app bar for full gradient
       appBar: AppBar(
         title: const Text(
           "Notifications", // Simplified title
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.deepPurple.shade700.withOpacity(0.3), // Transparent app bar with blur
+        backgroundColor: Colors.deepPurple.shade700.withOpacity(
+          0.3,
+        ), // Transparent app bar with blur
         iconTheme: const IconThemeData(color: Colors.white),
         elevation: 0, // Remove shadow for flat look
         centerTitle: true,
@@ -96,56 +108,77 @@ class _ViewNotificationsScreenState extends State<ViewNotificationsScreen> {
             colors: [
               Colors.deepPurple.shade900,
               Colors.deepPurple.shade700,
-              Colors.deepPurple.shade500
+              Colors.deepPurple.shade500,
             ], // Richer gradient background
-            stops: const [0.0, 0.5, 1.0], // Adjusted stops for smoother transition
+            stops: const [
+              0.0,
+              0.5,
+              1.0,
+            ], // Adjusted stops for smoother transition
           ),
         ),
-        child: isLoading
-            ? const Center(
-                child: CircularProgressIndicator(color: Colors.white), // White loading indicator
-              )
-            : errorMessage.isNotEmpty
+        child:
+            isLoading
+                ? const Center(
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                  ), // White loading indicator
+                )
+                : errorMessage.isNotEmpty
                 ? Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Text(
-                        errorMessage,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 18, color: Colors.redAccent.shade100),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Text(
+                      errorMessage,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 18,
+                        color: Colors.redAccent.shade100,
                       ),
                     ),
-                  )
+                  ),
+                )
                 : notifications.isEmpty
-                    ? Center(
-                        child: Text(
-                          "No notifications available.",
-                          style: TextStyle(fontSize: 18, color: Colors.white70),
-                        ),
-                      )
-                    : ListView.builder(
-                        padding: EdgeInsets.only(top: AppBar().preferredSize.height + MediaQuery.of(context).padding.top + 16),
-                        itemCount: notifications.length,
-                        itemBuilder: (context, index) {
-                          final notification = notifications[index];
-                          // Parse date for consistent formatting and better display
-                          // Use a safe parse with fallback for display as well
-                          final DateTime notificationDate = DateTime.tryParse(notification['date']?.toString() ?? '') ?? DateTime.now();
-                          final String formattedDate = DateFormat('MMM dd, yyyy').format(notificationDate);
+                ? Center(
+                  child: Text(
+                    "No notifications available.",
+                    style: TextStyle(fontSize: 18, color: Colors.white70),
+                  ),
+                )
+                : ListView.builder(
+                  padding: EdgeInsets.only(
+                    top:
+                        AppBar().preferredSize.height +
+                        MediaQuery.of(context).padding.top +
+                        16,
+                  ),
+                  itemCount: notifications.length,
+                  itemBuilder: (context, index) {
+                    final notification = notifications[index];
+                    // Parse date for consistent formatting and better display
+                    // Use a safe parse with fallback for display as well
+                    final DateTime notificationDate =
+                        DateTime.tryParse(
+                          notification['date']?.toString() ?? '',
+                        ) ??
+                        DateTime.now();
+                    final String formattedDate = DateFormat(
+                      'MMM dd, yyyy',
+                    ).format(notificationDate);
 
-                          return _buildNotificationCard(
-                            type: notification['type'] ?? 'General Update',
-                            message: notification['message'] ?? 'No message content.',
-                            date: formattedDate,
-                            // Dynamic colors for variety, similar to dashboard cards
-                            gradientColors: [
-                              Colors.teal.shade300,
-                              Colors.cyan.shade600
-                            ],
-                            iconColor: Colors.lightGreenAccent.shade100,
-                          );
-                        },
-                      ),
+                    return _buildNotificationCard(
+                      type: notification['type'] ?? 'General Update',
+                      message: notification['message'] ?? 'No message content.',
+                      date: formattedDate,
+                      // Dynamic colors for variety, similar to dashboard cards
+                      gradientColors: [
+                        Colors.teal.shade300,
+                        Colors.cyan.shade600,
+                      ],
+                      iconColor: Colors.lightGreenAccent.shade100,
+                    );
+                  },
+                ),
       ),
     );
   }
@@ -188,7 +221,10 @@ class _ViewNotificationsScreenState extends State<ViewNotificationsScreen> {
             padding: const EdgeInsets.all(20), // Increased padding
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: gradientColors.map((color) => color.withOpacity(0.15)).toList(),
+                colors:
+                    gradientColors
+                        .map((color) => color.withOpacity(0.15))
+                        .toList(),
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),

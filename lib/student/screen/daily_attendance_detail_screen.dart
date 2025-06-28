@@ -19,11 +19,14 @@ class DailyAttendanceDetailScreen extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  State<DailyAttendanceDetailScreen> createState() => _DailyAttendanceDetailScreenState();
+  State<DailyAttendanceDetailScreen> createState() =>
+      _DailyAttendanceDetailScreenState();
 }
 
-class _DailyAttendanceDetailScreenState extends State<DailyAttendanceDetailScreen> {
-  Map<int, String> dailyAttendanceStatus = {}; // Day number -> status ("Present", "Absent", "Holiday", "No Data")
+class _DailyAttendanceDetailScreenState
+    extends State<DailyAttendanceDetailScreen> {
+  Map<int, String> dailyAttendanceStatus =
+      {}; // Day number -> status ("Present", "Absent", "Holiday", "No Data")
   bool isLoading = true;
   String errorMessage = '';
 
@@ -44,15 +47,19 @@ class _DailyAttendanceDetailScreenState extends State<DailyAttendanceDetailScree
       final lastDayOfMonth = DateTime(widget.year, widget.month + 1, 0);
 
       // Fetch detailed attendance for the selected month
-      final response = await http.post(
-        Uri.parse('http://192.168.31.104:5000/api/students/attendance/by-date'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'envNumber': widget.envNumber,
-          'startDate': DateFormat('yyyy-MM-dd').format(firstDayOfMonth),
-          'endDate': DateFormat('yyyy-MM-dd').format(lastDayOfMonth),
-        }),
-      ).timeout(const Duration(seconds: 20));
+      final response = await http
+          .post(
+            Uri.parse(
+              'http://172.20.10.9:5000/api/students/attendance/by-date',
+            ),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'envNumber': widget.envNumber,
+              'startDate': DateFormat('yyyy-MM-dd').format(firstDayOfMonth),
+              'endDate': DateFormat('yyyy-MM-dd').format(lastDayOfMonth),
+            }),
+          )
+          .timeout(const Duration(seconds: 20));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -65,7 +72,8 @@ class _DailyAttendanceDetailScreenState extends State<DailyAttendanceDetailScree
           if (currentDayDate.weekday == DateTime.sunday) {
             tempDailyStatus[day] = 'Holiday'; // Mark Sundays as holidays
           } else {
-            tempDailyStatus[day] = 'No Data'; // Default for working days without record
+            tempDailyStatus[day] =
+                'No Data'; // Default for working days without record
           }
         }
 
@@ -84,16 +92,20 @@ class _DailyAttendanceDetailScreenState extends State<DailyAttendanceDetailScree
           isLoading = false;
         });
       } else {
-        print('API Error for daily attendance: Status=${response.statusCode}, Body=${response.body}');
+        print(
+          'API Error for daily attendance: Status=${response.statusCode}, Body=${response.body}',
+        );
         setState(() {
-          errorMessage = 'Failed to load daily attendance: ${response.statusCode} - ${response.body}';
+          errorMessage =
+              'Failed to load daily attendance: ${response.statusCode} - ${response.body}';
           isLoading = false;
         });
       }
     } catch (e) {
       print('Error fetching daily attendance: $e');
       setState(() {
-        errorMessage = 'Failed to load daily attendance data. Check network or API.';
+        errorMessage =
+            'Failed to load daily attendance data. Check network or API.';
         isLoading = false;
       });
     }
@@ -106,7 +118,10 @@ class _DailyAttendanceDetailScreenState extends State<DailyAttendanceDetailScree
       appBar: AppBar(
         title: Text(
           "${widget.monthName} ${widget.year} Attendance",
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         backgroundColor: Colors.deepPurple.shade700.withOpacity(0.4),
         iconTheme: const IconThemeData(color: Colors.white),
@@ -115,9 +130,7 @@ class _DailyAttendanceDetailScreenState extends State<DailyAttendanceDetailScree
         flexibleSpace: ClipRect(
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-            child: Container(
-              color: Colors.transparent,
-            ),
+            child: Container(color: Colors.transparent),
           ),
         ),
       ),
@@ -129,45 +142,60 @@ class _DailyAttendanceDetailScreenState extends State<DailyAttendanceDetailScree
             colors: [
               Colors.deepPurple.shade900,
               Colors.deepPurple.shade700,
-              Colors.deepPurple.shade500
+              Colors.deepPurple.shade500,
             ],
             stops: const [0.0, 0.5, 1.0],
           ),
         ),
-        child: isLoading
-            ? const Center(
-                child: CircularProgressIndicator(color: Colors.white),
-              )
-            : errorMessage.isNotEmpty
+        child:
+            isLoading
+                ? const Center(
+                  child: CircularProgressIndicator(color: Colors.white),
+                )
+                : errorMessage.isNotEmpty
                 ? Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Text(
-                        errorMessage,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 18, color: Colors.redAccent.shade100),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Text(
+                      errorMessage,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 18,
+                        color: Colors.redAccent.shade100,
                       ),
                     ),
-                  )
-                : GridView.builder(
-                    padding: EdgeInsets.only(
-                        top: AppBar().preferredSize.height + MediaQuery.of(context).padding.top + 16,
-                        left: 16.0,
-                        right: 16.0,
-                        bottom: 16.0),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 5, // 5 columns for dates
-                      crossAxisSpacing: 10,
-                      mainAxisSpacing: 10,
-                      childAspectRatio: 0.8, // Adjust as needed
-                    ),
-                    itemCount: DateTime(widget.year, widget.month + 1, 0).day, // Total days in the month
-                    itemBuilder: (context, index) {
-                      final day = index + 1; // Day number (1-indexed)
-                      final status = dailyAttendanceStatus[day] ?? 'No Data'; // Default to 'No Data' if not found
-                      return _buildDailyAttendanceCard(day, status);
-                    },
                   ),
+                )
+                : GridView.builder(
+                  padding: EdgeInsets.only(
+                    top:
+                        AppBar().preferredSize.height +
+                        MediaQuery.of(context).padding.top +
+                        16,
+                    left: 16.0,
+                    right: 16.0,
+                    bottom: 16.0,
+                  ),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 5, // 5 columns for dates
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
+                    childAspectRatio: 0.8, // Adjust as needed
+                  ),
+                  itemCount:
+                      DateTime(
+                        widget.year,
+                        widget.month + 1,
+                        0,
+                      ).day, // Total days in the month
+                  itemBuilder: (context, index) {
+                    final day = index + 1; // Day number (1-indexed)
+                    final status =
+                        dailyAttendanceStatus[day] ??
+                        'No Data'; // Default to 'No Data' if not found
+                    return _buildDailyAttendanceCard(day, status);
+                  },
+                ),
       ),
     );
   }
@@ -244,10 +272,7 @@ class _DailyAttendanceDetailScreenState extends State<DailyAttendanceDetailScree
               const SizedBox(height: 5),
               Text(
                 statusText,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.white70,
-                ),
+                style: TextStyle(fontSize: 14, color: Colors.white70),
               ),
             ],
           ),

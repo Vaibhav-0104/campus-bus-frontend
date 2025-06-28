@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:ui'; // Required for ImageFilter for blur effects
 
-const String apiUrl = "http://192.168.31.104:5000/api/drivers";
+const String apiUrl = "http://172.20.10.9:5000/api/drivers";
 
 class ManageBusDriverDetailsScreen extends StatefulWidget {
   const ManageBusDriverDetailsScreen({super.key});
@@ -100,7 +100,9 @@ class _ManageBusDriverDetailsScreenState
         _clearForm();
       } catch (e) {
         debugPrint("Error: $e");
-        _showSnackBar('Failed to save driver: ${e.toString().replaceFirst('Exception: ', '')}');
+        _showSnackBar(
+          'Failed to save driver: ${e.toString().replaceFirst('Exception: ', '')}',
+        );
       }
     }
   }
@@ -108,10 +110,15 @@ class _ManageBusDriverDetailsScreenState
   Future<void> _deleteDriver(int index) async {
     showDialog(
       context: context,
-      builder: (BuildContext dialogContext) { // Use dialogContext to avoid conflicts
+      builder: (BuildContext dialogContext) {
+        // Use dialogContext to avoid conflicts
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          backgroundColor: Colors.blue.shade800.withOpacity(0.8), // Liquid glass dialog background
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          backgroundColor: Colors.blue.shade800.withOpacity(
+            0.8,
+          ), // Liquid glass dialog background
           title: const Text(
             'Confirm Deletion',
             style: TextStyle(
@@ -129,7 +136,10 @@ class _ManageBusDriverDetailsScreenState
               onPressed: () => Navigator.of(dialogContext).pop(),
               child: Text(
                 'Cancel',
-                style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 16),
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.8),
+                  fontSize: 16,
+                ),
               ),
             ),
             ElevatedButton(
@@ -137,24 +147,38 @@ class _ManageBusDriverDetailsScreenState
                 Navigator.of(dialogContext).pop(); // Dismiss dialog
                 try {
                   String driverId = _driverList[index]['_id'];
-                  final response = await http.delete(Uri.parse("$apiUrl/$driverId"));
+                  final response = await http.delete(
+                    Uri.parse("$apiUrl/$driverId"),
+                  );
                   if (response.statusCode != 200)
-                    throw Exception("Failed to delete driver: ${response.body}");
+                    throw Exception(
+                      "Failed to delete driver: ${response.body}",
+                    );
                   _showSnackBar('Driver deleted successfully!');
                   _fetchDrivers();
                 } catch (e) {
                   debugPrint("Error deleting driver: $e");
-                  _showSnackBar('Failed to delete driver: ${e.toString().replaceFirst('Exception: ', '')}');
+                  _showSnackBar(
+                    'Failed to delete driver: ${e.toString().replaceFirst('Exception: ', '')}',
+                  );
                 }
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.redAccent, // Red button for delete
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 10,
+                ),
               ),
               child: const Text(
                 'Delete',
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ],
@@ -170,7 +194,8 @@ class _ManageBusDriverDetailsScreenState
       _contactController.text = driver['contact'];
       _licenseController.text = driver['license'];
       _emailController.text = driver['email'];
-      _passwordController.text = ''; // Password should not be pre-filled for security
+      _passwordController.text =
+          ''; // Password should not be pre-filled for security
       _isActive = driver['status'] == 'Active';
       _editingIndex = index;
     });
@@ -207,25 +232,46 @@ class _ManageBusDriverDetailsScreenState
         controller: controller,
         keyboardType: inputType,
         obscureText: obscureText,
-        style: const TextStyle(color: Colors.white, fontSize: 16), // White text input
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 16,
+        ), // White text input
         decoration: InputDecoration(
-          prefixIcon: Icon(icon, color: Colors.lightBlueAccent, size: 24), // Blue icon
+          prefixIcon: Icon(
+            icon,
+            color: Colors.lightBlueAccent,
+            size: 24,
+          ), // Blue icon
           labelText: label,
-          labelStyle: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 16), // White label
+          labelStyle: TextStyle(
+            color: Colors.white.withOpacity(0.8),
+            fontSize: 16,
+          ), // White label
           hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
           filled: true,
           fillColor: Colors.white.withOpacity(0.08), // Subtle translucent fill
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(15), // Rounded corners for input
-            borderSide: BorderSide(color: Colors.white.withOpacity(0.3), width: 1.5),
+            borderRadius: BorderRadius.circular(
+              15,
+            ), // Rounded corners for input
+            borderSide: BorderSide(
+              color: Colors.white.withOpacity(0.3),
+              width: 1.5,
+            ),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(15),
-            borderSide: BorderSide(color: Colors.white.withOpacity(0.3), width: 1.5),
+            borderSide: BorderSide(
+              color: Colors.white.withOpacity(0.3),
+              width: 1.5,
+            ),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(15),
-            borderSide: const BorderSide(color: Colors.lightBlueAccent, width: 2.5), // Stronger blue focus border
+            borderSide: const BorderSide(
+              color: Colors.lightBlueAccent,
+              width: 2.5,
+            ), // Stronger blue focus border
           ),
         ),
         validator: (value) {
@@ -238,7 +284,8 @@ class _ManageBusDriverDetailsScreenState
           if (label == 'Contact Number' && value.length < 10) {
             return 'Contact number must be at least 10 digits';
           }
-          if (label == 'Password' && (value.length < 6 && _editingIndex == null)) {
+          if (label == 'Password' &&
+              (value.length < 6 && _editingIndex == null)) {
             return 'Password must be at least 6 characters long';
           }
           return null;
@@ -260,7 +307,9 @@ class _ManageBusDriverDetailsScreenState
                 borderRadius: BorderRadius.circular(30),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.blue.shade800.withOpacity(0.4), // Shadow for the button
+                    color: Colors.blue.shade800.withOpacity(
+                      0.4,
+                    ), // Shadow for the button
                     blurRadius: 20,
                     spreadRadius: 2,
                     offset: const Offset(0, 10),
@@ -274,13 +323,19 @@ class _ManageBusDriverDetailsScreenState
                   child: ElevatedButton(
                     onPressed: _addOrUpdateDriver,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue.shade600.withOpacity(0.5), // Transparent blue background
+                      backgroundColor: Colors.blue.shade600.withOpacity(
+                        0.5,
+                      ), // Transparent blue background
                       padding: const EdgeInsets.symmetric(vertical: 15),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(30),
-                        side: BorderSide(color: Colors.white.withOpacity(0.3), width: 1.5), // Subtle white border
+                        side: BorderSide(
+                          color: Colors.white.withOpacity(0.3),
+                          width: 1.5,
+                        ), // Subtle white border
                       ),
-                      elevation: 0, // Remove default elevation as we're adding our own shadow
+                      elevation:
+                          0, // Remove default elevation as we're adding our own shadow
                     ),
                     child: Text(
                       _editingIndex == null ? 'Add Driver' : 'Update Driver',
@@ -288,7 +343,9 @@ class _ManageBusDriverDetailsScreenState
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
-                        shadows: [Shadow(blurRadius: 5, color: Colors.black54)], // Text shadow
+                        shadows: [
+                          Shadow(blurRadius: 5, color: Colors.black54),
+                        ], // Text shadow
                       ),
                     ),
                   ),
@@ -303,7 +360,9 @@ class _ManageBusDriverDetailsScreenState
                 borderRadius: BorderRadius.circular(30),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.grey.shade800.withOpacity(0.4), // Shadow for the button
+                    color: Colors.grey.shade800.withOpacity(
+                      0.4,
+                    ), // Shadow for the button
                     blurRadius: 20,
                     spreadRadius: 2,
                     offset: const Offset(0, 10),
@@ -317,13 +376,19 @@ class _ManageBusDriverDetailsScreenState
                   child: ElevatedButton(
                     onPressed: _clearForm,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.grey.shade600.withOpacity(0.5), // Transparent grey background
+                      backgroundColor: Colors.grey.shade600.withOpacity(
+                        0.5,
+                      ), // Transparent grey background
                       padding: const EdgeInsets.symmetric(vertical: 15),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(30),
-                        side: BorderSide(color: Colors.white.withOpacity(0.3), width: 1.5), // Subtle white border
+                        side: BorderSide(
+                          color: Colors.white.withOpacity(0.3),
+                          width: 1.5,
+                        ), // Subtle white border
                       ),
-                      elevation: 0, // Remove default elevation as we're adding our own shadow
+                      elevation:
+                          0, // Remove default elevation as we're adding our own shadow
                     ),
                     child: const Text(
                       'Clear',
@@ -331,7 +396,9 @@ class _ManageBusDriverDetailsScreenState
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
-                        shadows: [Shadow(blurRadius: 5, color: Colors.black54)], // Text shadow
+                        shadows: [
+                          Shadow(blurRadius: 5, color: Colors.black54),
+                        ], // Text shadow
                       ),
                     ),
                   ),
@@ -356,13 +423,16 @@ class _ManageBusDriverDetailsScreenState
               gradient: LinearGradient(
                 colors: [
                   Colors.white.withOpacity(0.08),
-                  Colors.blue.shade300.withOpacity(0.08)
+                  Colors.blue.shade300.withOpacity(0.08),
                 ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(15),
-              border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
+              border: Border.all(
+                color: Colors.white.withOpacity(0.3),
+                width: 1.5,
+              ),
             ),
             child: SwitchListTile(
               title: const Text(
@@ -374,7 +444,10 @@ class _ManageBusDriverDetailsScreenState
               activeColor: Colors.lightBlueAccent,
               inactiveTrackColor: Colors.grey.shade700.withOpacity(0.5),
               activeTrackColor: Colors.lightBlueAccent.withOpacity(0.5),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16.0,
+                vertical: 8.0,
+              ),
             ),
           ),
         ),
@@ -385,21 +458,31 @@ class _ManageBusDriverDetailsScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBodyBehindAppBar: true, // Extend body behind app bar for full gradient
+      extendBodyBehindAppBar:
+          true, // Extend body behind app bar for full gradient
       appBar: AppBar(
         title: const Text(
           'Manage Driver Details',
           style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
-        backgroundColor: Colors.blue.shade800.withOpacity(0.3), // Liquid glass app bar
+        backgroundColor: Colors.blue.shade800.withOpacity(
+          0.3,
+        ), // Liquid glass app bar
         centerTitle: true,
         elevation: 0, // Remove default shadow
-        iconTheme: const IconThemeData(color: Colors.white), // White back button
+        iconTheme: const IconThemeData(
+          color: Colors.white,
+        ), // White back button
         flexibleSpace: ClipRect(
           child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10), // Blur effect for app bar
+            filter: ImageFilter.blur(
+              sigmaX: 10,
+              sigmaY: 10,
+            ), // Blur effect for app bar
             child: Container(
-              color: Colors.transparent, // Transparent to show blurred content behind
+              color:
+                  Colors
+                      .transparent, // Transparent to show blurred content behind
             ),
           ),
         ),
@@ -414,14 +497,17 @@ class _ManageBusDriverDetailsScreenState
             colors: [
               Colors.blue.shade900,
               Colors.blue.shade700,
-              Colors.blue.shade500
+              Colors.blue.shade500,
             ], // Blue themed gradient background
             stops: const [0.0, 0.5, 1.0],
           ),
         ),
         child: SingleChildScrollView(
           padding: EdgeInsets.only(
-            top: AppBar().preferredSize.height + MediaQuery.of(context).padding.top + 16,
+            top:
+                AppBar().preferredSize.height +
+                MediaQuery.of(context).padding.top +
+                16,
             left: 16.0,
             right: 16.0,
             bottom: 16.0,
@@ -440,22 +526,31 @@ class _ManageBusDriverDetailsScreenState
 
   Widget _buildFormCard() {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(25), // Rounded corners for liquid glass card
+      borderRadius: BorderRadius.circular(
+        25,
+      ), // Rounded corners for liquid glass card
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 20.0, sigmaY: 20.0), // Stronger blur for the card
+        filter: ImageFilter.blur(
+          sigmaX: 20.0,
+          sigmaY: 20.0,
+        ), // Stronger blur for the card
         child: Container(
-          padding: const EdgeInsets.all(25), // Increased padding inside the card
+          padding: const EdgeInsets.all(
+            25,
+          ), // Increased padding inside the card
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
                 Colors.blueGrey.shade300.withOpacity(0.15),
-                Colors.blueGrey.shade700.withOpacity(0.15)
+                Colors.blueGrey.shade700.withOpacity(0.15),
               ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(25),
-            border: Border.all(color: Colors.white.withOpacity(0.3)), // More visible border
+            border: Border.all(
+              color: Colors.white.withOpacity(0.3),
+            ), // More visible border
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.3), // Stronger shadow
@@ -476,7 +571,9 @@ class _ManageBusDriverDetailsScreenState
             child: Column(
               children: [
                 Text(
-                  _editingIndex == null ? "Add New Driver" : "Edit Driver Details",
+                  _editingIndex == null
+                      ? "Add New Driver"
+                      : "Edit Driver Details",
                   style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
@@ -523,21 +620,28 @@ class _ManageBusDriverDetailsScreenState
 
   Widget _buildDriverTable() {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(25), // Rounded corners for liquid glass table card
+      borderRadius: BorderRadius.circular(
+        25,
+      ), // Rounded corners for liquid glass table card
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 20.0, sigmaY: 20.0), // Stronger blur for the table card
+        filter: ImageFilter.blur(
+          sigmaX: 20.0,
+          sigmaY: 20.0,
+        ), // Stronger blur for the table card
         child: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
                 Colors.blueGrey.shade300.withOpacity(0.15),
-                Colors.blueGrey.shade700.withOpacity(0.15)
+                Colors.blueGrey.shade700.withOpacity(0.15),
               ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(25),
-            border: Border.all(color: Colors.white.withOpacity(0.3)), // More visible border
+            border: Border.all(
+              color: Colors.white.withOpacity(0.3),
+            ), // More visible border
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.3), // Stronger shadow
@@ -555,73 +659,169 @@ class _ManageBusDriverDetailsScreenState
           ),
           child: Padding(
             padding: const EdgeInsets.all(20),
-            child: _driverList.isEmpty
-                ? const Center(
-                    child: Text(
-                      'No driver details available!',
-                      style: TextStyle(fontSize: 18, color: Colors.white70),
-                    ),
-                  )
-                : SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: DataTable(
-                      headingRowColor: MaterialStateProperty.resolveWith<Color?>(
-                              (Set<MaterialState> states) => Colors.blue.shade800.withOpacity(0.6)), // Header background
-                      dataRowColor: MaterialStateProperty.resolveWith<Color?>(
-                              (Set<MaterialState> states) => Colors.white.withOpacity(0.05)), // Row background
-                      columnSpacing: 30, // Increase column spacing
-                      dataRowHeight: 60, // Increase row height
-                      headingRowHeight: 70, // Increase heading row height
-                      columns: const [
-                        DataColumn(label: Text('Full Name', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16))),
-                        DataColumn(label: Text('Contact', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16))),
-                        DataColumn(label: Text('License', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16))),
-                        DataColumn(label: Text('Email', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16))),
-                        DataColumn(label: Text('Status', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16))),
-                        DataColumn(label: Text('Actions', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16))),
-                      ],
-                      rows: _driverList.asMap().entries.map((entry) {
-                        int index = entry.key;
-                        var driver = entry.value;
-                        return DataRow(
-                          cells: [
-                            DataCell(Text(driver['name'] ?? 'N/A', style: TextStyle(color: Colors.white70))),
-                            DataCell(Text(driver['contact'] ?? 'N/A', style: TextStyle(color: Colors.white70))),
-                            DataCell(Text(driver['license'] ?? 'N/A', style: TextStyle(color: Colors.white70))),
-                            DataCell(Text(driver['email'] ?? 'N/A', style: TextStyle(color: Colors.white70))),
-                            DataCell(
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                                decoration: BoxDecoration(
-                                  color: (driver['status'] == 'Active' ? Colors.green : Colors.red).withOpacity(0.6),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Text(
-                                  driver['status'] ?? 'N/A',
-                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                                ),
+            child:
+                _driverList.isEmpty
+                    ? const Center(
+                      child: Text(
+                        'No driver details available!',
+                        style: TextStyle(fontSize: 18, color: Colors.white70),
+                      ),
+                    )
+                    : SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: DataTable(
+                        headingRowColor:
+                            MaterialStateProperty.resolveWith<Color?>(
+                              (Set<MaterialState> states) =>
+                                  Colors.blue.shade800.withOpacity(0.6),
+                            ), // Header background
+                        dataRowColor: MaterialStateProperty.resolveWith<Color?>(
+                          (Set<MaterialState> states) =>
+                              Colors.white.withOpacity(0.05),
+                        ), // Row background
+                        columnSpacing: 30, // Increase column spacing
+                        dataRowHeight: 60, // Increase row height
+                        headingRowHeight: 70, // Increase heading row height
+                        columns: const [
+                          DataColumn(
+                            label: Text(
+                              'Full Name',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
                               ),
                             ),
-                            DataCell(
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  IconButton(
-                                    icon: const Icon(Icons.edit, color: Colors.lightBlueAccent),
-                                    onPressed: () => _editDriver(index),
+                          ),
+                          DataColumn(
+                            label: Text(
+                              'Contact',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ),
+                          DataColumn(
+                            label: Text(
+                              'License',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ),
+                          DataColumn(
+                            label: Text(
+                              'Email',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ),
+                          DataColumn(
+                            label: Text(
+                              'Status',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ),
+                          DataColumn(
+                            label: Text(
+                              'Actions',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ),
+                        ],
+                        rows:
+                            _driverList.asMap().entries.map((entry) {
+                              int index = entry.key;
+                              var driver = entry.value;
+                              return DataRow(
+                                cells: [
+                                  DataCell(
+                                    Text(
+                                      driver['name'] ?? 'N/A',
+                                      style: TextStyle(color: Colors.white70),
+                                    ),
                                   ),
-                                  IconButton(
-                                    icon: const Icon(Icons.delete, color: Colors.redAccent),
-                                    onPressed: () => _deleteDriver(index),
+                                  DataCell(
+                                    Text(
+                                      driver['contact'] ?? 'N/A',
+                                      style: TextStyle(color: Colors.white70),
+                                    ),
+                                  ),
+                                  DataCell(
+                                    Text(
+                                      driver['license'] ?? 'N/A',
+                                      style: TextStyle(color: Colors.white70),
+                                    ),
+                                  ),
+                                  DataCell(
+                                    Text(
+                                      driver['email'] ?? 'N/A',
+                                      style: TextStyle(color: Colors.white70),
+                                    ),
+                                  ),
+                                  DataCell(
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                        vertical: 5,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: (driver['status'] == 'Active'
+                                                ? Colors.green
+                                                : Colors.red)
+                                            .withOpacity(0.6),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: Text(
+                                        driver['status'] ?? 'N/A',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  DataCell(
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        IconButton(
+                                          icon: const Icon(
+                                            Icons.edit,
+                                            color: Colors.lightBlueAccent,
+                                          ),
+                                          onPressed: () => _editDriver(index),
+                                        ),
+                                        IconButton(
+                                          icon: const Icon(
+                                            Icons.delete,
+                                            color: Colors.redAccent,
+                                          ),
+                                          onPressed: () => _deleteDriver(index),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ],
-                              ),
-                            ),
-                          ],
-                        );
-                      }).toList(),
+                              );
+                            }).toList(),
+                      ),
                     ),
-                  ),
           ),
         ),
       ),

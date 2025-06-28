@@ -10,7 +10,8 @@ class ViewStudentDetailsScreen extends StatefulWidget {
   const ViewStudentDetailsScreen({super.key, this.driverId});
 
   @override
-  State<ViewStudentDetailsScreen> createState() => _ViewStudentDetailsScreenState();
+  State<ViewStudentDetailsScreen> createState() =>
+      _ViewStudentDetailsScreenState();
 }
 
 class _ViewStudentDetailsScreenState extends State<ViewStudentDetailsScreen> {
@@ -71,7 +72,7 @@ class _ViewStudentDetailsScreenState extends State<ViewStudentDetailsScreen> {
 
     try {
       final url =
-          'http://192.168.31.104:5000/api/allocations/allocations/driver/$_driverId';
+          'http://172.20.10.9:5000/api/allocations/allocations/driver/$_driverId';
       print('Request URL: $url');
       final response = await http
           .get(Uri.parse(url), headers: {'Content-Type': 'application/json'})
@@ -93,14 +94,18 @@ class _ViewStudentDetailsScreenState extends State<ViewStudentDetailsScreen> {
                 allocations.map((allocation) {
                   final student = allocation['studentId'] ?? {};
                   final bus = allocation['busId'] ?? {};
-                  _busNumber = bus['busNumber'] ?? 'N/A'; // Update bus number from the first allocation
+                  _busNumber =
+                      bus['busNumber'] ??
+                      'N/A'; // Update bus number from the first allocation
                   return {
                     'id': student['envNumber'] ?? 'N/A',
                     'name': student['name'] ?? 'Unknown',
                     'email': student['email'] ?? 'N/A',
                   };
                 }).toList();
-            _filteredStudents = List.from(_students); // Initially show all students
+            _filteredStudents = List.from(
+              _students,
+            ); // Initially show all students
           }
           _isLoading = false;
         });
@@ -134,7 +139,8 @@ class _ViewStudentDetailsScreenState extends State<ViewStudentDetailsScreen> {
       }
     } catch (error) {
       setState(() {
-        _errorMessage = 'Error fetching student data: $error. Please check your network connection.';
+        _errorMessage =
+            'Error fetching student data: $error. Please check your network connection.';
         _isLoading = false;
       });
       print('Error details: $error');
@@ -170,24 +176,40 @@ class _ViewStudentDetailsScreenState extends State<ViewStudentDetailsScreen> {
   }
 
   // Helper method to build a liquid glass card for consistent styling
-  Widget _buildLiquidGlassCard({required Widget child, EdgeInsetsGeometry? padding}) {
+  Widget _buildLiquidGlassCard({
+    required Widget child,
+    EdgeInsetsGeometry? padding,
+  }) {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(25), // Rounded corners for liquid glass card
+      borderRadius: BorderRadius.circular(
+        25,
+      ), // Rounded corners for liquid glass card
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 20.0, sigmaY: 20.0), // Stronger blur for the card
+        filter: ImageFilter.blur(
+          sigmaX: 20.0,
+          sigmaY: 20.0,
+        ), // Stronger blur for the card
         child: Container(
-          padding: padding ?? const EdgeInsets.all(25), // Increased padding inside the card, made optional
+          padding:
+              padding ??
+              const EdgeInsets.all(
+                25,
+              ), // Increased padding inside the card, made optional
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                Colors.white.withOpacity(0.1), // More transparent white for lighter glass
-                Colors.white.withOpacity(0.05)
+                Colors.white.withOpacity(
+                  0.1,
+                ), // More transparent white for lighter glass
+                Colors.white.withOpacity(0.05),
               ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(25),
-            border: Border.all(color: Colors.white.withOpacity(0.2)), // Thinner border
+            border: Border.all(
+              color: Colors.white.withOpacity(0.2),
+            ), // Thinner border
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.3), // Stronger shadow
@@ -212,27 +234,44 @@ class _ViewStudentDetailsScreenState extends State<ViewStudentDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBodyBehindAppBar: true, // Extend body behind app bar for full gradient
+      extendBodyBehindAppBar:
+          true, // Extend body behind app bar for full gradient
       appBar: AppBar(
         title: Text(
           'Students on Bus $_busNumber',
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
         ),
-        backgroundColor: Colors.deepPurple.shade700.withOpacity(0.4), // Liquid glass app bar
-        iconTheme: const IconThemeData(color: Colors.white), // White back button
+        backgroundColor: Colors.deepPurple.shade700.withOpacity(
+          0.4,
+        ), // Liquid glass app bar
+        iconTheme: const IconThemeData(
+          color: Colors.white,
+        ), // White back button
         elevation: 0, // Remove default shadow
         centerTitle: true,
-        flexibleSpace: ClipRect( // Clip to make the blur effect contained within the AppBar area
+        flexibleSpace: ClipRect(
+          // Clip to make the blur effect contained within the AppBar area
           child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10), // Blur effect for app bar
+            filter: ImageFilter.blur(
+              sigmaX: 10,
+              sigmaY: 10,
+            ), // Blur effect for app bar
             child: Container(
-              color: Colors.transparent, // Transparent to show blurred content behind
+              color:
+                  Colors
+                      .transparent, // Transparent to show blurred content behind
             ),
           ),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh, color: Colors.white), // White refresh icon
+            icon: const Icon(
+              Icons.refresh,
+              color: Colors.white,
+            ), // White refresh icon
             onPressed: _refreshData,
             tooltip: 'Refresh Data',
           ),
@@ -248,14 +287,17 @@ class _ViewStudentDetailsScreenState extends State<ViewStudentDetailsScreen> {
             colors: [
               Colors.deepPurple.shade900,
               Colors.deepPurple.shade700,
-              Colors.deepPurple.shade500
+              Colors.deepPurple.shade500,
             ], // Deep Purple themed gradient background
             stops: const [0.0, 0.5, 1.0],
           ),
         ),
         child: Padding(
           padding: EdgeInsets.only(
-            top: AppBar().preferredSize.height + MediaQuery.of(context).padding.top + 16,
+            top:
+                AppBar().preferredSize.height +
+                MediaQuery.of(context).padding.top +
+                16,
             left: 16.0,
             right: 16.0,
             bottom: 16.0,
@@ -267,64 +309,78 @@ class _ViewStudentDetailsScreenState extends State<ViewStudentDetailsScreen> {
                 _buildSearchBar(),
                 const SizedBox(height: 16),
                 Expanded(
-                  child: _isLoading
-                      ? const Center(child: CircularProgressIndicator(color: Colors.white))
-                      : _errorMessage.isNotEmpty
+                  child:
+                      _isLoading
+                          ? const Center(
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                            ),
+                          )
+                          : _errorMessage.isNotEmpty
                           ? Center(
-                              child: _buildLiquidGlassCard(
-                                padding: const EdgeInsets.all(20),
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      _errorMessage,
-                                      style: TextStyle(
-                                        fontSize: 18,
-                                        color: Colors.redAccent.shade100,
-                                      ),
-                                      textAlign: TextAlign.center,
+                            child: _buildLiquidGlassCard(
+                              padding: const EdgeInsets.all(20),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    _errorMessage,
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      color: Colors.redAccent.shade100,
                                     ),
-                                    const SizedBox(height: 16),
-                                    ElevatedButton(
-                                      onPressed: _refreshData,
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.deepPurple.shade400.withOpacity(0.6),
-                                        foregroundColor: Colors.white,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(12),
-                                          side: BorderSide(color: Colors.white.withOpacity(0.3), width: 1.5),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  ElevatedButton(
+                                    onPressed: _refreshData,
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors
+                                          .deepPurple
+                                          .shade400
+                                          .withOpacity(0.6),
+                                      foregroundColor: Colors.white,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                        side: BorderSide(
+                                          color: Colors.white.withOpacity(0.3),
+                                          width: 1.5,
                                         ),
                                       ),
-                                      child: const Text('Retry'),
                                     ),
-                                  ],
-                                ),
-                              ),
-                            )
-                          : _filteredStudents.isNotEmpty
-                              ? ListView.builder(
-                                  itemCount: _filteredStudents.length,
-                                  itemBuilder: (context, index) {
-                                    final student = _filteredStudents[index];
-                                    return Padding(
-                                      padding: const EdgeInsets.only(bottom: 12.0),
-                                      child: _buildStudentCard(student),
-                                    );
-                                  },
-                                )
-                              : Center(
-                                  child: _buildLiquidGlassCard(
-                                    padding: const EdgeInsets.all(20),
-                                    child: Text(
-                                      _searchController.text.isEmpty
-                                          ? 'No students assigned to your bus. Contact the admin to assign students.'
-                                          : 'No students found matching "${_searchController.text}".',
-                                      style: TextStyle(fontSize: 18, color: Colors.white70),
-                                      textAlign: TextAlign.center,
-                                    ),
+                                    child: const Text('Retry'),
                                   ),
+                                ],
+                              ),
+                            ),
+                          )
+                          : _filteredStudents.isNotEmpty
+                          ? ListView.builder(
+                            itemCount: _filteredStudents.length,
+                            itemBuilder: (context, index) {
+                              final student = _filteredStudents[index];
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 12.0),
+                                child: _buildStudentCard(student),
+                              );
+                            },
+                          )
+                          : Center(
+                            child: _buildLiquidGlassCard(
+                              padding: const EdgeInsets.all(20),
+                              child: Text(
+                                _searchController.text.isEmpty
+                                    ? 'No students assigned to your bus. Contact the admin to assign students.'
+                                    : 'No students found matching "${_searchController.text}".',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  color: Colors.white70,
                                 ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ),
                 ),
               ],
             ),
@@ -342,17 +398,28 @@ class _ViewStudentDetailsScreenState extends State<ViewStudentDetailsScreen> {
         style: TextStyle(color: Colors.white, fontSize: 18),
         decoration: InputDecoration(
           hintText: 'Search by Name or ID...',
-          hintStyle: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 18),
-          prefixIcon: Icon(Icons.search, color: Colors.white.withOpacity(0.8), size: 28),
-          suffixIcon: _searchController.text.isNotEmpty
-              ? IconButton(
-                  icon: Icon(Icons.clear, color: Colors.white.withOpacity(0.8)),
-                  onPressed: () {
-                    _searchController.clear();
-                    _filterStudents('');
-                  },
-                )
-              : null,
+          hintStyle: TextStyle(
+            color: Colors.white.withOpacity(0.6),
+            fontSize: 18,
+          ),
+          prefixIcon: Icon(
+            Icons.search,
+            color: Colors.white.withOpacity(0.8),
+            size: 28,
+          ),
+          suffixIcon:
+              _searchController.text.isNotEmpty
+                  ? IconButton(
+                    icon: Icon(
+                      Icons.clear,
+                      color: Colors.white.withOpacity(0.8),
+                    ),
+                    onPressed: () {
+                      _searchController.clear();
+                      _filterStudents('');
+                    },
+                  )
+                  : null,
           border: InputBorder.none,
           focusedBorder: InputBorder.none,
           enabledBorder: InputBorder.none,
@@ -405,10 +472,7 @@ class _ViewStudentDetailsScreenState extends State<ViewStudentDetailsScreen> {
                     SizedBox(width: 8),
                     Text(
                       'ID: ${student['id'] ?? 'N/A'}',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.white70,
-                      ),
+                      style: TextStyle(fontSize: 16, color: Colors.white70),
                     ),
                   ],
                 ),
@@ -417,14 +481,13 @@ class _ViewStudentDetailsScreenState extends State<ViewStudentDetailsScreen> {
                   children: [
                     Icon(Icons.email, color: Colors.white70, size: 20),
                     SizedBox(width: 8),
-                    Flexible( // Use Flexible to prevent overflow for long emails
+                    Flexible(
+                      // Use Flexible to prevent overflow for long emails
                       child: Text(
                         'Email: ${student['email'] ?? 'N/A'}',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.white70,
-                        ),
-                        overflow: TextOverflow.ellipsis, // Add ellipsis for overflow
+                        style: TextStyle(fontSize: 16, color: Colors.white70),
+                        overflow:
+                            TextOverflow.ellipsis, // Add ellipsis for overflow
                       ),
                     ),
                   ],

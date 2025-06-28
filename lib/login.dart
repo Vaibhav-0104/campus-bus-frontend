@@ -22,9 +22,9 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isAdmin = false;
 
   final Map<String, String> _loginUrls = {
-    'Admin': 'http://192.168.31.104:5000/api/admin/auth/login',
-    'Driver': 'http://192.168.31.104:5000/api/drivers/login',
-    'Student': 'http://192.168.31.104:5000/api/students/login',
+    'Admin': 'http://172.20.10.9:5000/api/admin/auth/login',
+    'Driver': 'http://172.20.10.9:5000/api/drivers/login',
+    'Student': 'http://172.20.10.9:5000/api/students/login',
   };
 
   bool isAdminEmail(String email) {

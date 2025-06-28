@@ -16,7 +16,7 @@ class ManageStudentFeesScreenState extends State<ManageStudentFeesScreen> {
   final TextEditingController routeController = TextEditingController();
 
   static const String routeApiUrl =
-      "http://192.168.31.104:5000/api/students/route-by-env";
+      "http://172.20.10.9:5000/api/students/route-by-env";
 
   @override
   void initState() {
@@ -39,7 +39,7 @@ class ManageStudentFeesScreenState extends State<ManageStudentFeesScreen> {
       try {
         final response = await http.get(Uri.parse('$routeApiUrl/$envNumber'));
         print(
-            'Route API Response: ${response.statusCode} ${response.body}',
+          'Route API Response: ${response.statusCode} ${response.body}',
         ); // Debug log
         if (mounted) {
           if (response.statusCode == 200) {
@@ -104,7 +104,7 @@ class ManageStudentFeesScreenState extends State<ManageStudentFeesScreen> {
     }
 
     final response = await http.post(
-      Uri.parse("http://192.168.31.104:5000/api/fees/set-fee"),
+      Uri.parse("http://172.20.10.9:5000/api/fees/set-fee"),
       headers: {"Content-Type": "application/json"},
       body: jsonEncode({
         "envNumber": envNumberController.text,
@@ -134,21 +134,31 @@ class ManageStudentFeesScreenState extends State<ManageStudentFeesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBodyBehindAppBar: true, // Extends the body behind the AppBar for full background effect
+      extendBodyBehindAppBar:
+          true, // Extends the body behind the AppBar for full background effect
       appBar: AppBar(
         title: const Text(
           "Manage Fees",
           style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
-        backgroundColor: Colors.blue.shade800.withOpacity(0.3), // Liquid glass app bar
+        backgroundColor: Colors.blue.shade800.withOpacity(
+          0.3,
+        ), // Liquid glass app bar
         centerTitle: true,
         elevation: 0, // Remove default shadow
-        iconTheme: const IconThemeData(color: Colors.white), // White back button
+        iconTheme: const IconThemeData(
+          color: Colors.white,
+        ), // White back button
         flexibleSpace: ClipRect(
           child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10), // Blur effect for app bar
+            filter: ImageFilter.blur(
+              sigmaX: 10,
+              sigmaY: 10,
+            ), // Blur effect for app bar
             child: Container(
-              color: Colors.transparent, // Transparent to show the blurred content behind
+              color:
+                  Colors
+                      .transparent, // Transparent to show the blurred content behind
             ),
           ),
         ),
@@ -163,37 +173,50 @@ class ManageStudentFeesScreenState extends State<ManageStudentFeesScreen> {
             colors: [
               Colors.blue.shade900,
               Colors.blue.shade700,
-              Colors.blue.shade500
+              Colors.blue.shade500,
             ], // Blue themed gradient background
             stops: const [0.0, 0.5, 1.0],
           ),
         ),
         child: SingleChildScrollView(
           padding: EdgeInsets.only(
-            top: AppBar().preferredSize.height + MediaQuery.of(context).padding.top + 20, // Adjust top padding
+            top:
+                AppBar().preferredSize.height +
+                MediaQuery.of(context).padding.top +
+                20, // Adjust top padding
             left: 16.0,
             right: 16.0,
             bottom: 16.0,
           ),
-          child: Center( // Center the card
+          child: Center(
+            // Center the card
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(25), // Rounded corners for liquid glass card
+              borderRadius: BorderRadius.circular(
+                25,
+              ), // Rounded corners for liquid glass card
               child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 20.0, sigmaY: 20.0), // Stronger blur for the card
+                filter: ImageFilter.blur(
+                  sigmaX: 20.0,
+                  sigmaY: 20.0,
+                ), // Stronger blur for the card
                 child: Container(
-                // Constrain width for larger screens
-                  padding: const EdgeInsets.all(25), // Increased padding inside the card
+                  // Constrain width for larger screens
+                  padding: const EdgeInsets.all(
+                    25,
+                  ), // Increased padding inside the card
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
                         Colors.blueGrey.shade300.withOpacity(0.15),
-                        Colors.blueGrey.shade700.withOpacity(0.15)
+                        Colors.blueGrey.shade700.withOpacity(0.15),
                       ],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
                     borderRadius: BorderRadius.circular(25),
-                    border: Border.all(color: Colors.white.withOpacity(0.3)), // More visible border
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.3),
+                    ), // More visible border
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withOpacity(0.3), // Stronger shadow
@@ -202,7 +225,9 @@ class ManageStudentFeesScreenState extends State<ManageStudentFeesScreen> {
                         offset: const Offset(10, 10),
                       ),
                       BoxShadow(
-                        color: Colors.white.withOpacity(0.15), // Inner light glow
+                        color: Colors.white.withOpacity(
+                          0.15,
+                        ), // Inner light glow
                         blurRadius: 15,
                         spreadRadius: 2,
                         offset: const Offset(-8, -8),
@@ -211,7 +236,8 @@ class ManageStudentFeesScreenState extends State<ManageStudentFeesScreen> {
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
-                    mainAxisSize: MainAxisSize.min, // Make column take minimum space
+                    mainAxisSize:
+                        MainAxisSize.min, // Make column take minimum space
                     children: [
                       Text(
                         "Set Student Bus Fees",
@@ -220,7 +246,9 @@ class ManageStudentFeesScreenState extends State<ManageStudentFeesScreen> {
                           fontSize: 28,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
-                          shadows: [Shadow(blurRadius: 5, color: Colors.black54)],
+                          shadows: [
+                            Shadow(blurRadius: 5, color: Colors.black54),
+                          ],
                         ),
                       ),
                       const SizedBox(height: 30),
@@ -267,25 +295,44 @@ class ManageStudentFeesScreenState extends State<ManageStudentFeesScreen> {
       controller: controller,
       keyboardType: keyboardType,
       readOnly: readOnly,
-      style: const TextStyle(color: Colors.white, fontSize: 18), // White text input
+      style: const TextStyle(
+        color: Colors.white,
+        fontSize: 18,
+      ), // White text input
       decoration: InputDecoration(
-        prefixIcon: Icon(icon, color: Colors.lightBlueAccent, size: 28), // Blue icon
+        prefixIcon: Icon(
+          icon,
+          color: Colors.lightBlueAccent,
+          size: 28,
+        ), // Blue icon
         labelText: label,
-        labelStyle: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 18), // White label
+        labelStyle: TextStyle(
+          color: Colors.white.withOpacity(0.8),
+          fontSize: 18,
+        ), // White label
         hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
         filled: true,
         fillColor: Colors.white.withOpacity(0.08), // Subtle translucent fill
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(15), // Rounded corners for input
-          borderSide: BorderSide(color: Colors.white.withOpacity(0.4), width: 1.5),
+          borderSide: BorderSide(
+            color: Colors.white.withOpacity(0.4),
+            width: 1.5,
+          ),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(15),
-          borderSide: BorderSide(color: Colors.white.withOpacity(0.4), width: 1.5),
+          borderSide: BorderSide(
+            color: Colors.white.withOpacity(0.4),
+            width: 1.5,
+          ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(15),
-          borderSide: const BorderSide(color: Colors.lightBlueAccent, width: 2.5), // Stronger blue focus border
+          borderSide: const BorderSide(
+            color: Colors.lightBlueAccent,
+            width: 2.5,
+          ), // Stronger blue focus border
         ),
       ),
       validator: (value) {
@@ -303,7 +350,9 @@ class ManageStudentFeesScreenState extends State<ManageStudentFeesScreen> {
         borderRadius: BorderRadius.circular(30),
         boxShadow: [
           BoxShadow(
-            color: Colors.blue.shade800.withOpacity(0.4), // Shadow for the button
+            color: Colors.blue.shade800.withOpacity(
+              0.4,
+            ), // Shadow for the button
             blurRadius: 20,
             spreadRadius: 2,
             offset: const Offset(0, 10),
@@ -317,13 +366,19 @@ class ManageStudentFeesScreenState extends State<ManageStudentFeesScreen> {
           child: ElevatedButton(
             onPressed: _setFees,
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue.shade600.withOpacity(0.5), // Transparent blue background
+              backgroundColor: Colors.blue.shade600.withOpacity(
+                0.5,
+              ), // Transparent blue background
               padding: const EdgeInsets.symmetric(vertical: 18),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(30),
-                side: BorderSide(color: Colors.white.withOpacity(0.3), width: 1.5), // Subtle white border
+                side: BorderSide(
+                  color: Colors.white.withOpacity(0.3),
+                  width: 1.5,
+                ), // Subtle white border
               ),
-              elevation: 0, // Remove default elevation as we're adding our own shadow
+              elevation:
+                  0, // Remove default elevation as we're adding our own shadow
             ),
             child: const Text(
               "Set Fees",
@@ -331,7 +386,9 @@ class ManageStudentFeesScreenState extends State<ManageStudentFeesScreen> {
                 fontSize: 22, // Larger font size for button text
                 fontWeight: FontWeight.bold,
                 color: Colors.white,
-                shadows: [Shadow(blurRadius: 5, color: Colors.black54)], // Text shadow
+                shadows: [
+                  Shadow(blurRadius: 5, color: Colors.black54),
+                ], // Text shadow
               ),
             ),
           ),

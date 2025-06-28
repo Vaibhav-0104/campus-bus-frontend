@@ -42,7 +42,7 @@ class _ViewAttendanceScreenState extends State<ViewAttendanceScreen> {
       // Step 1: Fetch allocations for the driver's bus
       final allocationsResponse = await http.get(
         Uri.parse(
-          'http://192.168.31.104:5000/api/allocations/allocations/driver/${widget.driverId}',
+          'http://172.20.10.9:5000/api/allocations/allocations/driver/${widget.driverId}',
         ),
       );
 
@@ -72,7 +72,7 @@ class _ViewAttendanceScreenState extends State<ViewAttendanceScreen> {
       // Step 2: Fetch attendance for the selected date and student IDs
       final formattedDate = DateFormat('yyyy-MM-dd').format(_selectedDate);
       final attendanceResponse = await http.post(
-        Uri.parse('http://192.168.31.104:5000/api/students/attendance/date'),
+        Uri.parse('http://172.20.10.9:5000/api/students/attendance/date'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'date': formattedDate, 'studentIds': studentIds}),
       );
@@ -283,76 +283,76 @@ class _ViewAttendanceScreenState extends State<ViewAttendanceScreen> {
     );
   }
 
-Widget _buildDatePicker(BuildContext context) {
-  return Padding(
-    padding: const EdgeInsets.all(16),
-    child: _buildLiquidGlassCard(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.calendar_today,
-                color: Colors.white.withOpacity(0.8),
-                size: 24,
-              ),
-              SizedBox(width: 10),
-              Text(
-                'Date:',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white.withOpacity(0.9),
+  Widget _buildDatePicker(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: _buildLiquidGlassCard(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.calendar_today,
+                  color: Colors.white.withOpacity(0.8),
+                  size: 24,
                 ),
-              ),
-              SizedBox(width: 8),
-              Text(
-                DateFormat('dd MMM yyyy').format(_selectedDate),
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white.withOpacity(0.9),
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: 10),
-          SizedBox(
-            width: 150,
-            height: 50,
-            child: ElevatedButton(
-              onPressed: () => _selectDate(context),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.deepPurple.shade400.withOpacity(0.6),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(
-                    color: Colors.white.withOpacity(0.3),
-                    width: 1.5,
+                SizedBox(width: 10),
+                Text(
+                  'Date:',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white.withOpacity(0.9),
                   ),
                 ),
-                padding: EdgeInsets.symmetric(horizontal: 15, vertical: 10),
-                elevation: 5,
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.edit_calendar, size: 20, color: Colors.yellow),
-                  SizedBox(width: 8),
-                  Text("Change Date", style: TextStyle(fontSize: 16)),
-                ],
+                SizedBox(width: 8),
+                Text(
+                  DateFormat('dd MMM yyyy').format(_selectedDate),
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white.withOpacity(0.9),
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 10),
+            SizedBox(
+              width: 150,
+              height: 50,
+              child: ElevatedButton(
+                onPressed: () => _selectDate(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.deepPurple.shade400.withOpacity(0.6),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(
+                      color: Colors.white.withOpacity(0.3),
+                      width: 1.5,
+                    ),
+                  ),
+                  padding: EdgeInsets.symmetric(horizontal: 15, vertical: 10),
+                  elevation: 5,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.edit_calendar, size: 20, color: Colors.yellow),
+                    SizedBox(width: 8),
+                    Text("Change Date", style: TextStyle(fontSize: 16)),
+                  ],
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   Widget _buildSearchBar() {
     return Padding(

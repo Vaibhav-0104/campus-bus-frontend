@@ -10,7 +10,8 @@ class ViewNotificationsScreen extends StatefulWidget {
   const ViewNotificationsScreen({super.key, required this.userRole});
 
   @override
-  _ViewNotificationsScreenState createState() => _ViewNotificationsScreenState();
+  _ViewNotificationsScreenState createState() =>
+      _ViewNotificationsScreenState();
 }
 
 class _ViewNotificationsScreenState extends State<ViewNotificationsScreen> {
@@ -33,7 +34,7 @@ class _ViewNotificationsScreenState extends State<ViewNotificationsScreen> {
     try {
       final response = await http.get(
         Uri.parse(
-          "http://192.168.31.104:5000/api/notifications/view/${widget.userRole}",
+          "http://172.20.10.9:5000/api/notifications/view/${widget.userRole}",
         ),
       );
 
@@ -52,7 +53,8 @@ class _ViewNotificationsScreenState extends State<ViewNotificationsScreen> {
         }
       } else {
         setState(() {
-          _errorMessage = "Failed to load notifications: ${response.statusCode} - ${response.body}";
+          _errorMessage =
+              "Failed to load notifications: ${response.statusCode} - ${response.body}";
           _isLoading = false;
         });
         print('API Error: $_errorMessage'); // Print to debug console
@@ -60,7 +62,8 @@ class _ViewNotificationsScreenState extends State<ViewNotificationsScreen> {
     } catch (e) {
       setState(() {
         _isLoading = false;
-        _errorMessage = "Error loading notifications: $e. Please check network connection.";
+        _errorMessage =
+            "Error loading notifications: $e. Please check network connection.";
       });
       print('Network/Other Error: $_errorMessage'); // Print to debug console
     }
@@ -69,21 +72,32 @@ class _ViewNotificationsScreenState extends State<ViewNotificationsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBodyBehindAppBar: true, // Extends body behind app bar for full gradient
+      extendBodyBehindAppBar:
+          true, // Extends body behind app bar for full gradient
       appBar: AppBar(
         title: const Text(
           "View Notifications",
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.deepPurple.shade700.withOpacity(0.4), // Liquid glass app bar
-        iconTheme: const IconThemeData(color: Colors.white), // White back button
+        backgroundColor: Colors.deepPurple.shade700.withOpacity(
+          0.4,
+        ), // Liquid glass app bar
+        iconTheme: const IconThemeData(
+          color: Colors.white,
+        ), // White back button
         elevation: 0, // Remove default shadow
         centerTitle: true,
-        flexibleSpace: ClipRect( // Clip to make the blur effect contained within the AppBar area
+        flexibleSpace: ClipRect(
+          // Clip to make the blur effect contained within the AppBar area
           child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10), // Blur effect for app bar
+            filter: ImageFilter.blur(
+              sigmaX: 10,
+              sigmaY: 10,
+            ), // Blur effect for app bar
             child: Container(
-              color: Colors.transparent, // Transparent to show blurred content behind
+              color:
+                  Colors
+                      .transparent, // Transparent to show blurred content behind
             ),
           ),
         ),
@@ -98,83 +112,119 @@ class _ViewNotificationsScreenState extends State<ViewNotificationsScreen> {
             colors: [
               Colors.deepPurple.shade900,
               Colors.deepPurple.shade700,
-              Colors.deepPurple.shade500
+              Colors.deepPurple.shade500,
             ], // Deep Purple themed gradient background
             stops: const [0.0, 0.5, 1.0],
           ),
         ),
-        child: _isLoading
-            ? const Center(
-                child: CircularProgressIndicator(color: Colors.white), // White loading indicator
-              )
-            : _errorMessage.isNotEmpty
+        child:
+            _isLoading
+                ? const Center(
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                  ), // White loading indicator
+                )
+                : _errorMessage.isNotEmpty
                 ? Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(20.0),
-                      child: _buildLiquidGlassCard(
-                        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-                        child: Text(
-                          _errorMessage,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.redAccent.shade100, fontSize: 18), // Red error text
-                        ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(20.0),
+                    child: _buildLiquidGlassCard(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 20,
+                        horizontal: 16,
+                      ),
+                      child: Text(
+                        _errorMessage,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.redAccent.shade100,
+                          fontSize: 18,
+                        ), // Red error text
                       ),
                     ),
-                  )
+                  ),
+                )
                 : notifications.isEmpty
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(20.0),
-                          child: _buildLiquidGlassCard(
-                            padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-                            child: const Text(
-                              "No notifications available for your role.",
-                              textAlign: TextAlign.center,
-                              style: TextStyle(color: Colors.white70, fontSize: 18), // White/grey text for no data
-                            ),
-                          ),
-                        ),
-                      )
-                    : ListView.builder(
-                        padding: EdgeInsets.only(
-                            top: AppBar().preferredSize.height + MediaQuery.of(context).padding.top + 16,
-                            left: 16.0,
-                            right: 16.0,
-                            bottom: 16.0),
-                        itemCount: notifications.length,
-                        itemBuilder: (context, index) {
-                          final notification = notifications[index];
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 15.0), // Spacing between cards
-                            child: _buildNotificationCard(notification),
-                          );
-                        },
+                ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20.0),
+                    child: _buildLiquidGlassCard(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 20,
+                        horizontal: 16,
                       ),
+                      child: const Text(
+                        "No notifications available for your role.",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 18,
+                        ), // White/grey text for no data
+                      ),
+                    ),
+                  ),
+                )
+                : ListView.builder(
+                  padding: EdgeInsets.only(
+                    top:
+                        AppBar().preferredSize.height +
+                        MediaQuery.of(context).padding.top +
+                        16,
+                    left: 16.0,
+                    right: 16.0,
+                    bottom: 16.0,
+                  ),
+                  itemCount: notifications.length,
+                  itemBuilder: (context, index) {
+                    final notification = notifications[index];
+                    return Padding(
+                      padding: const EdgeInsets.only(
+                        bottom: 15.0,
+                      ), // Spacing between cards
+                      child: _buildNotificationCard(notification),
+                    );
+                  },
+                ),
       ),
     );
   }
 
   // Helper method to build a liquid glass card for consistent styling
-  Widget _buildLiquidGlassCard({required Widget child, EdgeInsetsGeometry? padding}) {
+  Widget _buildLiquidGlassCard({
+    required Widget child,
+    EdgeInsetsGeometry? padding,
+  }) {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(25), // Rounded corners for liquid glass card
+      borderRadius: BorderRadius.circular(
+        25,
+      ), // Rounded corners for liquid glass card
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 20.0, sigmaY: 20.0), // Stronger blur for the card
+        filter: ImageFilter.blur(
+          sigmaX: 20.0,
+          sigmaY: 20.0,
+        ), // Stronger blur for the card
         child: Container(
-          padding: padding ?? const EdgeInsets.all(25), // Increased padding inside the card, made optional
+          padding:
+              padding ??
+              const EdgeInsets.all(
+                25,
+              ), // Increased padding inside the card, made optional
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                Colors.white.withOpacity(0.1), // More transparent white for lighter glass
-                Colors.white.withOpacity(0.05)
+                Colors.white.withOpacity(
+                  0.1,
+                ), // More transparent white for lighter glass
+                Colors.white.withOpacity(0.05),
               ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(25),
-            border: Border.all(color: Colors.white.withOpacity(0.2)), // Thinner border
+            border: Border.all(
+              color: Colors.white.withOpacity(0.2),
+            ), // Thinner border
             boxShadow: [
- 
               BoxShadow(
                 color: Colors.white.withOpacity(0.15), // Inner light glow
                 blurRadius: 15,
@@ -192,13 +242,19 @@ class _ViewNotificationsScreenState extends State<ViewNotificationsScreen> {
   // New Widget: _buildNotificationCard to apply liquid glass style to each notification
   Widget _buildNotificationCard(Map<String, dynamic> notification) {
     return _buildLiquidGlassCard(
-      padding: const EdgeInsets.all(20), // Padding for individual notification cards
+      padding: const EdgeInsets.all(
+        20,
+      ), // Padding for individual notification cards
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.campaign, color: Colors.amberAccent, size: 28), // Icon for notification type
+              Icon(
+                Icons.campaign,
+                color: Colors.amberAccent,
+                size: 28,
+              ), // Icon for notification type
               SizedBox(width: 10),
               Expanded(
                 child: Text(
@@ -217,15 +273,16 @@ class _ViewNotificationsScreenState extends State<ViewNotificationsScreen> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.message, color: Colors.white70, size: 24), // Icon for message
+              Icon(
+                Icons.message,
+                color: Colors.white70,
+                size: 24,
+              ), // Icon for message
               SizedBox(width: 10),
               Expanded(
                 child: Text(
                   notification['message'] ?? 'No message provided.',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.white70,
-                  ),
+                  style: TextStyle(fontSize: 16, color: Colors.white70),
                 ),
               ),
             ],
@@ -234,7 +291,11 @@ class _ViewNotificationsScreenState extends State<ViewNotificationsScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              Icon(Icons.access_time, color: Colors.white54, size: 18), // Icon for date/time
+              Icon(
+                Icons.access_time,
+                color: Colors.white54,
+                size: 18,
+              ), // Icon for date/time
               SizedBox(width: 5),
               Text(
                 _formatDate(notification['date']), // Format date

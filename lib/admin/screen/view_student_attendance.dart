@@ -19,7 +19,7 @@ class _ViewStudentAttendanceState extends State<ViewStudentAttendance> {
   String? errorMessage;
 
   // Replace with your backend API base URL
-  final String apiBaseUrl = 'http://192.168.31.104:5000/api';
+  final String apiBaseUrl = 'http://172.20.10.9:5000/api';
 
   // Fetch bus numbers from backend
   final List<String> busNumbers = [];
@@ -79,7 +79,7 @@ class _ViewStudentAttendanceState extends State<ViewStudentAttendance> {
         Uri.parse('$apiBaseUrl/allocations/allocations?busNumber=$selectedBus'),
       );
       print(
-          'Allocations response: ${allocationsResponse.statusCode} ${allocationsResponse.body}',
+        'Allocations response: ${allocationsResponse.statusCode} ${allocationsResponse.body}',
       );
 
       if (allocationsResponse.statusCode != 200) {
@@ -106,7 +106,7 @@ class _ViewStudentAttendanceState extends State<ViewStudentAttendance> {
       }
 
       print(
-          'Fetching attendance for students: $studentIds on date: $formattedDate',
+        'Fetching attendance for students: $studentIds on date: $formattedDate',
       );
       final attendanceResponse = await http.post(
         Uri.parse('$apiBaseUrl/students/attendance/date'),
@@ -114,12 +114,12 @@ class _ViewStudentAttendanceState extends State<ViewStudentAttendance> {
         body: jsonEncode({'date': formattedDate, 'studentIds': studentIds}),
       );
       print(
-          'Attendance response: ${attendanceResponse.statusCode} ${attendanceResponse.body}',
+        'Attendance response: ${attendanceResponse.statusCode} ${attendanceResponse.body}',
       );
 
       if (attendanceResponse.statusCode == 200) {
         final List<dynamic> attendanceData = jsonDecode(
-            attendanceResponse.body,
+          attendanceResponse.body,
         );
         setState(() {
           studentAttendanceList =
@@ -130,10 +130,15 @@ class _ViewStudentAttendanceState extends State<ViewStudentAttendance> {
                 };
               }).toList();
           // Filter out null names or statuses if any from backend
-          studentAttendanceList.removeWhere((student) => student['name'] == 'Unknown Student' || student['status'] == 'Unknown');
+          studentAttendanceList.removeWhere(
+            (student) =>
+                student['name'] == 'Unknown Student' ||
+                student['status'] == 'Unknown',
+          );
 
           if (studentAttendanceList.isEmpty && studentIds.isNotEmpty) {
-            errorMessage = "No attendance recorded for allocated students on this date.";
+            errorMessage =
+                "No attendance recorded for allocated students on this date.";
           }
         });
       } else {
@@ -162,7 +167,8 @@ class _ViewStudentAttendanceState extends State<ViewStudentAttendance> {
       lastDate: DateTime(2026),
       builder: (BuildContext context, Widget? child) {
         return Theme(
-          data: ThemeData.dark().copyWith( // Dark theme for date picker
+          data: ThemeData.dark().copyWith(
+            // Dark theme for date picker
             colorScheme: ColorScheme.dark(
               primary: Colors.blue.shade600, // Header background
               onPrimary: Colors.white, // Header text
@@ -194,9 +200,14 @@ class _ViewStudentAttendanceState extends State<ViewStudentAttendance> {
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8), // Increased padding
+      padding: const EdgeInsets.symmetric(
+        horizontal: 14,
+        vertical: 8,
+      ), // Increased padding
       decoration: BoxDecoration(
-        color: chipColor.withOpacity(0.8), // Slightly transparent for liquid effect
+        color: chipColor.withOpacity(
+          0.8,
+        ), // Slightly transparent for liquid effect
         borderRadius: BorderRadius.circular(25), // More rounded
         boxShadow: [
           BoxShadow(
@@ -220,21 +231,31 @@ class _ViewStudentAttendanceState extends State<ViewStudentAttendance> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBodyBehindAppBar: true, // Extend body behind app bar for full gradient
+      extendBodyBehindAppBar:
+          true, // Extend body behind app bar for full gradient
       appBar: AppBar(
         title: const Text(
           'View Student Attendance',
           style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
-        backgroundColor: Colors.blue.shade800.withOpacity(0.3), // Liquid glass app bar
+        backgroundColor: Colors.blue.shade800.withOpacity(
+          0.3,
+        ), // Liquid glass app bar
         centerTitle: true,
         elevation: 0, // Remove default shadow
-        iconTheme: const IconThemeData(color: Colors.white), // White back button
+        iconTheme: const IconThemeData(
+          color: Colors.white,
+        ), // White back button
         flexibleSpace: ClipRect(
           child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10), // Blur effect for app bar
+            filter: ImageFilter.blur(
+              sigmaX: 10,
+              sigmaY: 10,
+            ), // Blur effect for app bar
             child: Container(
-              color: Colors.transparent, // Transparent to show blurred content behind
+              color:
+                  Colors
+                      .transparent, // Transparent to show blurred content behind
             ),
           ),
         ),
@@ -249,14 +270,17 @@ class _ViewStudentAttendanceState extends State<ViewStudentAttendance> {
             colors: [
               Colors.blue.shade900,
               Colors.blue.shade700,
-              Colors.blue.shade500
+              Colors.blue.shade500,
             ], // Blue themed gradient background
             stops: const [0.0, 0.5, 1.0],
           ),
         ),
         child: Padding(
           padding: EdgeInsets.only(
-            top: AppBar().preferredSize.height + MediaQuery.of(context).padding.top + 16,
+            top:
+                AppBar().preferredSize.height +
+                MediaQuery.of(context).padding.top +
+                16,
             left: 16,
             right: 16,
             bottom: 16,
@@ -272,23 +296,39 @@ class _ViewStudentAttendanceState extends State<ViewStudentAttendance> {
                   filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                   child: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue.shade600.withOpacity(0.4), // Translucent blue
+                      backgroundColor: Colors.blue.shade600.withOpacity(
+                        0.4,
+                      ), // Translucent blue
                       foregroundColor: Colors.white, // White text/icon
-                      padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 20),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 15,
+                        horizontal: 20,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(15),
-                        side: BorderSide(color: Colors.white.withOpacity(0.2), width: 1.5),
+                        side: BorderSide(
+                          color: Colors.white.withOpacity(0.2),
+                          width: 1.5,
+                        ),
                       ),
                       elevation: 0, // No default elevation
                       shadowColor: Colors.black.withOpacity(0.3),
                     ),
                     onPressed: () => _selectDate(context),
-                    icon: const Icon(Icons.calendar_today, size: 24, shadows: [Shadow(blurRadius: 2, color: Colors.black54)]),
+                    icon: const Icon(
+                      Icons.calendar_today,
+                      size: 24,
+                      shadows: [Shadow(blurRadius: 2, color: Colors.black54)],
+                    ),
                     label: Text(
                       selectedDate == null
                           ? "Select Date"
                           : "Selected Date: ${DateFormat('yyyy-MM-dd').format(selectedDate!)}",
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500, shadows: [Shadow(blurRadius: 2, color: Colors.black54)]),
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w500,
+                        shadows: [Shadow(blurRadius: 2, color: Colors.black54)],
+                      ),
                     ),
                   ),
                 ),
@@ -301,33 +341,60 @@ class _ViewStudentAttendanceState extends State<ViewStudentAttendance> {
                 child: BackdropFilter(
                   filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                   child: DropdownButtonFormField<String>(
-                    dropdownColor: Colors.blue.shade800.withOpacity(0.7), // Dropdown background color
-                    style: TextStyle(color: Colors.white, fontSize: 18), // Items text style
+                    dropdownColor: Colors.blue.shade800.withOpacity(
+                      0.7,
+                    ), // Dropdown background color
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                    ), // Items text style
                     decoration: InputDecoration(
                       filled: true,
-                      fillColor: Colors.white.withOpacity(0.08), // Subtle translucent fill
+                      fillColor: Colors.white.withOpacity(
+                        0.08,
+                      ), // Subtle translucent fill
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(15),
-                        borderSide: BorderSide(color: Colors.white.withOpacity(0.4), width: 1.5),
+                        borderSide: BorderSide(
+                          color: Colors.white.withOpacity(0.4),
+                          width: 1.5,
+                        ),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(15),
-                        borderSide: BorderSide(color: Colors.white.withOpacity(0.4), width: 1.5),
+                        borderSide: BorderSide(
+                          color: Colors.white.withOpacity(0.4),
+                          width: 1.5,
+                        ),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(15),
-                        borderSide: const BorderSide(color: Colors.lightBlueAccent, width: 2.5),
+                        borderSide: const BorderSide(
+                          color: Colors.lightBlueAccent,
+                          width: 2.5,
+                        ),
                       ),
                       hintText: "Choose Bus Number",
-                      hintStyle: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 18),
-                      prefixIcon: Icon(Icons.directions_bus, color: Colors.lightBlueAccent, size: 28), // Icon for dropdown
+                      hintStyle: TextStyle(
+                        color: Colors.white.withOpacity(0.7),
+                        fontSize: 18,
+                      ),
+                      prefixIcon: Icon(
+                        Icons.directions_bus,
+                        color: Colors.lightBlueAccent,
+                        size: 28,
+                      ), // Icon for dropdown
                     ),
                     value: selectedBus,
-                    items: busNumbers
-                        .map(
-                          (bus) => DropdownMenuItem(value: bus, child: Text(bus)),
-                        )
-                        .toList(),
+                    items:
+                        busNumbers
+                            .map(
+                              (bus) => DropdownMenuItem(
+                                value: bus,
+                                child: Text(bus),
+                              ),
+                            )
+                            .toList(),
                     onChanged: (value) {
                       setState(() {
                         selectedBus = value;
@@ -345,89 +412,120 @@ class _ViewStudentAttendanceState extends State<ViewStudentAttendance> {
               Expanded(
                 child:
                     isLoading
-                        ? const Center(child: CircularProgressIndicator(color: Colors.white))
+                        ? const Center(
+                          child: CircularProgressIndicator(color: Colors.white),
+                        )
                         : errorMessage != null
-                            ? Center(
-                                child: Text(
-                                  errorMessage!,
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(color: Colors.redAccent.shade100, fontSize: 18),
-                                ),
-                              )
-                            : (selectedBus == null || selectedDate == null || studentAttendanceList.isEmpty)
-                                ? Center(
-                                    child: Text(
-                                      studentAttendanceList.isEmpty && selectedBus != null && selectedDate != null
-                                          ? "No attendance records found for this selection. Try a different date or bus."
-                                          : "Please select both a date and a bus number to view attendance.",
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                        color: Colors.white.withOpacity(0.8),
-                                        fontSize: 18,
+                        ? Center(
+                          child: Text(
+                            errorMessage!,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.redAccent.shade100,
+                              fontSize: 18,
+                            ),
+                          ),
+                        )
+                        : (selectedBus == null ||
+                            selectedDate == null ||
+                            studentAttendanceList.isEmpty)
+                        ? Center(
+                          child: Text(
+                            studentAttendanceList.isEmpty &&
+                                    selectedBus != null &&
+                                    selectedDate != null
+                                ? "No attendance records found for this selection. Try a different date or bus."
+                                : "Please select both a date and a bus number to view attendance.",
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.8),
+                              fontSize: 18,
+                            ),
+                          ),
+                        )
+                        : ListView.builder(
+                          itemCount: studentAttendanceList.length,
+                          itemBuilder: (context, index) {
+                            final student = studentAttendanceList[index];
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 8.0,
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(20),
+                                child: BackdropFilter(
+                                  filter: ImageFilter.blur(
+                                    sigmaX: 15,
+                                    sigmaY: 15,
+                                  ),
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        colors: [
+                                          Colors.blueGrey.shade300.withOpacity(
+                                            0.1,
+                                          ),
+                                          Colors.blueGrey.shade700.withOpacity(
+                                            0.1,
+                                          ),
+                                        ],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
                                       ),
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(
+                                        color: Colors.white.withOpacity(0.2),
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.15),
+                                          blurRadius: 15,
+                                          spreadRadius: 2,
+                                          offset: const Offset(5, 5),
+                                        ),
+                                        BoxShadow(
+                                          color: Colors.white.withOpacity(0.05),
+                                          blurRadius: 8,
+                                          spreadRadius: 1,
+                                          offset: const Offset(-3, -3),
+                                        ),
+                                      ],
                                     ),
-                                  )
-                                : ListView.builder(
-                                    itemCount: studentAttendanceList.length,
-                                    itemBuilder: (context, index) {
-                                      final student = studentAttendanceList[index];
-                                      return Padding(
-                                        padding: const EdgeInsets.symmetric(vertical: 8.0),
-                                        child: ClipRRect(
-                                          borderRadius: BorderRadius.circular(20),
-                                          child: BackdropFilter(
-                                            filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-                                            child: Container(
-                                              decoration: BoxDecoration(
-                                                gradient: LinearGradient(
-                                                  colors: [
-                                                    Colors.blueGrey.shade300.withOpacity(0.1),
-                                                    Colors.blueGrey.shade700.withOpacity(0.1)
-                                                  ],
-                                                  begin: Alignment.topLeft,
-                                                  end: Alignment.bottomRight,
-                                                ),
-                                                borderRadius: BorderRadius.circular(20),
-                                                border: Border.all(color: Colors.white.withOpacity(0.2)),
-                                                boxShadow: [
-                                                  BoxShadow(
-                                                    color: Colors.black.withOpacity(0.15),
-                                                    blurRadius: 15,
-                                                    spreadRadius: 2,
-                                                    offset: const Offset(5, 5),
-                                                  ),
-                                                  BoxShadow(
-                                                    color: Colors.white.withOpacity(0.05),
-                                                    blurRadius: 8,
-                                                    spreadRadius: 1,
-                                                    offset: const Offset(-3, -3),
-                                                  ),
-                                                ],
-                                              ),
-                                              child: ListTile(
-                                                leading: CircleAvatar(
-                                                  backgroundColor: Colors.blue.shade400.withOpacity(0.6), // Liquid glass circle avatar
-                                                  child: Text(
-                                                    student["name"] != null && student["name"].isNotEmpty
-                                                        ? student["name"][0].toUpperCase()
-                                                        : '?',
-                                                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                                                  ),
-                                                ),
-                                                title: Text(
-                                                  student["name"] ?? "N/A",
-                                                  style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600),
-                                                ),
-                                                trailing: _attendanceStatusChip(
-                                                  student["status"],
-                                                ),
-                                              ),
-                                            ),
+                                    child: ListTile(
+                                      leading: CircleAvatar(
+                                        backgroundColor: Colors.blue.shade400
+                                            .withOpacity(
+                                              0.6,
+                                            ), // Liquid glass circle avatar
+                                        child: Text(
+                                          student["name"] != null &&
+                                                  student["name"].isNotEmpty
+                                              ? student["name"][0].toUpperCase()
+                                              : '?',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
                                           ),
                                         ),
-                                      );
-                                    },
+                                      ),
+                                      title: Text(
+                                        student["name"] ?? "N/A",
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      trailing: _attendanceStatusChip(
+                                        student["status"],
+                                      ),
+                                    ),
                                   ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
               ),
             ],
           ),
