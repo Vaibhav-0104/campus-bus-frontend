@@ -64,7 +64,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       final feesResponse = await http
           .get(
             Uri.parse(
-              'http://172.20.10.9:5000/api/fees/student/${widget.envNumber}',
+              'http://192.168.31.104:5000/api/fees/student/${widget.envNumber}',
             ),
             headers: {'Content-Type': 'application/json'},
           )
@@ -112,7 +112,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       final attendanceResponse = await http
           .post(
             Uri.parse(
-              'http://172.20.10.9:5000/api/students/attendance/by-date', // This route should map to getAttendancePercentageByDateRange
+              'http://192.168.31.104:5000/api/students/attendance/by-date', // This route should map to getAttendancePercentageByDateRange
             ),
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode({
@@ -164,7 +164,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       final notificationsResponse = await http
           .get(
             Uri.parse(
-              'http://172.20.10.9:5000/api/notifications/view/Students',
+              'http://192.168.31.104:5000/api/notifications/view/Students',
             ),
             headers: {'Content-Type': 'application/json'},
           )

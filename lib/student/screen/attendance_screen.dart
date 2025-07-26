@@ -125,7 +125,9 @@ class _FaceAttendanceScreenState extends State<FaceAttendanceScreen>
         _isLoading = true;
       });
 
-      final uri = Uri.parse('http://172.20.10.9:5000/api/students/attendance');
+      final uri = Uri.parse(
+        'http://192.168.31.104:5000/api/students/attendance',
+      );
       final request = http.MultipartRequest('POST', uri)
         ..files.add(
           http.MultipartFile.fromBytes('image', bytes, filename: 'frame.jpg'),

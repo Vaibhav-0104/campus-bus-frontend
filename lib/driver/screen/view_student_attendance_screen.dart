@@ -42,7 +42,7 @@ class _ViewAttendanceScreenState extends State<ViewAttendanceScreen> {
       // Step 1: Fetch allocations for the driver's bus
       final allocationsResponse = await http.get(
         Uri.parse(
-          'http://172.20.10.9:5000/api/allocations/allocations/driver/${widget.driverId}',
+          'http://192.168.31.104:5000/api/allocations/allocations/driver/${widget.driverId}',
         ),
       );
 
@@ -72,7 +72,7 @@ class _ViewAttendanceScreenState extends State<ViewAttendanceScreen> {
       // Step 2: Fetch attendance for the selected date and student IDs
       final formattedDate = DateFormat('yyyy-MM-dd').format(_selectedDate);
       final attendanceResponse = await http.post(
-        Uri.parse('http://172.20.10.9:5000/api/students/attendance/date'),
+        Uri.parse('http://192.168.31.104:5000/api/students/attendance/date'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'date': formattedDate, 'studentIds': studentIds}),
       );

@@ -16,7 +16,7 @@ class ManageStudentFeesScreenState extends State<ManageStudentFeesScreen> {
   final TextEditingController routeController = TextEditingController();
 
   static const String routeApiUrl =
-      "http://172.20.10.9:5000/api/students/route-by-env";
+      "http://192.168.31.104:5000/api/students/route-by-env";
 
   @override
   void initState() {
@@ -104,7 +104,7 @@ class ManageStudentFeesScreenState extends State<ManageStudentFeesScreen> {
     }
 
     final response = await http.post(
-      Uri.parse("http://172.20.10.9:5000/api/fees/set-fee"),
+      Uri.parse("http://192.168.31.104:5000/api/fees/set-fee"),
       headers: {"Content-Type": "application/json"},
       body: jsonEncode({
         "envNumber": envNumberController.text,

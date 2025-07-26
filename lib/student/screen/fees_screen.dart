@@ -141,7 +141,7 @@ class _FeesPaymentScreenState extends State<FeesPaymentScreen> {
       // Ensure your backend server is running and accessible at this IP address.
       final response = await http.post(
         Uri.parse(
-          "http://172.20.10.9:5000/api/fees/pay",
+          "http://192.168.31.104:5000/api/fees/pay",
         ), // Replace with your actual backend URL
         body: jsonEncode({"envNumber": widget.envNumber}),
         headers: {"Content-Type": "application/json"},

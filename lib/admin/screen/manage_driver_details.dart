@@ -1,10 +1,9 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:ui'; // Required for ImageFilter for blur effects
 
-const String apiUrl = "http://172.20.10.9:5000/api/drivers";
+const String apiUrl = "http://192.168.31.104:5000/api/drivers";
 
 class ManageBusDriverDetailsScreen extends StatefulWidget {
   const ManageBusDriverDetailsScreen({super.key});
@@ -53,11 +52,11 @@ class _ManageBusDriverDetailsScreenState
           );
         });
       } else {
-        _showSnackBar("Failed to load drivers: ${response.body}");
+        _showSnackBar("Failed to load drivers: ${response.statusCode}");
       }
     } catch (e) {
       debugPrint("Error fetching drivers: $e");
-      _showSnackBar("Error fetching drivers");
+      _showSnackBar("Error fetching drivers: $e");
     }
   }
 
@@ -68,36 +67,50 @@ class _ManageBusDriverDetailsScreenState
         'contact': _contactController.text,
         'license': _licenseController.text,
         'email': _emailController.text,
-        'password': _passwordController.text,
         'status': _isActive ? 'Active' : 'Inactive',
       };
 
+      // Only include password if provided
+      if (_passwordController.text.isNotEmpty) {
+        driverDetails['password'] = _passwordController.text;
+      }
+
       try {
+        http.Response response;
+        String message;
+
         if (_editingIndex == null) {
           // Add driver
-          final response = await http.post(
+          response = await http.post(
             Uri.parse(apiUrl),
             headers: {"Content-Type": "application/json"},
             body: json.encode(driverDetails),
           );
-          if (response.statusCode != 201)
-            throw Exception("Failed to add driver: ${response.body}");
-          _showSnackBar('Driver added successfully!');
+          if (response.statusCode != 201) {
+            throw Exception(
+              "Failed to add driver: ${jsonDecode(response.body)['message'] ?? response.body}",
+            );
+          }
+          message = 'Driver added successfully!';
         } else {
           // Update driver
           String driverId = _driverList[_editingIndex!]['_id'];
-          final response = await http.put(
+          response = await http.put(
             Uri.parse("$apiUrl/$driverId"),
             headers: {"Content-Type": "application/json"},
             body: json.encode(driverDetails),
           );
-          if (response.statusCode != 200)
-            throw Exception("Failed to update driver: ${response.body}");
-          _showSnackBar('Driver updated successfully!');
+          if (response.statusCode != 200) {
+            throw Exception(
+              "Failed to update driver: ${jsonDecode(response.body)['message'] ?? response.body}",
+            );
+          }
+          message = 'Driver updated successfully!';
           _editingIndex = null;
         }
-        _fetchDrivers();
+        await _fetchDrivers();
         _clearForm();
+        _showSnackBar(message, isSuccess: true);
       } catch (e) {
         debugPrint("Error: $e");
         _showSnackBar(
@@ -111,14 +124,11 @@ class _ManageBusDriverDetailsScreenState
     showDialog(
       context: context,
       builder: (BuildContext dialogContext) {
-        // Use dialogContext to avoid conflicts
         return AlertDialog(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
-          backgroundColor: Colors.blue.shade800.withOpacity(
-            0.8,
-          ), // Liquid glass dialog background
+          backgroundColor: Colors.blue.shade800.withValues(alpha: 0.8),
           title: const Text(
             'Confirm Deletion',
             style: TextStyle(
@@ -137,25 +147,30 @@ class _ManageBusDriverDetailsScreenState
               child: Text(
                 'Cancel',
                 style: TextStyle(
-                  color: Colors.white.withOpacity(0.8),
+                  color: Colors.white.withValues(alpha: 0.8),
                   fontSize: 16,
                 ),
               ),
             ),
             ElevatedButton(
               onPressed: () async {
-                Navigator.of(dialogContext).pop(); // Dismiss dialog
+                Navigator.of(dialogContext).pop();
                 try {
                   String driverId = _driverList[index]['_id'];
                   final response = await http.delete(
                     Uri.parse("$apiUrl/$driverId"),
+                    headers: {"Content-Type": "application/json"},
                   );
-                  if (response.statusCode != 200)
+                  if (response.statusCode != 200) {
                     throw Exception(
-                      "Failed to delete driver: ${response.body}",
+                      "Failed to delete driver: ${jsonDecode(response.body)['message'] ?? response.body}",
                     );
-                  _showSnackBar('Driver deleted successfully!');
-                  _fetchDrivers();
+                  }
+                  _showSnackBar(
+                    'Driver deleted successfully!',
+                    isSuccess: true,
+                  );
+                  await _fetchDrivers();
                 } catch (e) {
                   debugPrint("Error deleting driver: $e");
                   _showSnackBar(
@@ -164,7 +179,7 @@ class _ManageBusDriverDetailsScreenState
                 }
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.redAccent, // Red button for delete
+                backgroundColor: Colors.redAccent,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(15),
                 ),
@@ -190,12 +205,11 @@ class _ManageBusDriverDetailsScreenState
   void _editDriver(int index) {
     final driver = _driverList[index];
     setState(() {
-      _nameController.text = driver['name'];
-      _contactController.text = driver['contact'];
-      _licenseController.text = driver['license'];
-      _emailController.text = driver['email'];
-      _passwordController.text =
-          ''; // Password should not be pre-filled for security
+      _nameController.text = driver['name'] ?? '';
+      _contactController.text = driver['contact'] ?? '';
+      _licenseController.text = driver['license'] ?? '';
+      _emailController.text = driver['email'] ?? '';
+      _passwordController.text = ''; // Keep empty to indicate no change
       _isActive = driver['status'] == 'Active';
       _editingIndex = index;
     });
@@ -209,14 +223,18 @@ class _ManageBusDriverDetailsScreenState
     _passwordController.clear();
     _isActive = true;
     setState(() {
-      _editingIndex = null; // Clear editing index when clearing form
+      _editingIndex = null;
     });
   }
 
-  void _showSnackBar(String message) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+  void _showSnackBar(String message, {bool isSuccess = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isSuccess ? Colors.green : Colors.red,
+        duration: const Duration(seconds: 3),
+      ),
+    );
   }
 
   Widget _buildTextField(
@@ -232,37 +250,28 @@ class _ManageBusDriverDetailsScreenState
         controller: controller,
         keyboardType: inputType,
         obscureText: obscureText,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 16,
-        ), // White text input
+        style: const TextStyle(color: Colors.white, fontSize: 16),
         decoration: InputDecoration(
-          prefixIcon: Icon(
-            icon,
-            color: Colors.lightBlueAccent,
-            size: 24,
-          ), // Blue icon
+          prefixIcon: Icon(icon, color: Colors.lightBlueAccent, size: 24),
           labelText: label,
           labelStyle: TextStyle(
-            color: Colors.white.withOpacity(0.8),
+            color: Colors.white.withValues(alpha: 0.8),
             fontSize: 16,
-          ), // White label
-          hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
+          ),
+          hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
           filled: true,
-          fillColor: Colors.white.withOpacity(0.08), // Subtle translucent fill
+          fillColor: Colors.white.withValues(alpha: 0.08),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(
-              15,
-            ), // Rounded corners for input
+            borderRadius: BorderRadius.circular(15),
             borderSide: BorderSide(
-              color: Colors.white.withOpacity(0.3),
+              color: Colors.white.withValues(alpha: 0.3),
               width: 1.5,
             ),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(15),
             borderSide: BorderSide(
-              color: Colors.white.withOpacity(0.3),
+              color: Colors.white.withValues(alpha: 0.3),
               width: 1.5,
             ),
           ),
@@ -271,21 +280,40 @@ class _ManageBusDriverDetailsScreenState
             borderSide: const BorderSide(
               color: Colors.lightBlueAccent,
               width: 2.5,
-            ), // Stronger blue focus border
+            ),
           ),
         ),
         validator: (value) {
+          // Allow empty password during updates
+          if (label == 'Password' &&
+              _editingIndex != null &&
+              (value == null || value.isEmpty)) {
+            return null;
+          }
+          // Required fields check
           if (value == null || value.isEmpty) {
             return 'Please enter $label';
           }
-          if (label == 'Email' && !value.contains('@')) {
-            return 'Please enter a valid email';
+          // Email validation
+          if (label == 'Email') {
+            final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+            if (!emailRegex.hasMatch(value)) {
+              return 'Please enter a valid email (e.g., example@domain.com)';
+            }
           }
+          // Contact number validation
           if (label == 'Contact Number' && value.length < 10) {
             return 'Contact number must be at least 10 digits';
           }
-          if (label == 'Password' &&
-              (value.length < 6 && _editingIndex == null)) {
+          // License number validation
+          if (label == 'License Number') {
+            final licenseRegex = RegExp(r'^[A-Z0-9]{6,15}$');
+            if (!licenseRegex.hasMatch(value)) {
+              return 'License number must be 6-15 alphanumeric characters';
+            }
+          }
+          // Password length validation (for new drivers or when provided)
+          if (label == 'Password' && value.length < 6) {
             return 'Password must be at least 6 characters long';
           }
           return null;
@@ -307,9 +335,7 @@ class _ManageBusDriverDetailsScreenState
                 borderRadius: BorderRadius.circular(30),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.blue.shade800.withOpacity(
-                      0.4,
-                    ), // Shadow for the button
+                    color: Colors.blue.shade800.withValues(alpha: 0.4),
                     blurRadius: 20,
                     spreadRadius: 2,
                     offset: const Offset(0, 10),
@@ -323,19 +349,18 @@ class _ManageBusDriverDetailsScreenState
                   child: ElevatedButton(
                     onPressed: _addOrUpdateDriver,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue.shade600.withOpacity(
-                        0.5,
-                      ), // Transparent blue background
+                      backgroundColor: Colors.blue.shade600.withValues(
+                        alpha: 0.5,
+                      ),
                       padding: const EdgeInsets.symmetric(vertical: 15),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(30),
                         side: BorderSide(
-                          color: Colors.white.withOpacity(0.3),
+                          color: Colors.white.withValues(alpha: 0.3),
                           width: 1.5,
-                        ), // Subtle white border
+                        ),
                       ),
-                      elevation:
-                          0, // Remove default elevation as we're adding our own shadow
+                      elevation: 0,
                     ),
                     child: Text(
                       _editingIndex == null ? 'Add Driver' : 'Update Driver',
@@ -343,9 +368,7 @@ class _ManageBusDriverDetailsScreenState
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
-                        shadows: [
-                          Shadow(blurRadius: 5, color: Colors.black54),
-                        ], // Text shadow
+                        shadows: [Shadow(blurRadius: 5, color: Colors.black54)],
                       ),
                     ),
                   ),
@@ -360,9 +383,7 @@ class _ManageBusDriverDetailsScreenState
                 borderRadius: BorderRadius.circular(30),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.grey.shade800.withOpacity(
-                      0.4,
-                    ), // Shadow for the button
+                    color: Colors.grey.shade800.withValues(alpha: 0.4),
                     blurRadius: 20,
                     spreadRadius: 2,
                     offset: const Offset(0, 10),
@@ -376,19 +397,18 @@ class _ManageBusDriverDetailsScreenState
                   child: ElevatedButton(
                     onPressed: _clearForm,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.grey.shade600.withOpacity(
-                        0.5,
-                      ), // Transparent grey background
+                      backgroundColor: Colors.grey.shade600.withValues(
+                        alpha: 0.5,
+                      ),
                       padding: const EdgeInsets.symmetric(vertical: 15),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(30),
                         side: BorderSide(
-                          color: Colors.white.withOpacity(0.3),
+                          color: Colors.white.withValues(alpha: 0.3),
                           width: 1.5,
-                        ), // Subtle white border
+                        ),
                       ),
-                      elevation:
-                          0, // Remove default elevation as we're adding our own shadow
+                      elevation: 0,
                     ),
                     child: const Text(
                       'Clear',
@@ -396,9 +416,7 @@ class _ManageBusDriverDetailsScreenState
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
-                        shadows: [
-                          Shadow(blurRadius: 5, color: Colors.black54),
-                        ], // Text shadow
+                        shadows: [Shadow(blurRadius: 5, color: Colors.black54)],
                       ),
                     ),
                   ),
@@ -422,15 +440,15 @@ class _ManageBusDriverDetailsScreenState
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  Colors.white.withOpacity(0.08),
-                  Colors.blue.shade300.withOpacity(0.08),
+                  Colors.white.withValues(alpha: 0.08),
+                  Colors.blue.shade300.withValues(alpha: 0.08),
                 ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(15),
               border: Border.all(
-                color: Colors.white.withOpacity(0.3),
+                color: Colors.white.withValues(alpha: 0.3),
                 width: 1.5,
               ),
             ),
@@ -442,8 +460,8 @@ class _ManageBusDriverDetailsScreenState
               value: _isActive,
               onChanged: (value) => setState(() => _isActive = value),
               activeColor: Colors.lightBlueAccent,
-              inactiveTrackColor: Colors.grey.shade700.withOpacity(0.5),
-              activeTrackColor: Colors.lightBlueAccent.withOpacity(0.5),
+              inactiveTrackColor: Colors.grey.shade700.withValues(alpha: 0.5),
+              activeTrackColor: Colors.lightBlueAccent.withValues(alpha: 0.5),
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 16.0,
                 vertical: 8.0,
@@ -458,32 +476,20 @@ class _ManageBusDriverDetailsScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBodyBehindAppBar:
-          true, // Extend body behind app bar for full gradient
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: const Text(
           'Manage Driver Details',
           style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
-        backgroundColor: Colors.blue.shade800.withOpacity(
-          0.3,
-        ), // Liquid glass app bar
+        backgroundColor: Colors.blue.shade800.withValues(alpha: 0.3),
         centerTitle: true,
-        elevation: 0, // Remove default shadow
-        iconTheme: const IconThemeData(
-          color: Colors.white,
-        ), // White back button
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
         flexibleSpace: ClipRect(
           child: BackdropFilter(
-            filter: ImageFilter.blur(
-              sigmaX: 10,
-              sigmaY: 10,
-            ), // Blur effect for app bar
-            child: Container(
-              color:
-                  Colors
-                      .transparent, // Transparent to show blurred content behind
-            ),
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            child: Container(color: Colors.transparent),
           ),
         ),
       ),
@@ -498,7 +504,7 @@ class _ManageBusDriverDetailsScreenState
               Colors.blue.shade900,
               Colors.blue.shade700,
               Colors.blue.shade500,
-            ], // Blue themed gradient background
+            ],
             stops: const [0.0, 0.5, 1.0],
           ),
         ),
@@ -526,40 +532,34 @@ class _ManageBusDriverDetailsScreenState
 
   Widget _buildFormCard() {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(
-        25,
-      ), // Rounded corners for liquid glass card
+      borderRadius: BorderRadius.circular(25),
       child: BackdropFilter(
-        filter: ImageFilter.blur(
-          sigmaX: 20.0,
-          sigmaY: 20.0,
-        ), // Stronger blur for the card
+        filter: ImageFilter.blur(sigmaX: 20.0, sigmaY: 20.0),
         child: Container(
-          padding: const EdgeInsets.all(
-            25,
-          ), // Increased padding inside the card
+          padding: const EdgeInsets.all(25),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                Colors.blueGrey.shade300.withOpacity(0.15),
-                Colors.blueGrey.shade700.withOpacity(0.15),
+                Colors.blueGrey.shade300.withValues(alpha: 0.15),
+                Colors.blueGrey.shade700.withValues(alpha: 0.15),
               ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(25),
             border: Border.all(
-              color: Colors.white.withOpacity(0.3),
-            ), // More visible border
+              color: Colors.white.withValues(alpha: 0.3),
+              width: 1.5,
+            ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.3), // Stronger shadow
-                blurRadius: 30, // Increased blur
-                spreadRadius: 5, // Increased spread
+                color: Colors.black.withValues(alpha: 0.3),
+                blurRadius: 30,
+                spreadRadius: 5,
                 offset: const Offset(10, 10),
               ),
               BoxShadow(
-                color: Colors.white.withOpacity(0.15), // Inner light glow
+                color: Colors.white.withValues(alpha: 0.15),
                 blurRadius: 15,
                 spreadRadius: 2,
                 offset: const Offset(-8, -8),
@@ -603,10 +603,10 @@ class _ManageBusDriverDetailsScreenState
                 ),
                 _buildTextField(
                   _passwordController,
-                  'Password',
+                  _editingIndex == null ? 'Password' : 'Password (Optional)',
                   Icons.lock,
                   TextInputType.text,
-                  true, // Obscure text for password
+                  true,
                 ),
                 _buildStatusToggle(),
                 _buildActionButtons(),
@@ -620,37 +620,33 @@ class _ManageBusDriverDetailsScreenState
 
   Widget _buildDriverTable() {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(
-        25,
-      ), // Rounded corners for liquid glass table card
+      borderRadius: BorderRadius.circular(25),
       child: BackdropFilter(
-        filter: ImageFilter.blur(
-          sigmaX: 20.0,
-          sigmaY: 20.0,
-        ), // Stronger blur for the table card
+        filter: ImageFilter.blur(sigmaX: 20.0, sigmaY: 20.0),
         child: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                Colors.blueGrey.shade300.withOpacity(0.15),
-                Colors.blueGrey.shade700.withOpacity(0.15),
+                Colors.blueGrey.shade300.withValues(alpha: 0.15),
+                Colors.blueGrey.shade700.withValues(alpha: 0.15),
               ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(25),
             border: Border.all(
-              color: Colors.white.withOpacity(0.3),
-            ), // More visible border
+              color: Colors.white.withValues(alpha: 0.3),
+              width: 1.5,
+            ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.3), // Stronger shadow
-                blurRadius: 30, // Increased blur
-                spreadRadius: 5, // Increased spread
+                color: Colors.black.withValues(alpha: 0.3),
+                blurRadius: 30,
+                spreadRadius: 5,
                 offset: const Offset(10, 10),
               ),
               BoxShadow(
-                color: Colors.white.withOpacity(0.15), // Inner light glow
+                color: Colors.white.withValues(alpha: 0.15),
                 blurRadius: 15,
                 spreadRadius: 2,
                 offset: const Offset(-8, -8),
@@ -671,17 +667,18 @@ class _ManageBusDriverDetailsScreenState
                       scrollDirection: Axis.horizontal,
                       child: DataTable(
                         headingRowColor:
-                            MaterialStateProperty.resolveWith<Color?>(
-                              (Set<MaterialState> states) =>
-                                  Colors.blue.shade800.withOpacity(0.6),
-                            ), // Header background
-                        dataRowColor: MaterialStateProperty.resolveWith<Color?>(
-                          (Set<MaterialState> states) =>
-                              Colors.white.withOpacity(0.05),
-                        ), // Row background
-                        columnSpacing: 30, // Increase column spacing
-                        dataRowHeight: 60, // Increase row height
-                        headingRowHeight: 70, // Increase heading row height
+                            WidgetStateProperty.resolveWith<Color?>(
+                              (Set<WidgetState> states) =>
+                                  Colors.blue.shade800.withValues(alpha: 0.6),
+                            ),
+                        dataRowColor: WidgetStateProperty.resolveWith<Color?>(
+                          (Set<WidgetState> states) =>
+                              Colors.white.withValues(alpha: 0.05),
+                        ),
+                        columnSpacing: 30,
+                        dataRowMinHeight: 60,
+                        dataRowMaxHeight: 60,
+                        headingRowHeight: 70,
                         columns: const [
                           DataColumn(
                             label: Text(
@@ -784,7 +781,7 @@ class _ManageBusDriverDetailsScreenState
                                         color: (driver['status'] == 'Active'
                                                 ? Colors.green
                                                 : Colors.red)
-                                            .withOpacity(0.6),
+                                            .withValues(alpha: 0.6),
                                         borderRadius: BorderRadius.circular(10),
                                       ),
                                       child: Text(

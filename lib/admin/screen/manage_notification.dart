@@ -51,7 +51,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
     try {
       final response = await http.get(
-        Uri.parse("http://172.20.10.9:5000/api/notifications/all"),
+        Uri.parse("http://192.168.31.104:5000/api/notifications/all"),
       );
 
       if (response.statusCode == 200) {
@@ -89,7 +89,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
     try {
       final response = await http.post(
-        Uri.parse("http://172.20.10.9:5000/api/notifications/send"),
+        Uri.parse("http://192.168.31.104:5000/api/notifications/send"),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
           "type": _selectedNotificationType,

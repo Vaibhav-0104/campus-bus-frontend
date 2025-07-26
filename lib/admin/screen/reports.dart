@@ -112,7 +112,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
     try {
       final response = await http.get(
-        Uri.parse('http://172.20.10.9:5000/api/fees/all'), // Fetch all fees
+        Uri.parse('http://192.168.31.104:5000/api/fees/all'), // Fetch all fees
       );
 
       if (response.statusCode == 200) {

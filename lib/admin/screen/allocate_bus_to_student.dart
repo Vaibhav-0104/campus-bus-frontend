@@ -21,7 +21,9 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
   String studentName = '';
   String? selectedTo;
   String? selectedBusId;
+  String? editingAllocationId; // Track the allocation being edited
   List<Map<String, dynamic>> filteredBuses = [];
+  bool isLoadingStudents = true; // Track student loading state
 
   @override
   void initState() {
@@ -33,8 +35,9 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
 
   Future<void> fetchStudents() async {
     try {
+      setState(() => isLoadingStudents = true);
       final response = await http.get(
-        Uri.parse('http://172.20.10.9:5000/api/students'),
+        Uri.parse('http://192.168.31.104:5000/api/students'),
       );
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -44,24 +47,27 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
               (student) => {
                 'id': student['_id'],
                 'envNumber': student['envNumber'],
-                'name': student['name'],
+                'name': student['name'] ?? 'Unknown',
               },
             ),
           );
+          isLoadingStudents = false;
         });
       } else {
         _showSnackBar('Failed to load students: ${response.statusCode}');
+        setState(() => isLoadingStudents = false);
       }
     } catch (e) {
       debugPrint('Error fetching students: $e');
       _showSnackBar('Error fetching students: $e');
+      setState(() => isLoadingStudents = false);
     }
   }
 
   Future<void> fetchBuses() async {
     try {
       final response = await http.get(
-        Uri.parse('http://172.20.10.9:5000/api/buses'),
+        Uri.parse('http://192.168.31.104:5000/api/buses'),
       );
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -75,7 +81,6 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
               },
             ),
           );
-          // Extract unique 'to' destinations
           toDestinations =
               buses
                   .map((bus) => bus['to'] as String)
@@ -95,7 +100,7 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
   Future<void> fetchAllocations() async {
     try {
       final response = await http.get(
-        Uri.parse('http://172.20.10.9:5000/api/allocations/allocations'),
+        Uri.parse('http://192.168.31.104:5000/api/allocations/allocations'),
       );
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -116,42 +121,167 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
         selectedBusId != null &&
         selectedTo != null) {
       try {
-        final response = await http.post(
-          Uri.parse('http://172.20.10.9:5000/api/allocations/allocate'),
-          headers: {'Content-Type': 'application/json'},
-          body: json.encode({
-            'studentId': selectedStudentId,
-            'busId': selectedBusId,
-            'to': selectedTo,
-          }),
-        );
+        final allocationData = {
+          'studentId': selectedStudentId,
+          'busId': selectedBusId,
+          'to': selectedTo,
+        };
+        http.Response response;
+        String message;
 
-        if (response.statusCode == 200) {
-          fetchAllocations();
-          _showSnackBar('Bus allocated successfully!', isSuccess: true);
+        if (editingAllocationId == null) {
+          response = await http.post(
+            Uri.parse('http://192.168.31.104:5000/api/allocations/allocate'),
+            headers: {'Content-Type': 'application/json'},
+            body: json.encode(allocationData),
+          );
+          message = 'Bus allocated successfully!';
+        } else {
+          response = await http.put(
+            Uri.parse(
+              'http://192.168.31.104:5000/api/allocations/$editingAllocationId',
+            ),
+            headers: {'Content-Type': 'application/json'},
+            body: json.encode(allocationData),
+          );
+          message = 'Bus allocation updated successfully!';
+        }
+
+        if (response.statusCode == 200 || response.statusCode == 201) {
+          await fetchAllocations();
+          _showSnackBar(message, isSuccess: true);
+          _clearForm();
         } else {
           _showSnackBar(
-            'Failed to allocate bus: ${response.statusCode}. ${jsonDecode(response.body)['message'] ?? ''}',
+            'Failed to ${editingAllocationId == null ? 'allocate' : 'update'} bus: ${response.statusCode}. ${jsonDecode(response.body)['message'] ?? ''}',
           );
         }
       } catch (e) {
-        debugPrint('Error allocating bus: $e');
-        _showSnackBar('Error allocating bus: $e');
+        debugPrint(
+          'Error ${editingAllocationId == null ? 'allocating' : 'updating'} bus: $e',
+        );
+        _showSnackBar(
+          'Error ${editingAllocationId == null ? 'allocating' : 'updating'} bus: $e',
+        );
       }
     } else {
       _showSnackBar('Please select Student, To, and Bus');
     }
   }
 
+  Future<void> deleteAllocation(String allocationId) async {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          backgroundColor: Colors.blue.shade800.withValues(alpha: 0.8),
+          title: const Text(
+            'Confirm Deletion',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              shadows: [Shadow(blurRadius: 2, color: Colors.black54)],
+            ),
+          ),
+          content: const Text(
+            'Are you sure you want to delete this bus allocation?',
+            style: TextStyle(color: Colors.white70, fontSize: 16),
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text(
+                'Cancel',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.8),
+                  fontSize: 16,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.of(dialogContext).pop();
+                try {
+                  final response = await http.delete(
+                    Uri.parse(
+                      'http://192.168.31.104:5000/api/allocations/$allocationId',
+                    ),
+                    headers: {'Content-Type': 'application/json'},
+                  );
+                  if (response.statusCode == 200) {
+                    await fetchAllocations();
+                    _showSnackBar(
+                      'Bus allocation deleted successfully!',
+                      isSuccess: true,
+                    );
+                  } else {
+                    _showSnackBar(
+                      'Failed to delete allocation: ${response.statusCode}. ${jsonDecode(response.body)['message'] ?? ''}',
+                    );
+                  }
+                } catch (e) {
+                  debugPrint('Error deleting allocation: $e');
+                  _showSnackBar('Error deleting allocation: $e');
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.redAccent,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 10,
+                ),
+              ),
+              child: const Text(
+                'Delete',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void editAllocation(Map<String, dynamic> allocation) {
+    setState(() {
+      editingAllocationId = allocation['_id'];
+      selectedStudentId = allocation['studentId']?['_id'] ?? '';
+      studentName = allocation['studentId']?['name'] ?? 'N/A';
+      selectedTo = allocation['to'] ?? allocation['busId']?['to'] ?? '';
+      selectedBusId = allocation['busId']?['_id'] ?? '';
+      filterBusesByTo(selectedTo);
+    });
+  }
+
   void filterBusesByTo(String? to) {
     setState(() {
       selectedTo = to;
-      selectedBusId = null; // Reset bus selection when 'to' changes
+      selectedBusId = null;
       if (to != null && to.isNotEmpty) {
         filteredBuses = buses.where((bus) => bus['to'] == to).toList();
       } else {
-        filteredBuses = []; // Clear filtered buses if 'to' is cleared
+        filteredBuses = [];
       }
+    });
+  }
+
+  void _clearForm() {
+    setState(() {
+      selectedStudentId = null;
+      studentName = '';
+      selectedTo = null;
+      selectedBusId = null;
+      editingAllocationId = null;
+      filteredBuses = [];
     });
   }
 
@@ -174,7 +304,7 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
           'Allocate Bus to Student Details',
           style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
-        backgroundColor: Colors.blue.shade800.withOpacity(0.3),
+        backgroundColor: Colors.blue.shade800.withValues(alpha: 0.3),
         centerTitle: true,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
@@ -211,7 +341,7 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
             bottom: 16.0,
           ),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _buildFormCard(),
               const SizedBox(height: 30),
@@ -233,23 +363,26 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                Colors.blueGrey.shade300.withOpacity(0.15),
-                Colors.blueGrey.shade700.withOpacity(0.15),
+                Colors.blueGrey.shade300.withValues(alpha: 0.15),
+                Colors.blueGrey.shade700.withValues(alpha: 0.15),
               ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(25),
-            border: Border.all(color: Colors.white.withOpacity(0.3)),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.3),
+              width: 1.5,
+            ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.3),
+                color: Colors.black.withValues(alpha: 0.3),
                 blurRadius: 30,
                 spreadRadius: 5,
                 offset: const Offset(10, 10),
               ),
               BoxShadow(
-                color: Colors.white.withOpacity(0.15),
+                color: Colors.white.withValues(alpha: 0.15),
                 blurRadius: 15,
                 spreadRadius: 2,
                 offset: const Offset(-8, -8),
@@ -259,52 +392,62 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
           child: Column(
             children: [
               Text(
-                "Allocate Bus to Student",
+                editingAllocationId == null
+                    ? 'Allocate Bus to Student'
+                    : 'Update Bus Allocation',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 28 + 2,
+                style: const TextStyle(
+                  fontSize: 28,
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
                   shadows: [Shadow(blurRadius: 5, color: Colors.black54)],
                 ),
               ),
               const SizedBox(height: 30),
-              _buildDropdownFormField(
-                value: selectedStudentId,
-                hint: "Select Enrollment Number",
-                items:
-                    students.map<DropdownMenuItem<String>>((student) {
-                      return DropdownMenuItem<String>(
-                        value: student['id'] as String,
-                        child: Text(
-                          "${student['envNumber']}",
-                          style: TextStyle(fontSize: 16 + 2),
-                        ),
-                      );
-                    }).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    selectedStudentId = value;
-                    studentName =
-                        students.firstWhere((s) => s['id'] == value)['name'];
-                  });
-                },
-                icon: Icons.person_outline,
-              ),
+              isLoadingStudents
+                  ? const Center(child: CircularProgressIndicator())
+                  : _buildDropdownFormField(
+                    value: selectedStudentId,
+                    hint: 'Select Enrollment Number',
+                    items:
+                        students.map<DropdownMenuItem<String>>((student) {
+                          return DropdownMenuItem<String>(
+                            value: student['id'] as String,
+                            child: Text(
+                              '${student['envNumber']}',
+                              style: const TextStyle(fontSize: 16),
+                            ),
+                          );
+                        }).toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        selectedStudentId = value;
+                        final selectedStudent = students.firstWhere(
+                          (s) => s['id'] == value,
+                          orElse: () => {'name': 'Unknown'},
+                        );
+                        studentName = selectedStudent['name'] as String;
+                        debugPrint(
+                          'Selected student ID: $value, Name: $studentName',
+                        );
+                      });
+                    },
+                    icon: Icons.person_outline,
+                  ),
               const SizedBox(height: 20),
               _buildReadOnlyTextField(
-                studentName.isEmpty ? "Student Name" : studentName,
+                studentName.isEmpty ? 'Student Name' : studentName,
                 Icons.person,
               ),
               const SizedBox(height: 20),
               _buildDropdownFormField(
                 value: selectedTo,
-                hint: "Select To Destination",
+                hint: 'Select To Destination',
                 items:
                     toDestinations.map<DropdownMenuItem<String>>((to) {
                       return DropdownMenuItem<String>(
                         value: to,
-                        child: Text(to, style: TextStyle(fontSize: 16 + 2)),
+                        child: Text(to, style: const TextStyle(fontSize: 16)),
                       );
                     }).toList(),
                 onChanged: filterBusesByTo,
@@ -313,14 +456,14 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
               const SizedBox(height: 20),
               _buildDropdownFormField(
                 value: selectedBusId,
-                hint: "Select Bus",
+                hint: 'Select Bus',
                 items:
                     filteredBuses.map<DropdownMenuItem<String>>((bus) {
                       return DropdownMenuItem<String>(
                         value: bus['id'] as String,
                         child: Text(
                           bus['busNumber'],
-                          style: TextStyle(fontSize: 16 + 2),
+                          style: const TextStyle(fontSize: 16),
                         ),
                       );
                     }).toList(),
@@ -328,7 +471,7 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
                 icon: Icons.directions_bus_outlined,
               ),
               const SizedBox(height: 30),
-              _buildAllocateButton(),
+              _buildActionButtons(),
             ],
           ),
         ),
@@ -346,26 +489,29 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(15),
-        color: Colors.white.withOpacity(0.08),
-        border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
+        color: Colors.white.withValues(alpha: 0.08),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.3),
+          width: 1.5,
+        ),
       ),
       child: DropdownButtonFormField<String>(
         value: value,
         hint: Text(
           hint,
           style: TextStyle(
-            color: Colors.white.withOpacity(0.7),
-            fontSize: 16 + 2,
+            color: Colors.white.withValues(alpha: 0.7),
+            fontSize: 16,
           ),
         ),
-        style: const TextStyle(color: Colors.white, fontSize: 16 + 2),
+        style: const TextStyle(color: Colors.white, fontSize: 16),
         icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
         decoration: InputDecoration(
           prefixIcon: Icon(icon, color: Colors.lightBlueAccent, size: 24),
           labelText: hint,
           labelStyle: TextStyle(
-            color: Colors.white.withOpacity(0.8),
-            fontSize: 16 + 2,
+            color: Colors.white.withValues(alpha: 0.8),
+            fontSize: 16,
           ),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(
@@ -373,9 +519,9 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
             vertical: 12,
           ),
         ),
-        dropdownColor: Colors.blue.shade800.withOpacity(0.7),
+        dropdownColor: Colors.blue.shade800.withValues(alpha: 0.7),
         items: items,
-        onChanged: onChanged,
+        onChanged: items.isNotEmpty ? onChanged : null, // Disable if no items
       ),
     );
   }
@@ -384,26 +530,31 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: TextFormField(
-        initialValue: text,
+        controller: TextEditingController(
+          text: text,
+        ), // Use controller for dynamic updates
         readOnly: true,
-        style: const TextStyle(color: Colors.white, fontSize: 16 + 2),
+        style: const TextStyle(color: Colors.white, fontSize: 16),
         decoration: InputDecoration(
           prefixIcon: Icon(icon, color: Colors.lightBlueAccent, size: 24),
-          labelText: text,
+          labelText: 'Student Name',
           labelStyle: TextStyle(
-            color: Colors.white.withOpacity(0.8),
-            fontSize: 16 + 2,
+            color: Colors.white.withValues(alpha: 0.8),
+            fontSize: 16,
           ),
           filled: true,
-          fillColor: Colors.white.withOpacity(0.08),
+          fillColor: Colors.white.withValues(alpha: 0.08),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(15),
-            borderSide: BorderSide(color: Colors.white.withOpacity(0.3)),
+            borderSide: BorderSide(
+              color: Colors.white.withValues(alpha: 0.3),
+              width: 1.5,
+            ),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(15),
             borderSide: BorderSide(
-              color: Colors.white.withOpacity(0.3),
+              color: Colors.white.withValues(alpha: 0.3),
               width: 1.5,
             ),
           ),
@@ -419,48 +570,117 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
     );
   }
 
-  Widget _buildAllocateButton() {
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(30),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.blue.shade800.withOpacity(0.4),
-            blurRadius: 20,
-            spreadRadius: 2,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(30),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
-          child: ElevatedButton.icon(
-            onPressed: allocateBus,
-            icon: const Icon(Icons.save_alt, color: Colors.white),
-            label: const Text(
-              "Save/Update Assignment",
-              style: TextStyle(
-                fontSize: 16 + 2,
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue.shade600.withOpacity(0.5),
-              padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
-              shape: RoundedRectangleBorder(
+  Widget _buildActionButtons() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 20),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          Expanded(
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 5),
+              decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(30),
-                side: BorderSide(
-                  color: Colors.white.withOpacity(0.3),
-                  width: 1.5,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.blue.shade800.withValues(alpha: 0.4),
+                    blurRadius: 20,
+                    spreadRadius: 2,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(30),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+                  child: ElevatedButton.icon(
+                    onPressed: allocateBus,
+                    icon: const Icon(Icons.save_alt, color: Colors.white),
+                    label: Text(
+                      editingAllocationId == null
+                          ? 'Save Allocation'
+                          : 'Update Allocation',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue.shade600.withValues(
+                        alpha: 0.5,
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 15,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                        side: BorderSide(
+                          color: Colors.white.withValues(alpha: 0.3),
+                          width: 1.5,
+                        ),
+                      ),
+                      elevation: 0,
+                    ),
+                  ),
                 ),
               ),
-              elevation: 0,
             ),
           ),
-        ),
+          Expanded(
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 5),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(30),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.shade800.withValues(alpha: 0.4),
+                    blurRadius: 20,
+                    spreadRadius: 2,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(30),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+                  child: ElevatedButton.icon(
+                    onPressed: _clearForm,
+                    icon: const Icon(Icons.clear, color: Colors.white),
+                    label: const Text(
+                      'Clear',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.grey.shade600.withValues(
+                        alpha: 0.5,
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 15,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                        side: BorderSide(
+                          color: Colors.white.withValues(alpha: 0.3),
+                          width: 1.5,
+                        ),
+                      ),
+                      elevation: 0,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -474,23 +694,26 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                Colors.blueGrey.shade300.withOpacity(0.15),
-                Colors.blueGrey.shade700.withOpacity(0.15),
+                Colors.blueGrey.shade300.withValues(alpha: 0.15),
+                Colors.blueGrey.shade700.withValues(alpha: 0.15),
               ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(25),
-            border: Border.all(color: Colors.white.withOpacity(0.3)),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.3),
+              width: 1.5,
+            ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.3),
+                color: Colors.black.withValues(alpha: 0.3),
                 blurRadius: 30,
                 spreadRadius: 5,
                 offset: const Offset(10, 10),
               ),
               BoxShadow(
-                color: Colors.white.withOpacity(0.15),
+                color: Colors.white.withValues(alpha: 0.15),
                 blurRadius: 15,
                 spreadRadius: 2,
                 offset: const Offset(-8, -8),
@@ -504,26 +727,24 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
                     ? const Center(
                       child: Text(
                         'No bus assignments available!',
-                        style: TextStyle(
-                          fontSize: 18 + 2,
-                          color: Colors.white70,
-                        ),
+                        style: TextStyle(fontSize: 18, color: Colors.white70),
                       ),
                     )
                     : SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
                       child: DataTable(
                         headingRowColor:
-                            MaterialStateProperty.resolveWith<Color?>(
-                              (Set<MaterialState> states) =>
-                                  Colors.blue.shade800.withOpacity(0.6),
+                            WidgetStateProperty.resolveWith<Color?>(
+                              (Set<WidgetState> states) =>
+                                  Colors.blue.shade800.withValues(alpha: 0.6),
                             ),
-                        dataRowColor: MaterialStateProperty.resolveWith<Color?>(
-                          (Set<MaterialState> states) =>
-                              Colors.white.withOpacity(0.05),
+                        dataRowColor: WidgetStateProperty.resolveWith<Color?>(
+                          (Set<WidgetState> states) =>
+                              Colors.white.withValues(alpha: 0.05),
                         ),
                         columnSpacing: 25,
-                        dataRowHeight: 60,
+                        dataRowMinHeight: 60,
+                        dataRowMaxHeight: 60,
                         headingRowHeight: 70,
                         columns: const [
                           DataColumn(
@@ -532,7 +753,7 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
                               style: TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold,
-                                fontSize: 16 + 2,
+                                fontSize: 16,
                               ),
                             ),
                           ),
@@ -542,7 +763,7 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
                               style: TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold,
-                                fontSize: 16 + 2,
+                                fontSize: 16,
                               ),
                             ),
                           ),
@@ -552,7 +773,17 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
                               style: TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold,
-                                fontSize: 16 + 2,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ),
+                          DataColumn(
+                            label: Text(
+                              'Actions',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
                               ),
                             ),
                           ),
@@ -571,7 +802,7 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
                                       ? bus['busNumber'] ?? 'N/A'
                                       : 'N/A';
                               final to =
-                                  bus != null ? bus['to'] ?? 'N/A' : 'N/A';
+                                  allocation['to'] ?? bus?['to'] ?? 'N/A';
 
                               return DataRow(
                                 cells: [
@@ -580,22 +811,20 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: 8,
                                         vertical: 4,
-                                      ), // Added padding to contain text
+                                      ),
                                       decoration: BoxDecoration(
-                                        color: Colors.white.withOpacity(
-                                          0.1,
-                                        ), // Subtle background to highlight cell
+                                        color: Colors.white.withValues(
+                                          alpha: 0.1,
+                                        ),
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: Text(
                                         studentName,
-                                        style: TextStyle(
+                                        style: const TextStyle(
                                           color: Colors.white70,
-                                          fontSize: 14 + 2,
+                                          fontSize: 14,
                                         ),
-                                        overflow:
-                                            TextOverflow
-                                                .ellipsis, // Handle long text
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
                                   ),
@@ -606,14 +835,16 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
                                         vertical: 4,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: Colors.white.withOpacity(0.1),
+                                        color: Colors.white.withValues(
+                                          alpha: 0.1,
+                                        ),
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: Text(
                                         busNumber,
-                                        style: TextStyle(
+                                        style: const TextStyle(
                                           color: Colors.white70,
-                                          fontSize: 14 + 2,
+                                          fontSize: 14,
                                         ),
                                         overflow: TextOverflow.ellipsis,
                                       ),
@@ -626,17 +857,44 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
                                         vertical: 4,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: Colors.white.withOpacity(0.1),
+                                        color: Colors.white.withValues(
+                                          alpha: 0.1,
+                                        ),
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: Text(
                                         to,
-                                        style: TextStyle(
+                                        style: const TextStyle(
                                           color: Colors.white70,
-                                          fontSize: 14 + 2,
+                                          fontSize: 14,
                                         ),
                                         overflow: TextOverflow.ellipsis,
                                       ),
+                                    ),
+                                  ),
+                                  DataCell(
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        IconButton(
+                                          icon: const Icon(
+                                            Icons.edit,
+                                            color: Colors.lightBlueAccent,
+                                          ),
+                                          onPressed:
+                                              () => editAllocation(allocation),
+                                        ),
+                                        IconButton(
+                                          icon: const Icon(
+                                            Icons.delete,
+                                            color: Colors.redAccent,
+                                          ),
+                                          onPressed:
+                                              () => deleteAllocation(
+                                                allocation['_id'],
+                                              ),
+                                        ),
+                                      ],
                                     ),
                                   ),
                                 ],

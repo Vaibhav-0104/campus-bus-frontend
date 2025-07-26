@@ -42,7 +42,7 @@ class _PreviewFeesScreenState extends State<PreviewFeesScreen> {
       final response = await http
           .get(
             Uri.parse(
-              'http://172.20.10.9:5000/api/fees/student/${widget.envNumber}',
+              'http://192.168.31.104:5000/api/fees/student/${widget.envNumber}',
             ),
             headers: {'Content-Type': 'application/json'},
           )
