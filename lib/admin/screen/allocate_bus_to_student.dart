@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'dart:ui'; // Required for ImageFilter for blur effects
-import 'package:flutter/foundation.dart' show debugPrint; // For debugPrint
+import 'dart:ui';
 
 class AllocateBusScreen extends StatefulWidget {
   const AllocateBusScreen({super.key});
@@ -21,9 +20,13 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
   String studentName = '';
   String? selectedTo;
   String? selectedBusId;
-  String? editingAllocationId; // Track the allocation being edited
+  String? selectedSeatNumber;
+  String? editingAllocationId;
   List<Map<String, dynamic>> filteredBuses = [];
-  bool isLoadingStudents = true; // Track student loading state
+  List<String> availableSeats = [];
+  List<String> allocatedSeats = [];
+  bool isLoadingStudents = true;
+  bool isLoadingSeats = false;
 
   @override
   void initState() {
@@ -58,7 +61,6 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
         setState(() => isLoadingStudents = false);
       }
     } catch (e) {
-      debugPrint('Error fetching students: $e');
       _showSnackBar('Error fetching students: $e');
       setState(() => isLoadingStudents = false);
     }
@@ -78,6 +80,10 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
                 'id': bus['_id'],
                 'busNumber': bus['busNumber'],
                 'to': bus['to'] ?? '',
+                'capacity': bus['capacity'] ?? 0,
+                'allocatedSeats': List<String>.from(
+                  bus['allocatedSeats'] ?? [],
+                ),
               },
             ),
           );
@@ -92,7 +98,6 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
         _showSnackBar('Failed to load buses: ${response.statusCode}');
       }
     } catch (e) {
-      debugPrint('Error fetching buses: $e');
       _showSnackBar('Error fetching buses: $e');
     }
   }
@@ -111,20 +116,68 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
         _showSnackBar('Failed to load allocations: ${response.statusCode}');
       }
     } catch (e) {
-      debugPrint('Error fetching allocations: $e');
       _showSnackBar('Error fetching allocations: $e');
+    }
+  }
+
+  Future<void> fetchAvailableSeats(String busId) async {
+    try {
+      setState(() => isLoadingSeats = true);
+      final bus = buses.firstWhere(
+        (b) => b['id'] == busId,
+        orElse: () => {'capacity': 0, 'allocatedSeats': []},
+      );
+      final capacity = bus['capacity'] as int;
+      final allocated = List<String>.from(bus['allocatedSeats'] ?? []);
+      final allSeats = List<String>.generate(
+        capacity,
+        (i) => (i + 1).toString(),
+      );
+      setState(() {
+        availableSeats =
+            allSeats.where((seat) => !allocated.contains(seat)).toList();
+        allocatedSeats = allocated;
+        if (availableSeats.isEmpty) {
+          _showSnackBar('No seats available for this bus');
+        }
+        isLoadingSeats = false;
+      });
+    } catch (e) {
+      _showSnackBar('Error fetching available seats: $e');
+      setState(() => isLoadingSeats = false);
     }
   }
 
   Future<void> allocateBus() async {
     if (selectedStudentId != null &&
         selectedBusId != null &&
-        selectedTo != null) {
+        selectedTo != null &&
+        selectedSeatNumber != null) {
+      // Re-fetch seats to ensure no stale data
+      await fetchAvailableSeats(selectedBusId!);
+      if (!availableSeats.contains(selectedSeatNumber)) {
+        _showSnackBar('Selected seat is no longer available');
+        return;
+      }
+
+      // Check if student already has a seat in this bus
+      final existingAllocation = allocations.firstWhere(
+        (alloc) =>
+            alloc['studentId']?['_id'] == selectedStudentId &&
+            alloc['busId']?['_id'] == selectedBusId,
+        orElse: () => {},
+      );
+      if (existingAllocation.isNotEmpty && editingAllocationId == null) {
+        _showSnackBar('This student already has a seat allocated in this bus');
+        return;
+      }
+
       try {
         final allocationData = {
           'studentId': selectedStudentId,
           'busId': selectedBusId,
           'to': selectedTo,
+          'seatNumber': selectedSeatNumber,
         };
         http.Response response;
         String message;
@@ -135,7 +188,7 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
             headers: {'Content-Type': 'application/json'},
             body: json.encode(allocationData),
           );
-          message = 'Bus allocated successfully!';
+          message = 'Bus and seat allocated successfully!';
         } else {
           response = await http.put(
             Uri.parse(
@@ -144,28 +197,28 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
             headers: {'Content-Type': 'application/json'},
             body: json.encode(allocationData),
           );
-          message = 'Bus allocation updated successfully!';
+          message = 'Bus and seat allocation updated successfully!';
         }
 
         if (response.statusCode == 200 || response.statusCode == 201) {
           await fetchAllocations();
+          await fetchBuses();
           _showSnackBar(message, isSuccess: true);
           _clearForm();
         } else {
+          final errorMessage =
+              jsonDecode(response.body)['message'] ?? 'Unknown error';
           _showSnackBar(
-            'Failed to ${editingAllocationId == null ? 'allocate' : 'update'} bus: ${response.statusCode}. ${jsonDecode(response.body)['message'] ?? ''}',
+            'Failed to ${editingAllocationId == null ? 'allocate' : 'update'} bus: $errorMessage',
           );
         }
       } catch (e) {
-        debugPrint(
-          'Error ${editingAllocationId == null ? 'allocating' : 'updating'} bus: $e',
-        );
         _showSnackBar(
           'Error ${editingAllocationId == null ? 'allocating' : 'updating'} bus: $e',
         );
       }
     } else {
-      _showSnackBar('Please select Student, To, and Bus');
+      _showSnackBar('Please select Student, To, Bus, and Seat Number');
     }
   }
 
@@ -190,7 +243,7 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
             'Are you sure you want to delete this bus allocation?',
             style: TextStyle(color: Colors.white70, fontSize: 16),
           ),
-          actions: <Widget>[
+          actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(),
               child: Text(
@@ -213,17 +266,17 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
                   );
                   if (response.statusCode == 200) {
                     await fetchAllocations();
+                    await fetchBuses();
                     _showSnackBar(
                       'Bus allocation deleted successfully!',
                       isSuccess: true,
                     );
                   } else {
-                    _showSnackBar(
-                      'Failed to delete allocation: ${response.statusCode}. ${jsonDecode(response.body)['message'] ?? ''}',
-                    );
+                    final errorMessage =
+                        jsonDecode(response.body)['message'] ?? 'Unknown error';
+                    _showSnackBar('Failed to delete allocation: $errorMessage');
                   }
                 } catch (e) {
-                  debugPrint('Error deleting allocation: $e');
                   _showSnackBar('Error deleting allocation: $e');
                 }
               },
@@ -258,7 +311,11 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
       studentName = allocation['studentId']?['name'] ?? 'N/A';
       selectedTo = allocation['to'] ?? allocation['busId']?['to'] ?? '';
       selectedBusId = allocation['busId']?['_id'] ?? '';
+      selectedSeatNumber = allocation['seatNumber']?.toString() ?? '';
       filterBusesByTo(selectedTo);
+      if (selectedBusId != null) {
+        fetchAvailableSeats(selectedBusId!);
+      }
     });
   }
 
@@ -266,6 +323,9 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
     setState(() {
       selectedTo = to;
       selectedBusId = null;
+      selectedSeatNumber = null;
+      availableSeats = [];
+      allocatedSeats = [];
       if (to != null && to.isNotEmpty) {
         filteredBuses = buses.where((bus) => bus['to'] == to).toList();
       } else {
@@ -280,8 +340,11 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
       studentName = '';
       selectedTo = null;
       selectedBusId = null;
+      selectedSeatNumber = null;
       editingAllocationId = null;
       filteredBuses = [];
+      availableSeats = [];
+      allocatedSeats = [];
     });
   }
 
@@ -414,7 +477,7 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
                           return DropdownMenuItem<String>(
                             value: student['id'] as String,
                             child: Text(
-                              '${student['envNumber']}',
+                              student['envNumber'],
                               style: const TextStyle(fontSize: 16),
                             ),
                           );
@@ -427,9 +490,6 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
                           orElse: () => {'name': 'Unknown'},
                         );
                         studentName = selectedStudent['name'] as String;
-                        debugPrint(
-                          'Selected student ID: $value, Name: $studentName',
-                        );
                       });
                     },
                     icon: Icons.person_outline,
@@ -467,8 +527,34 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
                         ),
                       );
                     }).toList(),
-                onChanged: (value) => setState(() => selectedBusId = value),
+                onChanged: (value) {
+                  setState(() {
+                    selectedBusId = value;
+                    selectedSeatNumber = null;
+                    if (value != null) {
+                      fetchAvailableSeats(value);
+                    } else {
+                      availableSeats = [];
+                      allocatedSeats = [];
+                    }
+                  });
+                },
                 icon: Icons.directions_bus_outlined,
+              ),
+              const SizedBox(height: 20),
+              isLoadingSeats
+                  ? const Center(child: CircularProgressIndicator())
+                  : _buildSeatingTable(),
+              const SizedBox(height: 10),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _buildLegendItem(Colors.blue, 'Available'),
+                  const SizedBox(width: 10),
+                  _buildLegendItem(Colors.red, 'Allocated'),
+                  const SizedBox(width: 10),
+                  _buildLegendItem(Colors.green, 'Selected'),
+                ],
               ),
               const SizedBox(height: 30),
               _buildActionButtons(),
@@ -476,6 +562,129 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildSeatingTable() {
+    if (selectedBusId == null) {
+      return const Text(
+        'Please select a bus to view seating arrangement',
+        style: TextStyle(color: Colors.white70, fontSize: 16),
+      );
+    }
+
+    final bus = buses.firstWhere(
+      (b) => b['id'] == selectedBusId,
+      orElse: () => {'capacity': 0},
+    );
+    final capacity = bus['capacity'] as int;
+    if (capacity == 0) {
+      return const Text(
+        'Invalid bus capacity',
+        style: TextStyle(color: Colors.white70, fontSize: 16),
+      );
+    }
+
+    const columns = 5; // 2 seats + aisle + 2 seats
+    final seatsPerRow = 4; // 2 seats left + 2 seats right
+    final rows = (capacity / seatsPerRow).ceil();
+    final seatNumbers = List<String>.generate(
+      capacity,
+      (i) => (i + 1).toString(),
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Select a Seat',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 10),
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: columns,
+            crossAxisSpacing: 10,
+            mainAxisSpacing: 10,
+            childAspectRatio: 1,
+          ),
+          itemCount: rows * columns,
+          itemBuilder: (context, index) {
+            final row = index ~/ columns;
+            final col = index % columns;
+
+            if (col == 2) {
+              return Container();
+            }
+
+            final seatCol = col < 2 ? col : col - 1;
+            final seatIndex = (row * seatsPerRow) + seatCol;
+
+            if (seatIndex >= capacity) {
+              return Container();
+            }
+
+            final seatNumber = seatNumbers[seatIndex];
+            final isAllocated = allocatedSeats.contains(seatNumber);
+            final isSelected = selectedSeatNumber == seatNumber;
+
+            return GestureDetector(
+              onTap:
+                  isAllocated
+                      ? null
+                      : () {
+                        setState(() {
+                          selectedSeatNumber = seatNumber;
+                        });
+                      },
+              child: Container(
+                decoration: BoxDecoration(
+                  color:
+                      isAllocated
+                          ? Colors.red.withOpacity(0.7)
+                          : isSelected
+                          ? Colors.green.withOpacity(0.7)
+                          : Colors.blue.withOpacity(0.5),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color:
+                        isSelected
+                            ? Colors.yellow
+                            : Colors.white.withOpacity(0.3),
+                    width: isSelected ? 2 : 1,
+                  ),
+                ),
+                child: Center(
+                  child: Text(
+                    seatNumber,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLegendItem(Color color, String label) {
+    return Row(
+      children: [
+        Container(width: 20, height: 20, color: color),
+        const SizedBox(width: 5),
+        Text(label, style: const TextStyle(color: Colors.white)),
+      ],
     );
   }
 
@@ -521,7 +730,7 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
         ),
         dropdownColor: Colors.blue.shade800.withValues(alpha: 0.7),
         items: items,
-        onChanged: items.isNotEmpty ? onChanged : null, // Disable if no items
+        onChanged: items.isNotEmpty ? onChanged : null,
       ),
     );
   }
@@ -530,9 +739,7 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: TextFormField(
-        controller: TextEditingController(
-          text: text,
-        ), // Use controller for dynamic updates
+        controller: TextEditingController(text: text),
         readOnly: true,
         style: const TextStyle(color: Colors.white, fontSize: 16),
         decoration: InputDecoration(
@@ -779,6 +986,16 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
                           ),
                           DataColumn(
                             label: Text(
+                              'Seat Number',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ),
+                          DataColumn(
+                            label: Text(
                               'Actions',
                               style: TextStyle(
                                 color: Colors.white,
@@ -792,7 +1009,6 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
                             allocations.map<DataRow>((allocation) {
                               final student = allocation['studentId'];
                               final bus = allocation['busId'];
-
                               final studentName =
                                   student != null
                                       ? student['name'] ?? 'N/A'
@@ -803,7 +1019,8 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
                                       : 'N/A';
                               final to =
                                   allocation['to'] ?? bus?['to'] ?? 'N/A';
-
+                              final seatNumber =
+                                  allocation['seatNumber']?.toString() ?? 'N/A';
                               return DataRow(
                                 cells: [
                                   DataCell(
@@ -864,6 +1081,28 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
                                       ),
                                       child: Text(
                                         to,
+                                        style: const TextStyle(
+                                          color: Colors.white70,
+                                          fontSize: 14,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ),
+                                  DataCell(
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.1,
+                                        ),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        seatNumber,
                                         style: const TextStyle(
                                           color: Colors.white70,
                                           fontSize: 14,
