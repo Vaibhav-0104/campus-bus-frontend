@@ -415,6 +415,216 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
     );
   }
 
+  Future<void> _showSeatingDialog() async {
+    if (selectedBusId == null) return;
+
+    final bus = buses.firstWhere(
+      (b) => b['id'] == selectedBusId,
+      orElse: () => {'busNumber': 'Unknown', 'capacity': 0},
+    );
+    final busNumber = bus['busNumber'] as String;
+    String? localSelectedSeat = selectedSeatNumber; // Local state for dialog
+
+    await showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext dialogContext) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setDialogState) {
+            return Dialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              backgroundColor: Colors.transparent,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  return ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: constraints.maxWidth * 0.9,
+                      maxHeight: constraints.maxHeight * 0.7,
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(20),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+                        child: Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                Colors.blueGrey.shade300.withValues(
+                                  alpha: 0.15,
+                                ),
+                                Colors.blueGrey.shade700.withValues(
+                                  alpha: 0.15,
+                                ),
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.3),
+                              width: 1.5,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.3),
+                                blurRadius: 20,
+                                spreadRadius: 2,
+                                offset: const Offset(0, 5),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Text(
+                                'Select a Seat for Bus $busNumber',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  shadows: [
+                                    Shadow(
+                                      blurRadius: 3,
+                                      color: Colors.black54,
+                                    ),
+                                  ],
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 20),
+                              Flexible(
+                                child: SingleChildScrollView(
+                                  child:
+                                      isLoadingSeats
+                                          ? const Center(
+                                            child: CircularProgressIndicator(),
+                                          )
+                                          : availableSeats.isEmpty &&
+                                              !isLoadingSeats
+                                          ? const Center(
+                                            child: Text(
+                                              'No seats available for this bus',
+                                              style: TextStyle(
+                                                color: Colors.white70,
+                                                fontSize: 16,
+                                              ),
+                                            ),
+                                          )
+                                          : _buildSeatingTable(
+                                            localSelectedSeat:
+                                                localSelectedSeat,
+                                            onSeatSelected: (seat) {
+                                              setDialogState(() {
+                                                localSelectedSeat = seat;
+                                              });
+                                            },
+                                          ),
+                                ),
+                              ),
+                              const SizedBox(height: 20),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceEvenly,
+                                children: [
+                                  Expanded(
+                                    child: ElevatedButton(
+                                      onPressed:
+                                          () =>
+                                              Navigator.of(dialogContext).pop(),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.grey.shade600
+                                            .withValues(alpha: 0.5),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 20,
+                                          vertical: 15,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            15,
+                                          ),
+                                          side: BorderSide(
+                                            color: Colors.white.withValues(
+                                              alpha: 0.3,
+                                            ),
+                                            width: 1.5,
+                                          ),
+                                        ),
+                                      ),
+                                      child: const Text(
+                                        'Close',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: ElevatedButton(
+                                      onPressed:
+                                          localSelectedSeat != null
+                                              ? () {
+                                                setState(() {
+                                                  selectedSeatNumber =
+                                                      localSelectedSeat;
+                                                });
+                                                Navigator.of(
+                                                  dialogContext,
+                                                ).pop();
+                                              }
+                                              : null,
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.blue.shade600
+                                            .withValues(alpha: 0.5),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 20,
+                                          vertical: 15,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            15,
+                                          ),
+                                          side: BorderSide(
+                                            color: Colors.white.withValues(
+                                              alpha: 0.3,
+                                            ),
+                                            width: 1.5,
+                                          ),
+                                        ),
+                                      ),
+                                      child: const Text(
+                                        'Confirm',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -584,56 +794,40 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
                         ),
                       );
                     }).toList(),
-                onChanged: (value) {
+                onChanged: (value) async {
                   setState(() {
                     selectedBusId = value;
                     selectedSeatNumber = null;
                     if (value != null) {
-                      fetchAvailableSeats(value);
-                    } else {
                       availableSeats = [];
                       allocatedSeats = [];
                     }
                   });
+                  if (value != null) {
+                    await fetchAvailableSeats(value);
+                    if (mounted) {
+                      await _showSeatingDialog();
+                    }
+                  }
                 },
                 icon: Icons.directions_bus_outlined,
               ),
               const SizedBox(height: 20),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(15),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.blueGrey.shade300.withValues(alpha: 0.1),
-                          Colors.blueGrey.shade700.withValues(alpha: 0.1),
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(15),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.3),
-                        width: 1.5,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.2),
-                          blurRadius: 20,
-                          spreadRadius: 2,
-                          offset: const Offset(5, 5),
-                        ),
-                      ],
-                    ),
-                    child:
-                        isLoadingSeats
-                            ? const Center(child: CircularProgressIndicator())
-                            : _buildSeatingTable(),
-                  ),
-                ),
+              _buildReadOnlyTextField(
+                selectedSeatNumber?.isEmpty ?? true
+                    ? 'No Seat Selected'
+                    : 'Seat $selectedSeatNumber Selected',
+                Icons.event_seat,
+                onTap: () async {
+                  if (selectedBusId == null) {
+                    _showSnackBar('Please select a bus first');
+                    return;
+                  }
+                  await fetchAvailableSeats(selectedBusId!);
+                  if (mounted) {
+                    await _showSeatingDialog();
+                  }
+                },
               ),
               const SizedBox(height: 20),
               Row(
@@ -655,7 +849,10 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
     );
   }
 
-  Widget _buildSeatingTable() {
+  Widget _buildSeatingTable({
+    required String? localSelectedSeat,
+    required Function(String?) onSeatSelected,
+  }) {
     if (selectedBusId == null) {
       return const Text(
         'Please select a bus to view seating arrangement',
@@ -731,7 +928,7 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
 
             final seatNumber = seatNumbers[seatIndex];
             final isAllocated = allocatedSeats.contains(seatNumber);
-            final isSelected = selectedSeatNumber == seatNumber;
+            final isSelected = localSelectedSeat == seatNumber;
 
             logger.d(
               'Seat $seatNumber: isAllocated=$isAllocated, isSelected=$isSelected',
@@ -742,10 +939,8 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
                   isAllocated
                       ? null
                       : () {
-                        setState(() {
-                          selectedSeatNumber = seatNumber;
-                          logger.d('Selected seat: $seatNumber');
-                        });
+                        onSeatSelected(seatNumber);
+                        logger.d('Selected seat: $seatNumber');
                       },
               child: Tooltip(
                 message: isAllocated ? 'Seat Allocated' : 'Seat Available',
@@ -873,16 +1068,21 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
     );
   }
 
-  Widget _buildReadOnlyTextField(String text, IconData icon) {
+  Widget _buildReadOnlyTextField(
+    String text,
+    IconData icon, {
+    VoidCallback? onTap,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: TextFormField(
         controller: TextEditingController(text: text),
         readOnly: true,
         style: const TextStyle(color: Colors.white, fontSize: 16),
+        onTap: onTap,
         decoration: InputDecoration(
           prefixIcon: Icon(icon, color: Colors.lightBlueAccent, size: 24),
-          labelText: 'Student Name',
+          labelText: icon == Icons.person ? 'Student Name' : 'Selected Seat',
           labelStyle: TextStyle(
             color: Colors.white.withValues(alpha: 0.8),
             fontSize: 16,
