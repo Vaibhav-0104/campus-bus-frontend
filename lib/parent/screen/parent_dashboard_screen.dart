@@ -22,50 +22,62 @@ class AuthService {
 /// Configuration class for dashboard-related constants
 class DashboardConfig {
   static const String title = 'Parent Dashboard';
-  static const List<Map<String, dynamic>> navigationItems = [
-    {
-      'icon': Icons.directions_bus,
-      'title': 'Live Bus Location',
-      'subtitle': 'Track your child\'s bus in real-time',
-      'screen': LiveBusLocationScreen(),
-    },
-    {
-      'icon': Icons.person,
-      'title': 'Child Summary',
-      'subtitle': 'View your child\'s details and status',
-      'screen': ChildSummaryScreen(),
-    },
-    {
-      'icon': Icons.notifications,
-      'title': 'Recent Notifications',
-      'subtitle': 'Check latest alerts and updates',
-      'screen': RecentNotificationsScreen(),
-    },
-    {
-      'icon': Icons.event,
-      'title': 'Attendance Summary',
-      'subtitle': 'View weekly attendance and alerts',
-      'screen': AttendanceSummaryScreen(),
-    },
-    {
-      'icon': Icons.access_time,
-      'title': 'Pickup & Drop Timings',
-      'subtitle': 'Today\'s schedule and status',
-      'screen': PickupDropTimingsScreen(),
-    },
-    {
-      'icon': Icons.support_agent,
-      'title': 'Contact & Support',
-      'subtitle': 'Reach out to transport admin or driver',
-      'screen': ContactSupportScreen(),
-    },
-    {
-      'icon': Icons.menu,
-      'title': 'Quick Actions',
-      'subtitle': 'Manage settings and more',
-      'screen': QuickActionsScreen(),
-    },
-  ];
+  static List<Map<String, dynamic>> navigationItems(
+    BuildContext context,
+    String parentContact,
+    String parentEmail,
+  ) {
+    return [
+      const {
+        'icon': Icons.directions_bus,
+        'title': 'Live Bus Location',
+        'subtitle': 'Track your child\'s bus in real-time',
+        'screen': LiveBusLocationScreen(),
+      },
+      {
+        'icon': Icons.person,
+        'title': 'Child Summary',
+        'subtitle': 'View your child\'s details and status',
+        'screen': ChildSummaryScreen(
+          parentContact: parentContact,
+          parentEmail: parentEmail,
+        ),
+      },
+      const {
+        'icon': Icons.notifications,
+        'title': 'Recent Notifications',
+        'subtitle': 'Check latest alerts and updates',
+        'screen': RecentNotificationsScreen(),
+      },
+      {
+        'icon': Icons.event,
+        'title': 'Attendance Summary',
+        'subtitle': 'View weekly attendance and alerts',
+        'screen': AttendanceSummaryScreen(
+          parentContact: parentContact,
+          parentEmail: parentEmail,
+        ),
+      },
+      const {
+        'icon': Icons.access_time,
+        'title': 'Pickup & Drop Timings',
+        'subtitle': 'Today\'s schedule and status',
+        'screen': PickupDropTimingsScreen(),
+      },
+      const {
+        'icon': Icons.support_agent,
+        'title': 'Contact & Support',
+        'subtitle': 'Reach out to transport admin or driver',
+        'screen': ContactSupportScreen(),
+      },
+      const {
+        'icon': Icons.menu,
+        'title': 'Quick Actions',
+        'subtitle': 'Manage settings and more',
+        'screen': QuickActionsScreen(),
+      },
+    ];
+  }
 }
 
 /// Theme-related constants
@@ -80,7 +92,7 @@ class AppTheme {
     0xFF1E2A44,
   ); // Darker blue for cards
   static const double cardBorderRadius = 20.0;
-  static const double blurSigma = 10.0;
+  static const double blurSigma = 5.0; // Reduced for performance
   static const double cardPadding = 16.0;
   static const double spacing = 16.0;
   static const double elevation = 8.0;
@@ -88,7 +100,14 @@ class AppTheme {
 }
 
 class ParentDashboardScreen extends StatelessWidget {
-  const ParentDashboardScreen({super.key});
+  final String parentContact;
+  final String parentEmail;
+
+  const ParentDashboardScreen({
+    super.key,
+    required this.parentContact,
+    required this.parentEmail,
+  });
 
   /// Shows a confirmation dialog for logout
   Future<bool?> _showLogoutDialog(BuildContext context) {
@@ -111,7 +130,7 @@ class ParentDashboardScreen extends StatelessWidget {
             content: Text(
               'Are you sure you want to logout?',
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: Colors.white.withAlpha(204), // 0.8 * 255 = 204
+                color: Colors.white.withAlpha(204),
                 fontSize: 16,
               ),
             ),
@@ -200,9 +219,7 @@ class ParentDashboardScreen extends StatelessWidget {
             fontSize: 20,
           ),
         ),
-        backgroundColor: AppTheme.backgroundColor.withAlpha(
-          76,
-        ), // 0.3 * 255 = 76
+        backgroundColor: AppTheme.backgroundColor.withAlpha(76),
         centerTitle: true,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
@@ -230,7 +247,7 @@ class ParentDashboardScreen extends StatelessWidget {
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        color: AppTheme.backgroundColor, // Solid deep blue background
+        color: AppTheme.backgroundColor,
         child: SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(AppTheme.cardPadding),
@@ -247,7 +264,11 @@ class ParentDashboardScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: AppTheme.spacing),
-                ...DashboardConfig.navigationItems.asMap().entries.map(
+                ...DashboardConfig.navigationItems(
+                  context,
+                  parentContact,
+                  parentEmail,
+                ).asMap().entries.map(
                   (entry) => Column(
                     children: [
                       _buildNavigationCard(
@@ -294,83 +315,67 @@ class ParentDashboardScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppTheme.cardBorderRadius),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            offset: const Offset(4, 4),
-            blurRadius: AppTheme.blurSigma,
-          ),
-          BoxShadow(
-            color: Colors.white.withOpacity(0.05),
-            offset: const Offset(-4, -4),
+            color: Colors.black.withOpacity(0.1),
+            offset: const Offset(2, 2),
             blurRadius: AppTheme.blurSigma,
           ),
         ],
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(AppTheme.cardBorderRadius),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(
-            sigmaX: AppTheme.blurSigma,
-            sigmaY: AppTheme.blurSigma,
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white.withAlpha(20),
+            border: Border.all(color: Colors.white.withAlpha(50), width: 1.0),
           ),
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white.withAlpha(26), // 0.1 * 255 = 26
-              border: Border.all(
-                color: Colors.white.withAlpha(76), // 0.3 * 255 = 76
-                width: 1.5,
-              ),
-            ),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: onTap,
-                borderRadius: BorderRadius.circular(AppTheme.cardBorderRadius),
-                child: Padding(
-                  padding: const EdgeInsets.all(AppTheme.cardPadding),
-                  child: Row(
-                    children: [
-                      Icon(
-                        icon,
-                        size: AppTheme.iconSize,
-                        color: AppTheme.accentColor,
-                      ),
-                      const SizedBox(width: AppTheme.spacing),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              title,
-                              style: Theme.of(
-                                context,
-                              ).textTheme.titleLarge?.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 18,
-                              ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(AppTheme.cardBorderRadius),
+              child: Padding(
+                padding: const EdgeInsets.all(AppTheme.cardPadding),
+                child: Row(
+                  children: [
+                    Icon(
+                      icon,
+                      size: AppTheme.iconSize,
+                      color: AppTheme.accentColor,
+                    ),
+                    const SizedBox(width: AppTheme.spacing),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title,
+                            style: Theme.of(
+                              context,
+                            ).textTheme.titleLarge?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18,
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              subtitle,
-                              style: Theme.of(
-                                context,
-                              ).textTheme.bodyLarge?.copyWith(
-                                color: Colors.white.withAlpha(
-                                  204,
-                                ), // 0.8 * 255 = 204
-                                fontSize: 16,
-                              ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            subtitle,
+                            style: Theme.of(
+                              context,
+                            ).textTheme.bodyLarge?.copyWith(
+                              color: Colors.white.withAlpha(204),
+                              fontSize: 16,
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                      Icon(
-                        Icons.arrow_forward_ios,
-                        color: Colors.white,
-                        size: AppTheme.iconSize / 1.5,
-                      ),
-                    ],
-                  ),
+                    ),
+                    Icon(
+                      Icons.arrow_forward_ios,
+                      color: Colors.white,
+                      size: AppTheme.iconSize / 1.5,
+                    ),
+                  ],
                 ),
               ),
             ),

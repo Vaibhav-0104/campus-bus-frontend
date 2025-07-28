@@ -391,9 +391,17 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             );
           } else if (role == 'Parent') {
+            final parentEmail = email;
+            final parentContact = password;
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (_) => const ParentDashboardScreen()),
+              MaterialPageRoute(
+                builder:
+                    (_) => ParentDashboardScreen(
+                      parentContact: parentContact,
+                      parentEmail: parentEmail,
+                    ),
+              ),
             );
           }
 
