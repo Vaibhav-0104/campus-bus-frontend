@@ -973,7 +973,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'dart:ui'; // Required for ImageFilter for blur effects
 
-const String studentApiUrl = 'http://192.168.31.104:5000/api/students';
+const String studentApiUrl = 'http://172.20.10.9:5000/api/students';
 
 class ManageStudentDetailsScreen extends StatefulWidget {
   const ManageStudentDetailsScreen({super.key});

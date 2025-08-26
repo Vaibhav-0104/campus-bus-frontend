@@ -34,7 +34,7 @@ class _ViewNotificationsScreenState extends State<ViewNotificationsScreen> {
       final response = await http
           .get(
             Uri.parse(
-              "http://192.168.31.104:5000/api/notifications/view/${widget.userRole}",
+              "http://172.20.10.9:5000/api/notifications/view/${widget.userRole}",
             ),
           )
           .timeout(const Duration(seconds: 15)); // Added timeout

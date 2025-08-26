@@ -42,7 +42,7 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
     try {
       setState(() => isLoadingStudents = true);
       final response = await http.get(
-        Uri.parse('http://192.168.31.104:5000/api/students'),
+        Uri.parse('http://172.20.10.9:5000/api/students'),
       );
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -71,7 +71,7 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
   Future<void> fetchBuses() async {
     try {
       final response = await http.get(
-        Uri.parse('http://192.168.31.104:5000/api/buses'),
+        Uri.parse('http://172.20.10.9:5000/api/buses'),
       );
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -107,7 +107,7 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
   Future<void> fetchAllocations() async {
     try {
       final response = await http.get(
-        Uri.parse('http://192.168.31.104:5000/api/allocations/allocations'),
+        Uri.parse('http://172.20.10.9:5000/api/allocations/allocations'),
       );
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -126,7 +126,7 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
     try {
       setState(() => isLoadingSeats = true);
       final response = await http.get(
-        Uri.parse('http://192.168.31.104:5000/api/buses/$busId'),
+        Uri.parse('http://172.20.10.9:5000/api/buses/$busId'),
       );
       if (response.statusCode == 200) {
         final bus = json.decode(response.body);
@@ -236,7 +236,7 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
 
         if (editingAllocationId == null) {
           response = await http.post(
-            Uri.parse('http://192.168.31.104:5000/api/allocations/allocate'),
+            Uri.parse('http://172.20.10.9:5000/api/allocations/allocate'),
             headers: {'Content-Type': 'application/json'},
             body: json.encode(allocationData),
           );
@@ -244,7 +244,7 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
         } else {
           response = await http.put(
             Uri.parse(
-              'http://192.168.31.104:5000/api/allocations/$editingAllocationId',
+              'http://172.20.10.9:5000/api/allocations/$editingAllocationId',
             ),
             headers: {'Content-Type': 'application/json'},
             body: json.encode(allocationData),
@@ -313,7 +313,7 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
                 try {
                   final response = await http.delete(
                     Uri.parse(
-                      'http://192.168.31.104:5000/api/allocations/$allocationId',
+                      'http://172.20.10.9:5000/api/allocations/$allocationId',
                     ),
                     headers: {'Content-Type': 'application/json'},
                   );

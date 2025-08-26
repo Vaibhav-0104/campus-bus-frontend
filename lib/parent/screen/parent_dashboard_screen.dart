@@ -14,8 +14,8 @@ import 'dart:ui';
 class AuthService {
   /// Clears authentication data (e.g., token)
   static Future<void> logout() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('auth_token'); // Example: Clear auth token
+    final SharedPreferences preferences = await SharedPreferences.getInstance();
+    await preferences.remove('auth_token'); // Example: Clear auth token
   }
 }
 
@@ -70,11 +70,14 @@ class DashboardConfig {
         'subtitle': 'Reach out to transport admin or driver',
         'screen': ContactSupportScreen(),
       },
-      const {
+      {
         'icon': Icons.menu,
         'title': 'Quick Actions',
         'subtitle': 'Manage settings and more',
-        'screen': QuickActionsScreen(),
+        'screen': QuickActionsScreen(
+          parentContact: parentContact,
+          parentEmail: parentEmail,
+        ),
       },
     ];
   }
@@ -130,7 +133,7 @@ class ParentDashboardScreen extends StatelessWidget {
             content: Text(
               'Are you sure you want to logout?',
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: Colors.white.withAlpha(204),
+                color: Colors.white.withValues(alpha: 0.8), // 204/255
                 fontSize: 16,
               ),
             ),
@@ -163,7 +166,7 @@ class ParentDashboardScreen extends StatelessWidget {
   /// Handles logout action with confirmation and redirect to LoginScreen
   Future<void> _handleLogout(BuildContext context) async {
     final confirmed = await _showLogoutDialog(context);
-    if (confirmed == true) {
+    if (confirmed == true && context.mounted) {
       try {
         await AuthService.logout();
         if (context.mounted) {
@@ -219,7 +222,9 @@ class ParentDashboardScreen extends StatelessWidget {
             fontSize: 20,
           ),
         ),
-        backgroundColor: AppTheme.backgroundColor.withAlpha(76),
+        backgroundColor: AppTheme.backgroundColor.withValues(
+          alpha: 0.3,
+        ), // 76/255
         centerTitle: true,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
@@ -315,7 +320,7 @@ class ParentDashboardScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppTheme.cardBorderRadius),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1), // 0.1 * 255 = 25.5
             offset: const Offset(2, 2),
             blurRadius: AppTheme.blurSigma,
           ),
@@ -325,8 +330,11 @@ class ParentDashboardScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppTheme.cardBorderRadius),
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.white.withAlpha(20),
-            border: Border.all(color: Colors.white.withAlpha(50), width: 1.0),
+            color: Colors.white.withValues(alpha: 0.078), // 20/255
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.196),
+              width: 1.0,
+            ), // 50/255
           ),
           child: Material(
             color: Colors.transparent,
@@ -363,7 +371,9 @@ class ParentDashboardScreen extends StatelessWidget {
                             style: Theme.of(
                               context,
                             ).textTheme.bodyLarge?.copyWith(
-                              color: Colors.white.withAlpha(204),
+                              color: Colors.white.withValues(
+                                alpha: 0.8,
+                              ), // 204/255
                               fontSize: 16,
                             ),
                           ),

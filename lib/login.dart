@@ -320,22 +320,22 @@ class _LoginScreenState extends State<LoginScreen> {
     final roleApis = [
       {
         'role': 'Admin',
-        'url': 'http://192.168.31.104:5000/api/admin/auth/login',
+        'url': 'http://172.20.10.9:5000/api/admin/auth/login',
         'body': {'email': email, 'password': password},
       },
       {
         'role': 'Driver',
-        'url': 'http://192.168.31.104:5000/api/drivers/login',
+        'url': 'http://172.20.10.9:5000/api/drivers/login',
         'body': {'email': email, 'password': password},
       },
       {
         'role': 'Student',
-        'url': 'http://192.168.31.104:5000/api/students/login',
+        'url': 'http://172.20.10.9:5000/api/students/login',
         'body': {'email': email, 'password': password},
       },
       {
         'role': 'Parent',
-        'url': 'http://192.168.31.104:5000/api/students/parent-login',
+        'url': 'http://172.20.10.9:5000/api/students/parent-login',
         'body': {'parentEmail': email, 'parentContact': password},
       },
     ];

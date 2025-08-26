@@ -9,7 +9,7 @@ class ChildSummaryConfig {
   static const String screenTitle = 'Child Summary';
   static const String headerTitle = 'Child Profiles';
   static const String baseUrl =
-      'http://192.168.31.104:5000'; // For Android emulator
+      'http://172.20.10.9:5000'; // For Android emulator
   // static const String baseUrl = 'http://192.168.31.104:5000'; // For physical device
 }
 
@@ -28,6 +28,8 @@ class AppTheme {
   static const double spacing = 16.0;
   static const double elevation = 8.0;
   static const double iconSize = 28.0;
+
+  static var avatarRadius;
 }
 
 /// Reusable child card widget

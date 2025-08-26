@@ -7,7 +7,7 @@ import 'package:intl/intl.dart'; // For date formatting and month names
 import 'package:campus_bus_management/login.dart';
 import 'package:campus_bus_management/student/screen/help.dart';
 import 'package:campus_bus_management/student/screen/fees_screen.dart'; // Ensure this is the correct path to FeesPaymentScreen
-import 'package:campus_bus_management/student/screen/attendance_screen.dart';
+import 'package:campus_bus_management/driver/screen/attendance_screen.dart';
 import 'package:campus_bus_management/student/screen/notifications_screen.dart';
 import 'package:campus_bus_management/student/screen/monthly_attendance_screen.dart'; // New import for the monthly attendance screen
 
@@ -64,7 +64,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       final feesResponse = await http
           .get(
             Uri.parse(
-              'http://192.168.31.104:5000/api/fees/student/${widget.envNumber}',
+              'http://172.20.10.9:5000/api/fees/student/${widget.envNumber}',
             ),
             headers: {'Content-Type': 'application/json'},
           )
@@ -112,7 +112,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       final attendanceResponse = await http
           .post(
             Uri.parse(
-              'http://192.168.31.104:5000/api/students/attendance/by-date', // This route should map to getAttendancePercentageByDateRange
+              'http://172.20.10.9:5000/api/students/attendance/by-date', // This route should map to getAttendancePercentageByDateRange
             ),
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode({
@@ -164,7 +164,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       final notificationsResponse = await http
           .get(
             Uri.parse(
-              'http://192.168.31.104:5000/api/notifications/view/Students',
+              'http://172.20.10.9:5000/api/notifications/view/Students',
             ),
             headers: {'Content-Type': 'application/json'},
           )
@@ -521,13 +521,13 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
               ),
             ),
             // Liquid Glass Drawer Items
-            _buildDrawerItem(
-              Icons.check_circle_outline,
-              "Attendance",
-              "View your daily attendance records",
-              Colors.lightBlueAccent,
-              const FaceAttendanceScreen(),
-            ),
+            // _buildDrawerItem(
+            //   Icons.check_circle_outline,
+            //   "Attendance",
+            //   "View your daily attendance records",
+            //   Colors.lightBlueAccent,
+            //   const FaceAttendanceScreen(),
+            // ),
             _buildDrawerItem(
               Icons.payment,
               "Pay Fees",

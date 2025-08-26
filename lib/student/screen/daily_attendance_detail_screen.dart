@@ -50,7 +50,7 @@ class _DailyAttendanceDetailScreenState
       final response = await http
           .post(
             Uri.parse(
-              'http://192.168.31.104:5000/api/students/attendance/by-date',
+              'http://172.20.10.9:5000/api/students/attendance/by-date',
             ),
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode({

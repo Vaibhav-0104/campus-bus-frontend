@@ -72,7 +72,7 @@ class _ViewStudentDetailsScreenState extends State<ViewStudentDetailsScreen> {
 
     try {
       final url =
-          'http://192.168.31.104:5000/api/allocations/allocations/driver/$_driverId';
+          'http://172.20.10.9:5000/api/allocations/allocations/driver/$_driverId';
       print('Request URL: $url');
       final response = await http
           .get(Uri.parse(url), headers: {'Content-Type': 'application/json'})

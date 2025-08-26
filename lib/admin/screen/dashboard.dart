@@ -22,7 +22,7 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   // Base URL for your API
-  final String _baseUrl = 'http://192.168.31.104:5000/api';
+  final String _baseUrl = 'http://172.20.10.9:5000/api';
 
   // Function to fetch total students count
   Future<int> fetchTotalStudents() async {

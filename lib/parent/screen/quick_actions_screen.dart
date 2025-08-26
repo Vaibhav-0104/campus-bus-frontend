@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:campus_bus_management/login.dart';
-import 'update_profile_screen.dart';
-import 'settings_screen.dart';
-import 'view_detailed_attendance_screen.dart';
+import 'package:campus_bus_management/parent/screen/update_profile_screen.dart';
+import 'package:campus_bus_management/parent/screen/settings_screen.dart';
+import 'package:campus_bus_management/parent/screen/view_detailed_attendance_screen.dart';
 import 'dart:ui';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'child_summary_screen.dart'; // Import to use ChildSummaryConfig
 
 /// Configuration class for quick actions
 class QuickActionsConfig {
@@ -15,7 +18,7 @@ class QuickActionsConfig {
       'icon': Icons.event,
       'title': 'View Detailed Attendance',
       'color': Colors.blue,
-      'screen': ViewDetailedAttendanceScreen(),
+      'screen': null, // Handled dynamically in onTap
     },
     {
       'icon': Icons.person,
@@ -41,9 +44,7 @@ class QuickActionsConfig {
 /// Theme-related constants
 class AppTheme {
   static const Color primaryColor = Colors.blue;
-  static const Color backgroundColor = Color(
-    0xFF0D47A1,
-  ); // Deep blue (Colors.blue[900])
+  static const Color backgroundColor = Color(0xFF0D47A1); // Deep blue
   static const Color accentColor = Colors.lightBlueAccent;
   static const Color successColor = Colors.green;
   static const Color pendingColor = Colors.orange;
@@ -61,8 +62,8 @@ class AppTheme {
 /// Mock authentication service for logout
 class AuthService {
   static Future<void> logout() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('auth_token');
+    final SharedPreferences preferences = await SharedPreferences.getInstance();
+    await preferences.remove('auth_token');
   }
 }
 
@@ -94,12 +95,12 @@ class ActionButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppTheme.cardBorderRadius),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.2),
+              color: Colors.black.withValues(alpha: 0.2),
               offset: const Offset(4, 4),
               blurRadius: AppTheme.blurSigma,
             ),
             BoxShadow(
-              color: Colors.white.withOpacity(0.05),
+              color: Colors.white.withValues(alpha: 0.05),
               offset: const Offset(-4, -4),
               blurRadius: AppTheme.blurSigma,
             ),
@@ -115,11 +116,11 @@ class ActionButton extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.all(AppTheme.cardPadding),
               decoration: BoxDecoration(
-                color: Colors.white.withAlpha(26), // 0.1 * 255 = 26
+                color: Colors.white.withValues(alpha: 0.102), // 26/255
                 border: Border.all(
-                  color: Colors.white.withAlpha(76),
+                  color: Colors.white.withValues(alpha: 0.298),
                   width: 1.5,
-                ), // 0.3 * 255 = 76
+                ), // 76/255
               ),
               child: Row(
                 children: [
@@ -151,8 +152,56 @@ class ActionButton extends StatelessWidget {
 }
 
 /// Screen for quick actions with navigation and logout
-class QuickActionsScreen extends StatelessWidget {
-  const QuickActionsScreen({super.key});
+class QuickActionsScreen extends StatefulWidget {
+  final String parentContact;
+  final String parentEmail;
+
+  const QuickActionsScreen({
+    super.key,
+    required this.parentContact,
+    required this.parentEmail,
+  });
+
+  @override
+  State<QuickActionsScreen> createState() => _QuickActionsScreenState();
+}
+
+class _QuickActionsScreenState extends State<QuickActionsScreen> {
+  /// Fetches student data for navigation to ViewDetailedAttendanceScreen
+  Future<Map<String, String>?> _fetchStudentData() async {
+    final client = http.Client();
+    try {
+      final response = await client
+          .post(
+            Uri.parse(
+              '${ChildSummaryConfig.baseUrl}/api/students/parent-login',
+            ),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'parentEmail': widget.parentEmail,
+              'parentContact': widget.parentContact,
+            }),
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final parentData = jsonDecode(response.body) as Map<String, dynamic>;
+        final students = parentData['students'] as List<dynamic>? ?? [];
+        if (students.isNotEmpty) {
+          final student = students.first as Map<String, dynamic>;
+          return {
+            'studentId': student['_id'] as String,
+            'childName': student['name'] as String? ?? 'Unknown',
+          };
+        }
+      }
+      return null;
+    } catch (e) {
+      return null;
+    } finally {
+      client.close();
+    }
+  }
 
   /// Shows logout confirmation dialog
   Future<bool?> _showLogoutDialog(BuildContext context) {
@@ -176,7 +225,7 @@ class QuickActionsScreen extends StatelessWidget {
             content: Text(
               'Are you sure you want to log out?',
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: Colors.white.withAlpha(204), // 0.8 * 255 = 204
+                color: Colors.white.withValues(alpha: 0.8), // 204/255
                 fontSize: 16,
               ),
             ),
@@ -215,22 +264,24 @@ class QuickActionsScreen extends StatelessWidget {
   /// Handles logout with confirmation
   Future<void> _handleLogout(BuildContext context) async {
     final confirmed = await _showLogoutDialog(context);
-    if (confirmed == true && context.mounted) {
+    if (confirmed == true && mounted) {
       try {
         await AuthService.logout();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Logged out successfully'),
-            duration: Duration(seconds: 2),
-          ),
-        );
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => const LoginScreen()),
-          (Route<dynamic> route) => false,
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Logged out successfully'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (context) => const LoginScreen()),
+            (Route<dynamic> route) => false,
+          );
+        }
       } catch (e) {
-        if (context.mounted) {
+        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Error logging out: $e'),
@@ -249,9 +300,9 @@ class QuickActionsScreen extends StatelessWidget {
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: const Text(QuickActionsConfig.screenTitle),
-        backgroundColor: AppTheme.backgroundColor.withAlpha(
-          76,
-        ), // 0.3 * 255 = 76
+        backgroundColor: AppTheme.backgroundColor.withValues(
+          alpha: 0.3,
+        ), // 76/255
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
         flexibleSpace: ClipRect(
@@ -267,7 +318,7 @@ class QuickActionsScreen extends StatelessWidget {
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        color: AppTheme.backgroundColor, // Solid deep blue background
+        color: AppTheme.backgroundColor,
         child: SafeArea(
           child: Padding(
             padding: const EdgeInsets.all(AppTheme.cardPadding),
@@ -289,7 +340,7 @@ class QuickActionsScreen extends StatelessWidget {
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
+                          color: Colors.black.withValues(alpha: 0.2),
                           offset: const Offset(4, 4),
                           blurRadius: AppTheme.blurSigma,
                         ),
@@ -313,9 +364,34 @@ class QuickActionsScreen extends StatelessWidget {
                       icon: action['icon'] as IconData,
                       title: action['title'] as String,
                       color: action['color'] as Color,
-                      onTap: () {
+                      onTap: () async {
                         if (action['title'] == 'Logout') {
                           _handleLogout(context);
+                        } else if (action['title'] ==
+                            'View Detailed Attendance') {
+                          final studentData = await _fetchStudentData();
+                          if (studentData != null && mounted) {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder:
+                                    (context) => ViewDetailedAttendanceScreen(
+                                      studentId: studentData['studentId']!,
+                                      childName: studentData['childName']!,
+                                    ),
+                              ),
+                            );
+                          } else {
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: const Text('No student data found'),
+                                  backgroundColor: Colors.redAccent,
+                                  duration: const Duration(seconds: 3),
+                                ),
+                              );
+                            }
+                          }
                         } else if (action['screen'] != null) {
                           Navigator.push(
                             context,

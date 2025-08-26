@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:ui'; // Required for ImageFilter for blur effects
 
-const String apiUrl = "http://192.168.31.104:5000/api/drivers";
+const String apiUrl = "http://172.20.10.9:5000/api/drivers";
 
 class ManageBusDriverDetailsScreen extends StatefulWidget {
   const ManageBusDriverDetailsScreen({super.key});
