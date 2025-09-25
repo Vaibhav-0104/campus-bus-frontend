@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:ui'; // Required for ImageFilter for blur effects
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:logger/logger.dart'; // For logging
 
 class ManageStudentFeesScreen extends StatefulWidget {
   const ManageStudentFeesScreen({super.key});
@@ -11,36 +12,142 @@ class ManageStudentFeesScreen extends StatefulWidget {
 }
 
 class ManageStudentFeesScreenState extends State<ManageStudentFeesScreen> {
-  final TextEditingController envNumberController = TextEditingController();
   final TextEditingController feeController = TextEditingController();
   final TextEditingController routeController = TextEditingController();
+  String? selectedDepartment;
+  String? selectedEnvNumber;
+  List<String> departments = [];
+  List<String> envNumbers = [];
+  bool isLoadingDepartments = true;
+  bool isLoadingEnvNumbers = false;
+  final logger = Logger(); // Initialize logger
 
+  static const String departmentsApiUrl =
+      "http://172.20.10.9:5000/api/fees/departments";
+  static const String envNumbersApiUrl =
+      "http://172.20.10.9:5000/api/fees/env-numbers";
   static const String routeApiUrl =
       "http://172.20.10.9:5000/api/students/route-by-env";
+  static const String setFeeApiUrl = "http://172.20.10.9:5000/api/fees/set-fee";
 
   @override
   void initState() {
     super.initState();
-    envNumberController.addListener(_fetchRoute);
+    _fetchDepartments();
   }
 
   @override
   void dispose() {
-    envNumberController.removeListener(_fetchRoute);
-    envNumberController.dispose();
     feeController.dispose();
     routeController.dispose();
     super.dispose();
   }
 
-  Future<void> _fetchRoute() async {
-    final envNumber = envNumberController.text.trim();
+  Future<void> _fetchDepartments() async {
+    try {
+      setState(() {
+        isLoadingDepartments = true;
+      });
+      final response = await http.get(Uri.parse(departmentsApiUrl));
+      logger.d(
+        'Departments API Response: ${response.statusCode} ${response.body}',
+      );
+      if (mounted) {
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          final List<dynamic> fetchedDepartments = data['departments'] ?? [];
+          setState(() {
+            departments = fetchedDepartments.cast<String>();
+            isLoadingDepartments = false;
+          });
+        } else {
+          setState(() {
+            departments = [];
+            isLoadingDepartments = false;
+          });
+          final errorMsg =
+              jsonDecode(response.body)['error'] ?? "No departments found";
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(errorMsg)));
+        }
+      }
+    } catch (e) {
+      logger.e('Error fetching departments: $e');
+      if (mounted) {
+        setState(() {
+          departments = [];
+          isLoadingDepartments = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Error fetching departments!")),
+        );
+      }
+    }
+  }
+
+  Future<void> _fetchEnvNumbers(String department) async {
+    try {
+      setState(() {
+        isLoadingEnvNumbers = true;
+      });
+      final response = await http.get(
+        Uri.parse('$envNumbersApiUrl/$department'),
+      );
+      logger.d(
+        'Env Numbers API Response: ${response.statusCode} ${response.body}',
+      );
+      if (mounted) {
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          final List<dynamic> fetchedEnvNumbers = data['envNumbers'] ?? [];
+          setState(() {
+            envNumbers = fetchedEnvNumbers.cast<String>();
+            selectedEnvNumber = envNumbers.isNotEmpty ? envNumbers[0] : null;
+            isLoadingEnvNumbers = false;
+          });
+          if (selectedEnvNumber != null) {
+            _fetchRoute(selectedEnvNumber!);
+          } else {
+            setState(() {
+              routeController.text = '';
+            });
+          }
+        } else {
+          setState(() {
+            envNumbers = [];
+            selectedEnvNumber = null;
+            routeController.text = '';
+            isLoadingEnvNumbers = false;
+          });
+          final errorMsg =
+              jsonDecode(response.body)['error'] ?? "No students found";
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("$errorMsg for department: $department")),
+          );
+        }
+      }
+    } catch (e) {
+      logger.e('Error fetching env numbers: $e');
+      if (mounted) {
+        setState(() {
+          envNumbers = [];
+          selectedEnvNumber = null;
+          routeController.text = '';
+          isLoadingEnvNumbers = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Error fetching enrollment numbers!")),
+        );
+      }
+    }
+  }
+
+  Future<void> _fetchRoute(String envNumber) async {
     if (envNumber.isNotEmpty) {
       try {
         final response = await http.get(Uri.parse('$routeApiUrl/$envNumber'));
-        print(
-          'Route API Response: ${response.statusCode} ${response.body}',
-        ); // Debug log
+        logger.d('Route API Response: ${response.statusCode} ${response.body}');
         if (mounted) {
           if (response.statusCode == 200) {
             final data = jsonDecode(response.body);
@@ -52,17 +159,15 @@ class ManageStudentFeesScreenState extends State<ManageStudentFeesScreen> {
             setState(() {
               routeController.text = '';
             });
-            if (mounted) {
-              final errorMsg =
-                  jsonDecode(response.body)['error'] ?? "Route not found";
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text("$errorMsg for envNumber: $envNumber")),
-              );
-            }
+            final errorMsg =
+                jsonDecode(response.body)['error'] ?? "Route not found";
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text("$errorMsg for envNumber: $envNumber")),
+            );
           }
         }
       } catch (e) {
-        print('Error fetching route: $e'); // Debug log
+        logger.e('Error fetching route: $e');
         if (mounted) {
           setState(() {
             routeController.text = '';
@@ -82,7 +187,8 @@ class ManageStudentFeesScreenState extends State<ManageStudentFeesScreen> {
   }
 
   Future<void> _setFees() async {
-    if (envNumberController.text.isEmpty ||
+    if (selectedDepartment == null ||
+        selectedEnvNumber == null ||
         feeController.text.isEmpty ||
         routeController.text.isEmpty) {
       if (mounted) {
@@ -103,30 +209,43 @@ class ManageStudentFeesScreenState extends State<ManageStudentFeesScreen> {
       return;
     }
 
-    final response = await http.post(
-      Uri.parse("http://172.20.10.9:5000/api/fees/set-fee"),
-      headers: {"Content-Type": "application/json"},
-      body: jsonEncode({
-        "envNumber": envNumberController.text,
-        "feeAmount": feeAmount,
-        "route": routeController.text,
-      }),
-    );
+    try {
+      final response = await http.post(
+        Uri.parse(setFeeApiUrl),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({
+          "envNumber": selectedEnvNumber,
+          "feeAmount": feeAmount,
+          "route": routeController.text,
+        }),
+      );
 
-    if (mounted) {
-      if (response.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Fee updated successfully!")),
-        );
-        envNumberController.clear();
-        feeController.clear();
-        routeController.clear();
-      } else {
-        final errorMsg =
-            jsonDecode(response.body)['error'] ?? "Failed to update fee";
+      if (mounted) {
+        if (response.statusCode == 200) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Fee updated successfully!")),
+          );
+          setState(() {
+            selectedDepartment = null;
+            selectedEnvNumber = null;
+            envNumbers = [];
+            feeController.clear();
+            routeController.clear();
+          });
+        } else {
+          final errorMsg =
+              jsonDecode(response.body)['error'] ?? "Failed to update fee";
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(errorMsg)));
+        }
+      }
+    } catch (e) {
+      logger.e('Error setting fees: $e');
+      if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text(errorMsg)));
+        ).showSnackBar(const SnackBar(content: Text("Error setting fees!")));
       }
     }
   }
@@ -134,32 +253,20 @@ class ManageStudentFeesScreenState extends State<ManageStudentFeesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBodyBehindAppBar:
-          true, // Extends the body behind the AppBar for full background effect
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: const Text(
           "Manage Fees",
           style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
-        backgroundColor: Colors.blue.shade800.withOpacity(
-          0.3,
-        ), // Liquid glass app bar
+        backgroundColor: Colors.blue.shade800.withOpacity(0.3),
         centerTitle: true,
-        elevation: 0, // Remove default shadow
-        iconTheme: const IconThemeData(
-          color: Colors.white,
-        ), // White back button
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
         flexibleSpace: ClipRect(
           child: BackdropFilter(
-            filter: ImageFilter.blur(
-              sigmaX: 10,
-              sigmaY: 10,
-            ), // Blur effect for app bar
-            child: Container(
-              color:
-                  Colors
-                      .transparent, // Transparent to show the blurred content behind
-            ),
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            child: Container(color: Colors.transparent),
           ),
         ),
       ),
@@ -174,7 +281,7 @@ class ManageStudentFeesScreenState extends State<ManageStudentFeesScreen> {
               Colors.blue.shade900,
               Colors.blue.shade700,
               Colors.blue.shade500,
-            ], // Blue themed gradient background
+            ],
             stops: const [0.0, 0.5, 1.0],
           ),
         ),
@@ -183,27 +290,18 @@ class ManageStudentFeesScreenState extends State<ManageStudentFeesScreen> {
             top:
                 AppBar().preferredSize.height +
                 MediaQuery.of(context).padding.top +
-                20, // Adjust top padding
+                20,
             left: 16.0,
             right: 16.0,
             bottom: 16.0,
           ),
           child: Center(
-            // Center the card
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(
-                25,
-              ), // Rounded corners for liquid glass card
+              borderRadius: BorderRadius.circular(25),
               child: BackdropFilter(
-                filter: ImageFilter.blur(
-                  sigmaX: 20.0,
-                  sigmaY: 20.0,
-                ), // Stronger blur for the card
+                filter: ImageFilter.blur(sigmaX: 20.0, sigmaY: 20.0),
                 child: Container(
-                  // Constrain width for larger screens
-                  padding: const EdgeInsets.all(
-                    25,
-                  ), // Increased padding inside the card
+                  padding: const EdgeInsets.all(25),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
@@ -214,20 +312,16 @@ class ManageStudentFeesScreenState extends State<ManageStudentFeesScreen> {
                       end: Alignment.bottomRight,
                     ),
                     borderRadius: BorderRadius.circular(25),
-                    border: Border.all(
-                      color: Colors.white.withOpacity(0.3),
-                    ), // More visible border
+                    border: Border.all(color: Colors.white.withOpacity(0.3)),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.3), // Stronger shadow
-                        blurRadius: 30, // Increased blur
-                        spreadRadius: 5, // Increased spread
+                        color: Colors.blue.shade900,
+                        blurRadius: 30,
+                        spreadRadius: 5,
                         offset: const Offset(10, 10),
                       ),
                       BoxShadow(
-                        color: Colors.white.withOpacity(
-                          0.15,
-                        ), // Inner light glow
+                        color: Colors.white.withOpacity(0.15),
                         blurRadius: 15,
                         spreadRadius: 2,
                         offset: const Offset(-8, -8),
@@ -236,8 +330,7 @@ class ManageStudentFeesScreenState extends State<ManageStudentFeesScreen> {
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
-                    mainAxisSize:
-                        MainAxisSize.min, // Make column take minimum space
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
                         "Set Student Bus Fees",
@@ -252,26 +345,24 @@ class ManageStudentFeesScreenState extends State<ManageStudentFeesScreen> {
                         ),
                       ),
                       const SizedBox(height: 30),
-                      _buildTextField(
-                        envNumberController,
-                        "Enrollment Number",
-                        Icons.person_outline,
-                      ),
-                      const SizedBox(height: 20), // Increased spacing
+                      _buildDepartmentDropdown(),
+                      const SizedBox(height: 20),
+                      _buildEnvNumberDropdown(),
+                      const SizedBox(height: 20),
                       _buildTextField(
                         routeController,
                         "Route (Auto-filled)",
                         Icons.directions,
                         readOnly: true,
                       ),
-                      const SizedBox(height: 20), // Increased spacing
+                      const SizedBox(height: 20),
                       _buildTextField(
                         feeController,
                         "Fee Amount (INR)",
                         Icons.attach_money,
                         keyboardType: TextInputType.number,
                       ),
-                      const SizedBox(height: 30), // Increased spacing
+                      const SizedBox(height: 30),
                       _buildActionButton(),
                     ],
                   ),
@@ -280,6 +371,232 @@ class ManageStudentFeesScreenState extends State<ManageStudentFeesScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildDepartmentDropdown() {
+    return Theme(
+      data: Theme.of(context).copyWith(
+        popupMenuTheme: PopupMenuThemeData(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+          color: Colors.blue.shade900,
+          elevation: 0,
+          textStyle: const TextStyle(color: Colors.white, fontSize: 18),
+        ),
+      ),
+      child: DropdownButtonFormField<String>(
+        value: selectedDepartment,
+        onChanged:
+            isLoadingDepartments
+                ? null
+                : (value) {
+                  setState(() {
+                    selectedDepartment = value;
+                    selectedEnvNumber = null;
+                    envNumbers = [];
+                    routeController.text = '';
+                  });
+                  if (value != null) {
+                    _fetchEnvNumbers(value);
+                  }
+                },
+        items:
+            departments.map((department) {
+              return DropdownMenuItem<String>(
+                value: department,
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.blueGrey.shade300.withOpacity(0.15),
+                        Colors.blueGrey.shade700.withOpacity(0.15),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                  ),
+                  child: Text(
+                    department,
+                    style: const TextStyle(color: Colors.white, fontSize: 18),
+                  ),
+                ),
+              );
+            }).toList(),
+        style: const TextStyle(color: Colors.white, fontSize: 18),
+        decoration: InputDecoration(
+          prefixIcon:
+              isLoadingDepartments
+                  ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        Colors.lightBlueAccent,
+                      ),
+                    ),
+                  )
+                  : const Icon(
+                    Icons.school,
+                    color: Colors.lightBlueAccent,
+                    size: 28,
+                  ),
+          labelText: "Department",
+          labelStyle: TextStyle(
+            color: Colors.white.withOpacity(0.8),
+            fontSize: 18,
+          ),
+          hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
+          filled: true,
+          fillColor: Colors.white.withOpacity(0.08),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(15),
+            borderSide: BorderSide(
+              color: Colors.white.withOpacity(0.4),
+              width: 1.5,
+            ),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(15),
+            borderSide: BorderSide(
+              color: Colors.white.withOpacity(0.4),
+              width: 1.5,
+            ),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(15),
+            borderSide: const BorderSide(
+              color: Colors.lightBlueAccent,
+              width: 2.5,
+            ),
+          ),
+        ),
+        dropdownColor: Colors.blue.shade900,
+        menuMaxHeight: 300,
+        validator:
+            (value) => value == null ? 'Please select a department' : null,
+        onTap: () {
+          FocusScope.of(context).requestFocus(FocusNode()); // Prevent keyboard
+        },
+        icon: const Icon(Icons.arrow_drop_down, color: Colors.lightBlueAccent),
+        itemHeight: 48,
+      ),
+    );
+  }
+
+  Widget _buildEnvNumberDropdown() {
+    return Theme(
+      data: Theme.of(context).copyWith(
+        popupMenuTheme: PopupMenuThemeData(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+          color: Colors.blue.shade900,
+          elevation: 0,
+          textStyle: const TextStyle(color: Colors.white, fontSize: 18),
+        ),
+      ),
+      child: DropdownButtonFormField<String>(
+        value: selectedEnvNumber,
+        onChanged:
+            isLoadingEnvNumbers
+                ? null
+                : (value) {
+                  setState(() {
+                    selectedEnvNumber = value;
+                  });
+                  if (value != null) {
+                    _fetchRoute(value);
+                  } else {
+                    setState(() {
+                      routeController.text = '';
+                    });
+                  }
+                },
+        items:
+            envNumbers.map((envNumber) {
+              return DropdownMenuItem<String>(
+                value: envNumber,
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.blueGrey.shade300.withOpacity(0.15),
+                        Colors.blueGrey.shade700.withOpacity(0.15),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                  ),
+                  child: Text(
+                    envNumber,
+                    style: const TextStyle(color: Colors.white, fontSize: 18),
+                  ),
+                ),
+              );
+            }).toList(),
+        style: const TextStyle(color: Colors.white, fontSize: 18),
+        decoration: InputDecoration(
+          prefixIcon:
+              isLoadingEnvNumbers
+                  ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        Colors.lightBlueAccent,
+                      ),
+                    ),
+                  )
+                  : const Icon(
+                    Icons.person_outline,
+                    color: Colors.lightBlueAccent,
+                    size: 28,
+                  ),
+          labelText: "Enrollment Number",
+          labelStyle: TextStyle(
+            color: Colors.white.withOpacity(0.8),
+            fontSize: 18,
+          ),
+          hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
+          filled: true,
+          fillColor: Colors.white.withOpacity(0.08),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(15),
+            borderSide: BorderSide(
+              color: Colors.white.withOpacity(0.4),
+              width: 1.5,
+            ),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(15),
+            borderSide: BorderSide(
+              color: Colors.white.withOpacity(0.4),
+              width: 1.5,
+            ),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(15),
+            borderSide: const BorderSide(
+              color: Colors.lightBlueAccent,
+              width: 2.5,
+            ),
+          ),
+        ),
+        dropdownColor: Colors.blue.shade900,
+        menuMaxHeight: 300,
+        validator:
+            (value) =>
+                value == null ? 'Please select an enrollment number' : null,
+        onTap: () {
+          FocusScope.of(context).requestFocus(FocusNode()); // Prevent keyboard
+        },
+        icon: const Icon(Icons.arrow_drop_down, color: Colors.lightBlueAccent),
+        itemHeight: 48,
       ),
     );
   }
@@ -295,26 +612,19 @@ class ManageStudentFeesScreenState extends State<ManageStudentFeesScreen> {
       controller: controller,
       keyboardType: keyboardType,
       readOnly: readOnly,
-      style: const TextStyle(
-        color: Colors.white,
-        fontSize: 18,
-      ), // White text input
+      style: const TextStyle(color: Colors.white, fontSize: 18),
       decoration: InputDecoration(
-        prefixIcon: Icon(
-          icon,
-          color: Colors.lightBlueAccent,
-          size: 28,
-        ), // Blue icon
+        prefixIcon: Icon(icon, color: Colors.lightBlueAccent, size: 28),
         labelText: label,
         labelStyle: TextStyle(
           color: Colors.white.withOpacity(0.8),
           fontSize: 18,
-        ), // White label
+        ),
         hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
         filled: true,
-        fillColor: Colors.white.withOpacity(0.08), // Subtle translucent fill
+        fillColor: Colors.white.withOpacity(0.08),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(15), // Rounded corners for input
+          borderRadius: BorderRadius.circular(15),
           borderSide: BorderSide(
             color: Colors.white.withOpacity(0.4),
             width: 1.5,
@@ -332,7 +642,7 @@ class ManageStudentFeesScreenState extends State<ManageStudentFeesScreen> {
           borderSide: const BorderSide(
             color: Colors.lightBlueAccent,
             width: 2.5,
-          ), // Stronger blue focus border
+          ),
         ),
       ),
       validator: (value) {
@@ -350,9 +660,7 @@ class ManageStudentFeesScreenState extends State<ManageStudentFeesScreen> {
         borderRadius: BorderRadius.circular(30),
         boxShadow: [
           BoxShadow(
-            color: Colors.blue.shade800.withOpacity(
-              0.4,
-            ), // Shadow for the button
+            color: Colors.blue.shade800.withOpacity(0.4),
             blurRadius: 20,
             spreadRadius: 2,
             offset: const Offset(0, 10),
@@ -366,29 +674,24 @@ class ManageStudentFeesScreenState extends State<ManageStudentFeesScreen> {
           child: ElevatedButton(
             onPressed: _setFees,
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue.shade600.withOpacity(
-                0.5,
-              ), // Transparent blue background
+              backgroundColor: Colors.blue.shade600.withOpacity(0.5),
               padding: const EdgeInsets.symmetric(vertical: 18),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(30),
                 side: BorderSide(
                   color: Colors.white.withOpacity(0.3),
                   width: 1.5,
-                ), // Subtle white border
+                ),
               ),
-              elevation:
-                  0, // Remove default elevation as we're adding our own shadow
+              elevation: 0,
             ),
             child: const Text(
               "Set Fees",
               style: TextStyle(
-                fontSize: 22, // Larger font size for button text
+                fontSize: 22,
                 fontWeight: FontWeight.bold,
                 color: Colors.white,
-                shadows: [
-                  Shadow(blurRadius: 5, color: Colors.black54),
-                ], // Text shadow
+                shadows: [Shadow(blurRadius: 5, color: Colors.black54)],
               ),
             ),
           ),
