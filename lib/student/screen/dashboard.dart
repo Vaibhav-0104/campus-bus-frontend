@@ -439,7 +439,9 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
             colors: [
               Colors.deepPurple.shade900,
               Colors.deepPurple.shade600,
-            ], // Consistent gradient for background
+              Colors.deepPurple.shade400,
+            ], // Enhanced gradient for richer background
+            stops: const [0.0, 0.5, 1.0], // Smooth gradient transition
           ),
         ),
         child: ListView(
@@ -447,24 +449,22 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
           children: [
             // Liquid Glass Drawer Header
             DrawerHeader(
-              margin: EdgeInsets.zero, // Remove default margin
-              padding: const EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 15,
-              ), // Adjust padding
+              margin: EdgeInsets.zero,
+              padding: const EdgeInsets.all(15), // Unified padding
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(
                   20,
-                ), // Rounded corners for liquid glass header
+                ), // Consistent rounded corners
                 child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 15.0, sigmaY: 15.0),
+                  filter: ImageFilter.blur(
+                    sigmaX: 15.0,
+                    sigmaY: 15.0,
+                  ), // Strong blur effect
                   child: Container(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [
-                          Colors.deepPurple.shade800.withOpacity(
-                            0.4,
-                          ), // Slightly more opaque
+                          Colors.deepPurple.shade800.withOpacity(0.4),
                           Colors.purple.shade400.withOpacity(0.4),
                         ],
                         begin: Alignment.topLeft,
@@ -479,42 +479,60 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                           spreadRadius: 2,
                           offset: const Offset(5, 5),
                         ),
+                        BoxShadow(
+                          color: Colors.white.withOpacity(0.1),
+                          blurRadius: 10,
+                          spreadRadius: 1,
+                          offset: const Offset(-5, -5), // Inner glow effect
+                        ),
                       ],
                     ),
-                    alignment:
-                        Alignment.bottomLeft, // Align content to bottom-left
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        Text(
-                          widget.studentName,
-                          style: const TextStyle(
-                            fontSize: 22,
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            shadows: [
-                              Shadow(blurRadius: 5, color: Colors.black54),
-                            ],
+                    // Center the content in the container
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment:
+                            MainAxisAlignment.center, // Center vertically
+                        crossAxisAlignment:
+                            CrossAxisAlignment.center, // Center horizontally
+                        children: [
+                          Text(
+                            widget.studentName,
+                            style: const TextStyle(
+                              fontSize: 24,
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              shadows: [
+                                Shadow(blurRadius: 6, color: Colors.black54),
+                              ],
+                            ),
+                            textAlign:
+                                TextAlign.center, // Ensure text is centered
                           ),
-                        ),
-                        Text(
-                          widget.studentEmail,
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 14,
+                          const SizedBox(height: 8),
+                          Text(
+                            widget.studentEmail,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              color: Colors.white70,
+                              fontWeight: FontWeight.w400,
+                            ),
+                            textAlign:
+                                TextAlign.center, // Ensure text is centered
                           ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          "Enrollment: ${widget.envNumber}",
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 12,
-                            fontStyle: FontStyle.italic,
+                          const SizedBox(height: 8),
+                          Text(
+                            "Enrollment: ${widget.envNumber}",
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Colors.white60,
+                              fontStyle: FontStyle.italic,
+                              fontWeight: FontWeight.w300,
+                            ),
+                            textAlign:
+                                TextAlign.center, // Ensure text is centered
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
