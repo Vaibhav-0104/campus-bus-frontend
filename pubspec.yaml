@@ -30,6 +30,8 @@ dependencies:
   pdf:
   open_file:
   google_maps_flutter: ^2.12.3
+  file_picker: ^10.3.3
+  permission_handler: ^12.0.1
 
 dev_dependencies:
   flutter_test:

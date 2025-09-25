@@ -1,9 +1,14 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart' show debugPrint, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:ui'; // Required for ImageFilter for blur effects
+import 'package:file_picker/file_picker.dart'; // For PDF file picking
+import 'package:url_launcher/url_launcher.dart'; // For launching PDF URLs
+import 'package:permission_handler/permission_handler.dart'; // For handling permissions
 
 const String apiUrl = "http://172.20.10.9:5000/api/drivers";
+const String baseUrl = "http://172.20.10.9:5000"; // Base URL for uploads
 
 class ManageBusDriverDetailsScreen extends StatefulWidget {
   const ManageBusDriverDetailsScreen({super.key});
@@ -25,11 +30,14 @@ class _ManageBusDriverDetailsScreenState
   bool _isActive = true;
   int? _editingIndex;
   List<Map<String, dynamic>> _driverList = [];
+  PlatformFile? _selectedLicenseFile; // For new PDF upload
+  String? _currentLicenseDocument; // For displaying current PDF in edit mode
 
   @override
   void initState() {
     super.initState();
     _fetchDrivers();
+    _requestPermissions(); // Request permissions on init
   }
 
   @override
@@ -40,6 +48,25 @@ class _ManageBusDriverDetailsScreenState
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  // Request storage/file permissions for Android/iOS
+  Future<void> _requestPermissions() async {
+    if (!kIsWeb) {
+      // Request storage permissions for Android
+      var storageStatus = await Permission.storage.request();
+      // Request media access for Android 13+ (if needed)
+      var mediaStatus = await Permission.photos.request();
+
+      if (storageStatus.isDenied || mediaStatus.isDenied) {
+        _showSnackBar("Storage permission denied. Cannot access files.");
+      } else if (storageStatus.isPermanentlyDenied ||
+          mediaStatus.isPermanentlyDenied) {
+        _showSnackBar(
+            "Storage permission permanently denied. Please enable in settings.");
+        await openAppSettings();
+      }
+    }
   }
 
   Future<void> _fetchDrivers() async {
@@ -60,57 +87,107 @@ class _ManageBusDriverDetailsScreenState
     }
   }
 
+  Future<void> _pickLicensePdf() async {
+    try {
+      debugPrint("Opening file picker...");
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf'],
+        allowCompression: true,
+      );
+      if (result != null && result.files.isNotEmpty) {
+        if (result.files.first.size > 5 * 1024 * 1024) { // 5MB limit
+          _showSnackBar("Selected file is too large (max 5MB)");
+          return;
+        }
+        debugPrint("File selected: ${result.files.first.name}");
+        setState(() {
+          _selectedLicenseFile = result.files.first;
+        });
+      } else {
+        debugPrint("No file selected");
+        _showSnackBar("No PDF selected");
+      }
+    } catch (e) {
+      debugPrint("Error opening file picker: $e");
+      _showSnackBar("Failed to open file picker: $e");
+    }
+  }
+
   Future<void> _addOrUpdateDriver() async {
     if (_formKey.currentState!.validate()) {
-      final driverDetails = {
-        'name': _nameController.text,
-        'contact': _contactController.text,
-        'license': _licenseController.text,
-        'email': _emailController.text,
-        'status': _isActive ? 'Active' : 'Inactive',
-      };
-
-      // Only include password if provided
-      if (_passwordController.text.isNotEmpty) {
-        driverDetails['password'] = _passwordController.text;
+      // Validate PDF for new driver
+      if (_editingIndex == null && _selectedLicenseFile == null) {
+        _showSnackBar("Please upload a license PDF");
+        return;
       }
 
       try {
-        http.Response response;
-        String message;
+        String driverId =
+            _editingIndex != null ? _driverList[_editingIndex!]['_id'] : '';
+        var uri = Uri.parse(
+          _editingIndex == null ? apiUrl : '$apiUrl/$driverId',
+        );
+        var request = http.MultipartRequest(
+          _editingIndex == null ? 'POST' : 'PUT',
+          uri,
+        );
 
-        if (_editingIndex == null) {
-          // Add driver
-          response = await http.post(
-            Uri.parse(apiUrl),
-            headers: {"Content-Type": "application/json"},
-            body: json.encode(driverDetails),
-          );
-          if (response.statusCode != 201) {
-            throw Exception(
-              "Failed to add driver: ${jsonDecode(response.body)['message'] ?? response.body}",
-            );
-          }
-          message = 'Driver added successfully!';
-        } else {
-          // Update driver
-          String driverId = _driverList[_editingIndex!]['_id'];
-          response = await http.put(
-            Uri.parse("$apiUrl/$driverId"),
-            headers: {"Content-Type": "application/json"},
-            body: json.encode(driverDetails),
-          );
-          if (response.statusCode != 200) {
-            throw Exception(
-              "Failed to update driver: ${jsonDecode(response.body)['message'] ?? response.body}",
-            );
-          }
-          message = 'Driver updated successfully!';
-          _editingIndex = null;
+        // Add fields
+        request.fields['name'] = _nameController.text;
+        request.fields['contact'] = _contactController.text;
+        request.fields['license'] = _licenseController.text;
+        request.fields['email'] = _emailController.text;
+        request.fields['status'] = _isActive ? 'Active' : 'Inactive';
+
+        // Add password if provided
+        if (_passwordController.text.isNotEmpty) {
+          request.fields['password'] = _passwordController.text;
         }
-        await _fetchDrivers();
-        _clearForm();
-        _showSnackBar(message, isSuccess: true);
+
+        // Add PDF file if selected
+        if (_selectedLicenseFile != null) {
+          debugPrint("Uploading file: ${_selectedLicenseFile!.name}");
+          if (kIsWeb) {
+            request.files.add(
+              http.MultipartFile.fromBytes(
+                'licenseDocument',
+                _selectedLicenseFile!.bytes!,
+                filename: _selectedLicenseFile!.name,
+              ),
+            );
+          } else {
+            request.files.add(
+              await http.MultipartFile.fromPath(
+                'licenseDocument',
+                _selectedLicenseFile!.path!,
+              ),
+            );
+          }
+        }
+
+        var streamedResponse = await request.send();
+        var response = await http.Response.fromStream(streamedResponse);
+
+        if (response.statusCode == (_editingIndex == null ? 201 : 200)) {
+          _showSnackBar(
+            _editingIndex == null
+                ? 'Driver added successfully!'
+                : 'Driver updated successfully!',
+            isSuccess: true,
+          );
+          await _fetchDrivers();
+          _clearForm();
+          setState(() {
+            _editingIndex = null;
+            _currentLicenseDocument = null;
+            _selectedLicenseFile = null;
+          });
+        } else {
+          throw Exception(
+            "Failed to save driver: ${jsonDecode(response.body)['message'] ?? response.body}",
+          );
+        }
       } catch (e) {
         debugPrint("Error: $e");
         _showSnackBar(
@@ -211,6 +288,8 @@ class _ManageBusDriverDetailsScreenState
       _emailController.text = driver['email'] ?? '';
       _passwordController.text = ''; // Keep empty to indicate no change
       _isActive = driver['status'] == 'Active';
+      _currentLicenseDocument = driver['licenseDocument'];
+      _selectedLicenseFile = null; // Reset selected file
       _editingIndex = index;
     });
   }
@@ -222,6 +301,8 @@ class _ManageBusDriverDetailsScreenState
     _emailController.clear();
     _passwordController.clear();
     _isActive = true;
+    _selectedLicenseFile = null;
+    _currentLicenseDocument = null;
     setState(() {
       _editingIndex = null;
     });
@@ -318,6 +399,68 @@ class _ManageBusDriverDetailsScreenState
           }
           return null;
         },
+      ),
+    );
+  }
+
+  Widget _buildLicenseDocumentField() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'License Document (PDF only${_editingIndex == null ? '' : ', Optional'})',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.8),
+              fontSize: 16,
+            ),
+          ),
+          const SizedBox(height: 8),
+          if (_editingIndex != null && _currentLicenseDocument != null)
+            GestureDetector(
+              onTap: () async {
+                final pdfUrl = '$baseUrl$_currentLicenseDocument';
+                if (await canLaunchUrl(Uri.parse(pdfUrl))) {
+                  await launchUrl(
+                    Uri.parse(pdfUrl),
+                    mode: LaunchMode.externalApplication,
+                  );
+                } else {
+                  _showSnackBar('Could not launch PDF');
+                }
+              },
+              child: Text(
+                'View Current PDF',
+                style: TextStyle(
+                  color: Colors.lightBlueAccent,
+                  decoration: TextDecoration.underline,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+          if (_editingIndex != null && _currentLicenseDocument != null)
+            const SizedBox(height: 8),
+          Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.3),
+                width: 1.5,
+              ),
+            ),
+            child: ListTile(
+              leading: Icon(Icons.upload_file, color: Colors.lightBlueAccent),
+              title: Text(
+                _selectedLicenseFile != null
+                    ? _selectedLicenseFile!.name
+                    : 'Select PDF',
+                style: TextStyle(color: Colors.white70),
+              ),
+              onTap: _pickLicensePdf,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -510,8 +653,7 @@ class _ManageBusDriverDetailsScreenState
         ),
         child: SingleChildScrollView(
           padding: EdgeInsets.only(
-            top:
-                AppBar().preferredSize.height +
+            top: AppBar().preferredSize.height +
                 MediaQuery.of(context).padding.top +
                 16,
             left: 16.0,
@@ -608,6 +750,7 @@ class _ManageBusDriverDetailsScreenState
                   TextInputType.text,
                   true,
                 ),
+                _buildLicenseDocumentField(),
                 _buildStatusToggle(),
                 _buildActionButtons(),
               ],
@@ -655,170 +798,210 @@ class _ManageBusDriverDetailsScreenState
           ),
           child: Padding(
             padding: const EdgeInsets.all(20),
-            child:
-                _driverList.isEmpty
-                    ? const Center(
-                      child: Text(
-                        'No driver details available!',
-                        style: TextStyle(fontSize: 18, color: Colors.white70),
+            child: _driverList.isEmpty
+                ? const Center(
+                    child: Text(
+                      'No driver details available!',
+                      style: TextStyle(fontSize: 18, color: Colors.white70),
+                    ),
+                  )
+                : SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: DataTable(
+                      headingRowColor: WidgetStateProperty.resolveWith<Color?>(
+                        (Set<WidgetState> states) =>
+                            Colors.blue.shade800.withValues(alpha: 0.6),
                       ),
-                    )
-                    : SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: DataTable(
-                        headingRowColor:
-                            WidgetStateProperty.resolveWith<Color?>(
-                              (Set<WidgetState> states) =>
-                                  Colors.blue.shade800.withValues(alpha: 0.6),
+                      dataRowColor: WidgetStateProperty.resolveWith<Color?>(
+                        (Set<WidgetState> states) =>
+                            Colors.white.withValues(alpha: 0.05),
+                      ),
+                      columnSpacing: 30,
+                      dataRowMinHeight: 60,
+                      dataRowMaxHeight: 60,
+                      headingRowHeight: 70,
+                      columns: const [
+                        DataColumn(
+                          label: Text(
+                            'Full Name',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
                             ),
-                        dataRowColor: WidgetStateProperty.resolveWith<Color?>(
-                          (Set<WidgetState> states) =>
-                              Colors.white.withValues(alpha: 0.05),
+                          ),
                         ),
-                        columnSpacing: 30,
-                        dataRowMinHeight: 60,
-                        dataRowMaxHeight: 60,
-                        headingRowHeight: 70,
-                        columns: const [
-                          DataColumn(
-                            label: Text(
-                              'Full Name',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
+                        DataColumn(
+                          label: Text(
+                            'Contact',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
                             ),
                           ),
-                          DataColumn(
-                            label: Text(
-                              'Contact',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
+                        ),
+                        DataColumn(
+                          label: Text(
+                            'License',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
                             ),
                           ),
-                          DataColumn(
-                            label: Text(
-                              'License',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
+                        ),
+                        DataColumn(
+                          label: Text(
+                            'Email',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
                             ),
                           ),
-                          DataColumn(
-                            label: Text(
-                              'Email',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
+                        ),
+                        DataColumn(
+                          label: Text(
+                            'Status',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
                             ),
                           ),
-                          DataColumn(
-                            label: Text(
-                              'Status',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
+                        ),
+                        DataColumn(
+                          label: Text(
+                            'License Document',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
                             ),
                           ),
-                          DataColumn(
-                            label: Text(
-                              'Actions',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
+                        ),
+                        DataColumn(
+                          label: Text(
+                            'Actions',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
                             ),
                           ),
-                        ],
-                        rows:
-                            _driverList.asMap().entries.map((entry) {
-                              int index = entry.key;
-                              var driver = entry.value;
-                              return DataRow(
-                                cells: [
-                                  DataCell(
-                                    Text(
-                                      driver['name'] ?? 'N/A',
-                                      style: TextStyle(color: Colors.white70),
-                                    ),
+                        ),
+                      ],
+                      rows: _driverList.asMap().entries.map((entry) {
+                        int index = entry.key;
+                        var driver = entry.value;
+                        return DataRow(
+                          cells: [
+                            DataCell(
+                              Text(
+                                driver['name'] ?? 'N/A',
+                                style: TextStyle(color: Colors.white70),
+                              ),
+                            ),
+                            DataCell(
+                              Text(
+                                driver['contact'] ?? 'N/A',
+                                style: TextStyle(color: Colors.white70),
+                              ),
+                            ),
+                            DataCell(
+                              Text(
+                                driver['license'] ?? 'N/A',
+                                style: TextStyle(color: Colors.white70),
+                              ),
+                            ),
+                            DataCell(
+                              Text(
+                                driver['email'] ?? 'N/A',
+                                style: TextStyle(color: Colors.white70),
+                              ),
+                            ),
+                            DataCell(
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 5,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: (driver['status'] == 'Active'
+                                          ? Colors.green
+                                          : Colors.red)
+                                      .withValues(alpha: 0.6),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text(
+                                  driver['status'] ?? 'N/A',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
                                   ),
-                                  DataCell(
-                                    Text(
-                                      driver['contact'] ?? 'N/A',
-                                      style: TextStyle(color: Colors.white70),
-                                    ),
-                                  ),
-                                  DataCell(
-                                    Text(
-                                      driver['license'] ?? 'N/A',
-                                      style: TextStyle(color: Colors.white70),
-                                    ),
-                                  ),
-                                  DataCell(
-                                    Text(
-                                      driver['email'] ?? 'N/A',
-                                      style: TextStyle(color: Colors.white70),
-                                    ),
-                                  ),
-                                  DataCell(
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 10,
-                                        vertical: 5,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: (driver['status'] == 'Active'
-                                                ? Colors.green
-                                                : Colors.red)
-                                            .withValues(alpha: 0.6),
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
+                                ),
+                              ),
+                            ),
+                            DataCell(
+                              driver['licenseDocument'] != null
+                                  ? GestureDetector(
+                                      onTap: () async {
+                                        final pdfUrl =
+                                            '$baseUrl${driver['licenseDocument']}';
+                                        if (await canLaunchUrl(
+                                          Uri.parse(pdfUrl),
+                                        )) {
+                                          await launchUrl(
+                                            Uri.parse(pdfUrl),
+                                            mode:
+                                                LaunchMode.externalApplication,
+                                          );
+                                        } else {
+                                          _showSnackBar('Could not launch PDF');
+                                        }
+                                      },
                                       child: Text(
-                                        driver['status'] ?? 'N/A',
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
+                                        'View PDF',
+                                        style: TextStyle(
+                                          color: Colors.lightBlueAccent,
+                                          decoration: TextDecoration.underline,
                                         ),
                                       ),
+                                    )
+                                  : Text(
+                                      'N/A',
+                                      style: TextStyle(
+                                        color: Colors.white70,
+                                      ),
                                     ),
+                            ),
+                            DataCell(
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.edit,
+                                      color: Colors.lightBlueAccent,
+                                    ),
+                                    onPressed: () => _editDriver(index),
                                   ),
-                                  DataCell(
-                                    Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        IconButton(
-                                          icon: const Icon(
-                                            Icons.edit,
-                                            color: Colors.lightBlueAccent,
-                                          ),
-                                          onPressed: () => _editDriver(index),
-                                        ),
-                                        IconButton(
-                                          icon: const Icon(
-                                            Icons.delete,
-                                            color: Colors.redAccent,
-                                          ),
-                                          onPressed: () => _deleteDriver(index),
-                                        ),
-                                      ],
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.delete,
+                                      color: Colors.redAccent,
                                     ),
+                                    onPressed: () => _deleteDriver(index),
                                   ),
                                 ],
-                              );
-                            }).toList(),
-                      ),
+                              ),
+                            ),
+                          ],
+                        );
+                      }).toList(),
                     ),
+                  ),
           ),
         ),
       ),
