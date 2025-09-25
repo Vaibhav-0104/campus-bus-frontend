@@ -58,13 +58,11 @@ class _ManageBusDetailsScreenState extends State<ManageBusDetailsScreen> {
         setState(() {
           _busList = List<Map<String, dynamic>>.from(
             json.decode(response.body).map((bus) {
-              // Ensure driverId is processed as an object or string
               final driverId = bus['driverId'];
               if (driverId is Map && driverId['_id'] != null) {
-                bus['driverId'] =
-                    driverId['_id'].toString(); // Normalize to string
+                bus['driverId'] = driverId['_id'].toString();
               } else if (driverId is String) {
-                bus['driverId'] = driverId; // Already a string
+                bus['driverId'] = driverId;
               }
               return bus;
             }),
@@ -178,7 +176,7 @@ class _ManageBusDetailsScreenState extends State<ManageBusDetailsScreen> {
             ),
             ElevatedButton(
               onPressed: () async {
-                Navigator.of(context).pop(); // Dismiss dialog
+                Navigator.of(context).pop();
                 try {
                   String busId = _busList[index]['_id'];
                   final response = await http.delete(
@@ -227,7 +225,7 @@ class _ManageBusDetailsScreenState extends State<ManageBusDetailsScreen> {
     _selectedDriverId = null;
     _isActive = true;
     setState(() {
-      _selectedBusIndex = null; // Clear selected index when clearing form
+      _selectedBusIndex = null;
     });
   }
 
@@ -285,13 +283,34 @@ class _ManageBusDetailsScreenState extends State<ManageBusDetailsScreen> {
   }
 
   Widget _buildDriverDropdown() {
+    // Compute assigned driver IDs from active buses only
+    final Set<String> assignedDriverIds =
+        _busList
+            .where(
+              (bus) => bus['status'] == 'Active',
+            ) // Only consider active buses
+            .map((bus) => bus['driverId']?.toString() ?? '')
+            .where((id) => id.isNotEmpty)
+            .toSet();
+
+    String? currentDriverId;
+    if (_selectedBusIndex != null) {
+      currentDriverId = _busList[_selectedBusIndex!]['driverId']?.toString();
+    }
+
+    // Unique drivers map
     final uniqueDrivers = <String, Map<String, dynamic>>{};
     for (var driver in _driverList) {
-      final id = driver['_id']?.toString();
-      if (id != null && id.isNotEmpty && !uniqueDrivers.containsKey(id)) {
-        uniqueDrivers[id] = driver;
-      } else {
-        debugPrint('Invalid or duplicate driver: $driver');
+      final id = driver['_id']?.toString() ?? '';
+      if (id.isNotEmpty && !uniqueDrivers.containsKey(id)) {
+        // Include driver if unassigned, assigned to an inactive bus, or the current bus's driver
+        final isAssignedToActiveBus = assignedDriverIds.contains(id);
+        if (!isAssignedToActiveBus ||
+            (currentDriverId != null && id == currentDriverId)) {
+          uniqueDrivers[id] = driver;
+        }
+      } else if (id.isEmpty) {
+        debugPrint('Invalid driver: $driver');
       }
     }
 
@@ -306,10 +325,8 @@ class _ManageBusDetailsScreenState extends State<ManageBusDetailsScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: DropdownButtonFormField<String>(
-        dropdownColor: Colors.blue.shade800.withOpacity(
-          0.7,
-        ), // Dropdown background color
-        style: TextStyle(color: Colors.white, fontSize: 16), // Items text style
+        dropdownColor: Colors.blue.shade800.withOpacity(0.7),
+        style: const TextStyle(color: Colors.white, fontSize: 16),
         decoration: InputDecoration(
           labelText: 'Assign Driver',
           labelStyle: TextStyle(color: Colors.white.withOpacity(0.8)),
@@ -752,14 +769,14 @@ class _ManageBusDetailsScreenState extends State<ManageBusDetailsScreen> {
                             MaterialStateProperty.resolveWith<Color?>(
                               (Set<MaterialState> states) =>
                                   Colors.blue.shade800.withOpacity(0.6),
-                            ), // Header background
+                            ),
                         dataRowColor: MaterialStateProperty.resolveWith<Color?>(
                           (Set<MaterialState> states) =>
                               Colors.white.withOpacity(0.05),
-                        ), // Row background
-                        columnSpacing: 30, // Increase column spacing
-                        dataRowHeight: 60, // Increase row height
-                        headingRowHeight: 70, // Increase heading row height
+                        ),
+                        columnSpacing: 30,
+                        dataRowHeight: 60,
+                        headingRowHeight: 70,
                         columns: const [
                           DataColumn(
                             label: Text(
@@ -909,16 +926,14 @@ class _ManageBusDetailsScreenState extends State<ManageBusDetailsScreen> {
                                         IconButton(
                                           icon: const Icon(
                                             Icons.edit,
-                                            color:
-                                                Colors
-                                                    .lightBlueAccent, // Blue icon
+                                            color: Colors.lightBlueAccent,
                                           ),
                                           onPressed: () => _editBus(index),
                                         ),
                                         IconButton(
                                           icon: const Icon(
                                             Icons.delete,
-                                            color: Colors.redAccent, // Red icon
+                                            color: Colors.redAccent,
                                           ),
                                           onPressed: () => _deleteBus(index),
                                         ),
