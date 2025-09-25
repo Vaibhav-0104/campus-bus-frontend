@@ -17,6 +17,9 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
   List<Map<String, dynamic>> buses = [];
   List<Map<String, dynamic>> allocations = [];
   List<String> toDestinations = [];
+  List<String> departments = []; // New list for departments
+  List<Map<String, dynamic>> filteredStudents =
+      []; // New filtered students list
 
   String? selectedStudentId;
   String studentName = '';
@@ -24,6 +27,7 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
   String? selectedBusId;
   String? selectedSeatNumber;
   String? editingAllocationId;
+  String? selectedDepartment; // New selected department
   List<Map<String, dynamic>> filteredBuses = [];
   List<String> availableSeats = [];
   List<String> allocatedSeats = [];
@@ -53,9 +57,19 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
                 'id': student['_id'],
                 'envNumber': student['envNumber'],
                 'name': student['name'] ?? 'Unknown',
+                'department':
+                    student['department'] ?? 'Unknown', // Include department
               },
             ),
           );
+          // Extract unique departments
+          departments =
+              students
+                  .map((student) => student['department'] as String)
+                  .where((dept) => dept.isNotEmpty && dept != 'Unknown')
+                  .toSet()
+                  .toList();
+          filteredStudents = students; // Initially, all students
           isLoadingStudents = false;
         });
       } else {
@@ -148,14 +162,12 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
             'Fetched seats for bus $busId: Allocated=$allocatedSeats, Available=$availableSeats',
           );
         });
-        // Update the buses list
         final busIndex = buses.indexWhere((b) => b['id'] == busId);
         if (busIndex != -1) {
           setState(() {
             buses[busIndex]['allocatedSeats'] = allocated;
           });
         }
-        // Fallback: Update allocated seats from allocations
         _updateAllocatedSeatsFromAllocations();
       } else {
         _showSnackBar('Failed to load bus details: ${response.statusCode}');
@@ -169,7 +181,6 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
 
   void _updateAllocatedSeatsFromAllocations() {
     if (selectedBusId == null) return;
-    // Derive allocated seats from allocations as a fallback
     final busAllocations =
         allocations
             .where((alloc) => alloc['busId']?['_id'] == selectedBusId)
@@ -178,7 +189,6 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
             .cast<String>()
             .toList();
     setState(() {
-      // Only add new seats from allocations if not already in allocatedSeats
       allocatedSeats =
           [
             ...allocatedSeats,
@@ -200,18 +210,17 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
   }
 
   Future<void> allocateBus() async {
-    if (selectedStudentId != null &&
+    if (selectedDepartment != null &&
+        selectedStudentId != null &&
         selectedBusId != null &&
         selectedTo != null &&
         selectedSeatNumber != null) {
-      // Re-fetch seats to ensure no stale data
       await fetchAvailableSeats(selectedBusId!);
       if (!availableSeats.contains(selectedSeatNumber)) {
         _showSnackBar('Selected seat is no longer available');
         return;
       }
 
-      // Check if student already has an allocation on this bus
       final existingAllocation = allocations.firstWhere(
         (alloc) =>
             alloc['studentId']?['_id'] == selectedStudentId &&
@@ -271,7 +280,9 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
         );
       }
     } else {
-      _showSnackBar('Please select Student, To, Bus, and Seat Number');
+      _showSnackBar(
+        'Please select Department, Student, To, Bus, and Seat Number',
+      );
     }
   }
 
@@ -366,10 +377,13 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
       editingAllocationId = allocation['_id'];
       selectedStudentId = allocation['studentId']?['_id'] ?? '';
       studentName = allocation['studentId']?['name'] ?? 'N/A';
+      selectedDepartment =
+          allocation['studentId']?['department'] ?? ''; // Set department
       selectedTo = allocation['to'] ?? allocation['busId']?['to'] ?? '';
       selectedBusId = allocation['busId']?['_id'] ?? '';
       selectedSeatNumber = allocation['seatNumber']?.toString() ?? '';
       filterBusesByTo(selectedTo);
+      filterStudentsByDepartment(selectedDepartment); // Filter students
       if (selectedBusId != null) {
         fetchAvailableSeats(selectedBusId!);
       }
@@ -391,15 +405,33 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
     });
   }
 
+  void filterStudentsByDepartment(String? department) {
+    setState(() {
+      selectedDepartment = department;
+      selectedStudentId = null;
+      studentName = '';
+      if (department != null && department.isNotEmpty) {
+        filteredStudents =
+            students
+                .where((student) => student['department'] == department)
+                .toList();
+      } else {
+        filteredStudents = students;
+      }
+    });
+  }
+
   void _clearForm() {
     setState(() {
       selectedStudentId = null;
       studentName = '';
+      selectedDepartment = null;
       selectedTo = null;
       selectedBusId = null;
       selectedSeatNumber = null;
       editingAllocationId = null;
       filteredBuses = [];
+      filteredStudents = students;
       availableSeats = [];
       allocatedSeats = [];
     });
@@ -423,7 +455,7 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
       orElse: () => {'busNumber': 'Unknown', 'capacity': 0},
     );
     final busNumber = bus['busNumber'] as String;
-    String? localSelectedSeat = selectedSeatNumber; // Local state for dialog
+    String? localSelectedSeat = selectedSeatNumber;
 
     await showDialog(
       context: context,
@@ -737,30 +769,47 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
               isLoadingStudents
                   ? const Center(child: CircularProgressIndicator())
                   : _buildDropdownFormField(
-                    value: selectedStudentId,
-                    hint: 'Select Enrollment Number',
+                    value: selectedDepartment,
+                    hint: 'Select Department',
                     items:
-                        students.map<DropdownMenuItem<String>>((student) {
+                        departments.map<DropdownMenuItem<String>>((dept) {
                           return DropdownMenuItem<String>(
-                            value: student['id'] as String,
+                            value: dept,
                             child: Text(
-                              student['envNumber'],
+                              dept,
                               style: const TextStyle(fontSize: 16),
                             ),
                           );
                         }).toList(),
-                    onChanged: (value) {
-                      setState(() {
-                        selectedStudentId = value;
-                        final selectedStudent = students.firstWhere(
-                          (s) => s['id'] == value,
-                          orElse: () => {'name': 'Unknown'},
-                        );
-                        studentName = selectedStudent['name'] as String;
-                      });
-                    },
-                    icon: Icons.person_outline,
+                    onChanged: filterStudentsByDepartment,
+                    icon: Icons.school_outlined,
                   ),
+              const SizedBox(height: 20),
+              _buildDropdownFormField(
+                value: selectedStudentId,
+                hint: 'Select Enrollment Number',
+                items:
+                    filteredStudents.map<DropdownMenuItem<String>>((student) {
+                      return DropdownMenuItem<String>(
+                        value: student['id'] as String,
+                        child: Text(
+                          student['envNumber'],
+                          style: const TextStyle(fontSize: 16),
+                        ),
+                      );
+                    }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    selectedStudentId = value;
+                    final selectedStudent = filteredStudents.firstWhere(
+                      (s) => s['id'] == value,
+                      orElse: () => {'name': 'Unknown'},
+                    );
+                    studentName = selectedStudent['name'] as String;
+                  });
+                },
+                icon: Icons.person_outline,
+              ),
               const SizedBox(height: 20),
               _buildReadOnlyTextField(
                 studentName.isEmpty ? 'Student Name' : studentName,
