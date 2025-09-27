@@ -160,15 +160,15 @@ class _ViewStudentAttendanceState extends State<ViewStudentAttendance> {
   }
 
   Future<void> _selectDate(BuildContext context) async {
+    final DateTime now = DateTime.now();
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: selectedDate ?? DateTime.now(),
-      firstDate: DateTime(2023),
-      lastDate: DateTime(2026),
+      initialDate: selectedDate ?? now, // Default to today if no date selected
+      firstDate: DateTime(2023), // Start date for selection
+      lastDate: now, // Restrict to today or past dates
       builder: (BuildContext context, Widget? child) {
         return Theme(
           data: ThemeData.dark().copyWith(
-            // Dark theme for date picker
             colorScheme: ColorScheme.dark(
               primary: Colors.blue.shade600, // Header background
               onPrimary: Colors.white, // Header text
@@ -200,15 +200,10 @@ class _ViewStudentAttendanceState extends State<ViewStudentAttendance> {
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 14,
-        vertical: 8,
-      ), // Increased padding
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
-        color: chipColor.withOpacity(
-          0.8,
-        ), // Slightly transparent for liquid effect
-        borderRadius: BorderRadius.circular(25), // More rounded
+        color: chipColor.withOpacity(0.8),
+        borderRadius: BorderRadius.circular(25),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.2),
@@ -222,7 +217,7 @@ class _ViewStudentAttendanceState extends State<ViewStudentAttendance> {
         style: const TextStyle(
           color: Colors.white,
           fontWeight: FontWeight.bold,
-          fontSize: 14, // Consistent font size
+          fontSize: 14,
         ),
       ),
     );
@@ -231,32 +226,20 @@ class _ViewStudentAttendanceState extends State<ViewStudentAttendance> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBodyBehindAppBar:
-          true, // Extend body behind app bar for full gradient
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: const Text(
           'View Student Attendance',
           style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
-        backgroundColor: Colors.blue.shade800.withOpacity(
-          0.3,
-        ), // Liquid glass app bar
+        backgroundColor: Colors.blue.shade800.withOpacity(0.3),
         centerTitle: true,
-        elevation: 0, // Remove default shadow
-        iconTheme: const IconThemeData(
-          color: Colors.white,
-        ), // White back button
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
         flexibleSpace: ClipRect(
           child: BackdropFilter(
-            filter: ImageFilter.blur(
-              sigmaX: 10,
-              sigmaY: 10,
-            ), // Blur effect for app bar
-            child: Container(
-              color:
-                  Colors
-                      .transparent, // Transparent to show blurred content behind
-            ),
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            child: Container(color: Colors.transparent),
           ),
         ),
       ),
@@ -271,7 +254,7 @@ class _ViewStudentAttendanceState extends State<ViewStudentAttendance> {
               Colors.blue.shade900,
               Colors.blue.shade700,
               Colors.blue.shade500,
-            ], // Blue themed gradient background
+            ],
             stops: const [0.0, 0.5, 1.0],
           ),
         ),
@@ -296,10 +279,8 @@ class _ViewStudentAttendanceState extends State<ViewStudentAttendance> {
                   filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                   child: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue.shade600.withOpacity(
-                        0.4,
-                      ), // Translucent blue
-                      foregroundColor: Colors.white, // White text/icon
+                      backgroundColor: Colors.blue.shade600.withOpacity(0.4),
+                      foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(
                         vertical: 15,
                         horizontal: 20,
@@ -311,7 +292,7 @@ class _ViewStudentAttendanceState extends State<ViewStudentAttendance> {
                           width: 1.5,
                         ),
                       ),
-                      elevation: 0, // No default elevation
+                      elevation: 0,
                       shadowColor: Colors.black.withOpacity(0.3),
                     ),
                     onPressed: () => _selectDate(context),
@@ -341,18 +322,11 @@ class _ViewStudentAttendanceState extends State<ViewStudentAttendance> {
                 child: BackdropFilter(
                   filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                   child: DropdownButtonFormField<String>(
-                    dropdownColor: Colors.blue.shade800.withOpacity(
-                      0.7,
-                    ), // Dropdown background color
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                    ), // Items text style
+                    dropdownColor: Colors.blue.shade800.withOpacity(0.7),
+                    style: TextStyle(color: Colors.white, fontSize: 18),
                     decoration: InputDecoration(
                       filled: true,
-                      fillColor: Colors.white.withOpacity(
-                        0.08,
-                      ), // Subtle translucent fill
+                      fillColor: Colors.white.withOpacity(0.08),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(15),
                         borderSide: BorderSide(
@@ -383,22 +357,32 @@ class _ViewStudentAttendanceState extends State<ViewStudentAttendance> {
                         Icons.directions_bus,
                         color: Colors.lightBlueAccent,
                         size: 28,
-                      ), // Icon for dropdown
+                      ),
                     ),
                     value: selectedBus,
                     items:
-                        busNumbers
-                            .map(
-                              (bus) => DropdownMenuItem(
+                        busNumbers.isEmpty
+                            ? [
+                              DropdownMenuItem<String>(
+                                value: null,
+                                child: Text(
+                                  'No buses available',
+                                  style: TextStyle(
+                                    color: Colors.white.withOpacity(0.7),
+                                  ),
+                                ),
+                              ),
+                            ]
+                            : busNumbers.map((bus) {
+                              return DropdownMenuItem<String>(
                                 value: bus,
                                 child: Text(bus),
-                              ),
-                            )
-                            .toList(),
+                              );
+                            }).toList(),
                     onChanged: (value) {
                       setState(() {
                         selectedBus = value;
-                        if (selectedDate != null) {
+                        if (selectedDate != null && value != null) {
                           _fetchAttendance();
                         }
                       });
@@ -494,9 +478,7 @@ class _ViewStudentAttendanceState extends State<ViewStudentAttendance> {
                                     child: ListTile(
                                       leading: CircleAvatar(
                                         backgroundColor: Colors.blue.shade400
-                                            .withOpacity(
-                                              0.6,
-                                            ), // Liquid glass circle avatar
+                                            .withOpacity(0.6),
                                         child: Text(
                                           student["name"] != null &&
                                                   student["name"].isNotEmpty
@@ -538,9 +520,9 @@ class _ViewStudentAttendanceState extends State<ViewStudentAttendance> {
     return Text(
       title,
       style: const TextStyle(
-        fontSize: 22, // Increased font size
+        fontSize: 22,
         fontWeight: FontWeight.bold,
-        color: Colors.white, // White text for liquid glass theme
+        color: Colors.white,
         shadows: [
           Shadow(
             blurRadius: 5.0,
