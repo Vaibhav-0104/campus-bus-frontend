@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'dart:ui'; // Required for ImageFilter for blur effects
-import 'package:http/http.dart' as http; // Import the http package
-import 'dart:convert'; // Required for jsonDecode
-
+import 'dart:ui';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:campus_bus_management/config/api_config.dart'; // ✅ Import centralized URL
 import 'package:campus_bus_management/login.dart';
 import 'package:campus_bus_management/admin/screen/manage_bus_details.dart';
 import 'package:campus_bus_management/admin/screen/manage_driver_details.dart';
@@ -21,62 +21,64 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  // Base URL for your API
-  final String _baseUrl = 'http://172.20.10.9:5000/api';
-
   // Function to fetch total students count
   Future<int> fetchTotalStudents() async {
     try {
-      final response = await http.get(Uri.parse('$_baseUrl/students'));
+      final response = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}/students'),
+      ); // ✅ Updated URL
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
-        return data.length; // Assuming the API returns a list of students
+        return data.length;
       } else {
         throw Exception('Failed to load students: ${response.statusCode}');
       }
     } catch (e) {
       print('Error fetching students: $e');
-      return 0; // Return 0 or handle error appropriately
+      return 0;
     }
   }
 
   // Function to fetch total buses count
   Future<int> fetchTotalBuses() async {
     try {
-      final response = await http.get(Uri.parse('$_baseUrl/buses'));
+      final response = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}/buses'),
+      ); // ✅ Updated URL
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
-        return data.length; // Assuming the API returns a list of buses
+        return data.length;
       } else {
         throw Exception('Failed to load buses: ${response.statusCode}');
       }
     } catch (e) {
       print('Error fetching buses: $e');
-      return 0; // Return 0 or handle error appropriately
+      return 0;
     }
   }
 
   // Function to fetch total drivers count
   Future<int> fetchTotalDrivers() async {
     try {
-      final response = await http.get(Uri.parse('$_baseUrl/drivers'));
+      final response = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}/drivers'),
+      ); // ✅ Updated URL
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
-        return data.length; // Assuming the API returns a list of drivers
+        return data.length;
       } else {
         throw Exception('Failed to load drivers: ${response.statusCode}');
       }
     } catch (e) {
       print('Error fetching drivers: $e');
-      return 0; // Return 0 or handle error appropriately
+      return 0;
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBodyBehindAppBar:
-          true, // Extend body behind app bar for full gradient
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: const Text(
           "Admin Dashboard",
@@ -86,28 +88,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
             color: Colors.white,
           ),
         ),
-        backgroundColor: Colors.blue.shade800.withOpacity(
-          0.3,
-        ), // Liquid glass app bar
-        elevation: 0, // Remove shadow for flat look
+        backgroundColor: Colors.blue.shade800.withOpacity(0.3),
+        elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
         centerTitle: true,
         flexibleSpace: ClipRect(
           child: BackdropFilter(
-            filter: ImageFilter.blur(
-              sigmaX: 10,
-              sigmaY: 10,
-            ), // Increased blur for app bar background
-            child: Container(
-              color: Colors.transparent, // Transparent to allow blur to show
-            ),
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            child: Container(color: Colors.transparent),
           ),
         ),
       ),
       drawer: _buildDrawer(context),
       body: Container(
-        // The gradient background now fully fills the screen,
-        // as the Scaffold body is inherently sized to fill.
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
@@ -116,109 +109,105 @@ class _DashboardScreenState extends State<DashboardScreen> {
               Colors.blue.shade900,
               Colors.blue.shade700,
               Colors.blue.shade500,
-            ], // Blue themed gradient background
+            ],
             stops: const [0.0, 0.5, 1.0],
           ),
         ),
         child: LayoutBuilder(
           builder: (context, constraints) {
             return SingleChildScrollView(
-              padding: const EdgeInsets.all(16.0), // Simplified padding
+              padding: const EdgeInsets.all(16.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Add SizedBox to push content below the AppBar and status bar explicitly
                   SizedBox(
                     height:
                         AppBar().preferredSize.height +
                         MediaQuery.of(context).padding.top +
                         10,
                   ),
-                  // Stat Card for Total Students
                   FutureBuilder<int>(
                     future: fetchTotalStudents(),
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
                         return _statCard(
-                          Icons.school, // Example icon for students
-                          Colors.lightBlueAccent, // Icon color
+                          Icons.school,
+                          Colors.lightBlueAccent,
                           "Total Students",
                           "Loading...",
                         );
                       } else if (snapshot.hasError) {
                         return _statCard(
-                          Icons.school, // Example icon for students
-                          Colors.redAccent, // Icon color for error
+                          Icons.school,
+                          Colors.redAccent,
                           "Total Students",
                           "Error: ${snapshot.error}",
                         );
                       } else {
                         return _statCard(
-                          Icons.school, // Example icon for students
-                          Colors.lightBlueAccent, // Icon color
+                          Icons.school,
+                          Colors.lightBlueAccent,
                           "Total Students",
                           snapshot.data.toString(),
                         );
                       }
                     },
                   ),
-                  // Stat Card for Total Drivers
                   FutureBuilder<int>(
                     future: fetchTotalDrivers(),
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
                         return _statCard(
-                          Icons.group, // Example icon for drivers
-                          Colors.greenAccent, // Icon color
+                          Icons.group,
+                          Colors.greenAccent,
                           "Total Drivers",
                           "Loading...",
                         );
                       } else if (snapshot.hasError) {
                         return _statCard(
-                          Icons.group, // Example icon for drivers
-                          Colors.redAccent, // Icon color for error
+                          Icons.group,
+                          Colors.redAccent,
                           "Total Drivers",
                           "Error: ${snapshot.error}",
                         );
                       } else {
                         return _statCard(
-                          Icons.group, // Example icon for drivers
-                          Colors.greenAccent, // Icon color
+                          Icons.group,
+                          Colors.greenAccent,
                           "Total Drivers",
                           snapshot.data.toString(),
                         );
                       }
                     },
                   ),
-                  // Stat Card for Total Buses
                   FutureBuilder<int>(
                     future: fetchTotalBuses(),
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
                         return _statCard(
-                          Icons.directions_bus_filled, // Example icon for buses
-                          Colors.orangeAccent, // Icon color
+                          Icons.directions_bus_filled,
+                          Colors.orangeAccent,
                           "Total Buses",
                           "Loading...",
                         );
                       } else if (snapshot.hasError) {
                         return _statCard(
-                          Icons.directions_bus_filled, // Example icon for buses
-                          Colors.redAccent, // Icon color for error
+                          Icons.directions_bus_filled,
+                          Colors.redAccent,
                           "Total Buses",
                           "Error: ${snapshot.error}",
                         );
                       } else {
                         return _statCard(
-                          Icons.directions_bus_filled, // Example icon for buses
-                          Colors.orangeAccent, // Icon color
+                          Icons.directions_bus_filled,
+                          Colors.orangeAccent,
                           "Total Buses",
                           snapshot.data.toString(),
                         );
                       }
                     },
                   ),
-                  const SizedBox(height: 16.0), // Added bottom padding
+                  const SizedBox(height: 16.0),
                 ],
               ),
             );
@@ -235,16 +224,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              Colors.blue.shade900,
-              Colors.blue.shade600,
-            ], // Blue themed gradient for drawer background
+            colors: [Colors.blue.shade900, Colors.blue.shade600],
           ),
         ),
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
-            // Liquid Glass Drawer Header
             DrawerHeader(
               margin: EdgeInsets.zero,
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
@@ -269,62 +254,61 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ],
               ),
             ),
-            // Liquid Glass Drawer Items
             _buildDrawerItem(
               context,
               Icons.directions_bus,
               "Manage Bus Details",
               const ManageBusDetailsScreen(),
-              Colors.lightBlueAccent, // Icon color
+              Colors.lightBlueAccent,
             ),
             _buildDrawerItem(
               context,
               Icons.person,
               "Manage Driver Details",
               const ManageBusDriverDetailsScreen(),
-              Colors.greenAccent, // Icon color
+              Colors.greenAccent,
             ),
             _buildDrawerItem(
               context,
               Icons.school,
               "Manage Student Details",
               const ManageStudentDetailsScreen(),
-              Colors.orangeAccent, // Icon color
+              Colors.orangeAccent,
             ),
             _buildDrawerItem(
               context,
               Icons.swap_horiz,
               "Allocate Bus to Student",
               const AllocateBusScreen(),
-              Colors.purpleAccent, // Icon color
+              Colors.purpleAccent,
             ),
             _buildDrawerItem(
               context,
               Icons.payment,
               "Manage Fees",
               const ManageStudentFeesScreen(),
-              Colors.pinkAccent, // Icon color
+              Colors.pinkAccent,
             ),
             _buildDrawerItem(
               context,
               Icons.notifications,
               "Manage Notifications",
               const NotificationsScreen(userRole: "Admin"),
-              Colors.tealAccent, // Icon color
+              Colors.tealAccent,
             ),
             _buildDrawerItem(
               context,
               Icons.assignment,
               "View Student Attendance",
               const ViewStudentAttendance(),
-              Colors.redAccent, // Icon color
+              Colors.redAccent,
             ),
             _buildDrawerItem(
               context,
               Icons.bar_chart,
               "Reports",
               const ReportsScreen(),
-              Colors.yellowAccent.shade100, // Icon color
+              Colors.yellowAccent.shade100,
             ),
             const Divider(color: Colors.white30, height: 20, thickness: 1),
             Padding(
@@ -398,7 +382,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     IconData icon,
     String title,
     Widget screen,
-    Color iconColor, // Added iconColor parameter
+    Color iconColor,
   ) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 5.0),
@@ -411,9 +395,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               gradient: LinearGradient(
                 colors: [
                   Colors.white.withOpacity(0.1),
-                  Colors.blue.shade300.withOpacity(
-                    0.1,
-                  ), // Blue-themed gradient for items
+                  Colors.blue.shade300.withOpacity(0.1),
                 ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
@@ -430,7 +412,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ],
             ),
             child: ListTile(
-              leading: Icon(icon, color: iconColor, size: 28), // Use iconColor
+              leading: Icon(icon, color: iconColor, size: 28),
               title: Text(
                 title,
                 style: const TextStyle(
@@ -461,44 +443,34 @@ class _DashboardScreenState extends State<DashboardScreen> {
     String subtitle,
   ) {
     return Container(
-      margin: const EdgeInsets.symmetric(
-        vertical: 8.0,
-      ), // Added vertical margin for spacing
-      height: 180, // Increased height to make it more visibly rectangular
+      margin: const EdgeInsets.symmetric(vertical: 8.0),
+      height: 180,
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(25), // Increased rounded corners
+        borderRadius: BorderRadius.circular(25),
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 15.0, sigmaY: 15.0), // Stronger blur
+          filter: ImageFilter.blur(sigmaX: 15.0, sigmaY: 15.0),
           child: Container(
-            padding: const EdgeInsets.all(25), // Increased padding
+            padding: const EdgeInsets.all(25),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  Colors.blue.shade300.withOpacity(
-                    0.18,
-                  ), // Slightly less transparent for richer look
+                  Colors.blue.shade300.withOpacity(0.18),
                   Colors.blue.shade600.withOpacity(0.18),
-                ], // Blue-themed liquid glass gradient
+                ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(25),
-              border: Border.all(
-                color: Colors.white.withOpacity(0.25),
-              ), // Slightly stronger border
+              border: Border.all(color: Colors.white.withOpacity(0.25)),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(
-                    0.25,
-                  ), // Stronger shadow for depth
-                  blurRadius: 30, // Increased blur radius
-                  spreadRadius: 4, // Increased spread radius
-                  offset: const Offset(10, 10), // More pronounced offset
+                  color: Colors.black.withOpacity(0.25),
+                  blurRadius: 30,
+                  spreadRadius: 4,
+                  offset: const Offset(10, 10),
                 ),
                 BoxShadow(
-                  color: Colors.white.withOpacity(
-                    0.15,
-                  ), // Slightly brighter inner glow
+                  color: Colors.white.withOpacity(0.15),
                   blurRadius: 12,
                   spreadRadius: 2,
                   offset: const Offset(-6, -6),
@@ -511,26 +483,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
               children: [
                 Icon(
                   icon,
-                  size: 60, // Even larger icon size
-                  color: iconColor, // Use dynamic icon color
+                  size: 60,
+                  color: iconColor,
                   shadows: const [
                     Shadow(
-                      blurRadius: 15.0, // More blur for icon shadow
-                      color: Colors.black87, // Darker icon shadow
+                      blurRadius: 15.0,
+                      color: Colors.black87,
                       offset: Offset(4.0, 4.0),
                     ),
                   ],
                 ),
-                const SizedBox(height: 10), // Increased spacing
+                const SizedBox(height: 10),
                 Text(
                   title,
                   style: const TextStyle(
-                    fontSize: 26, // Larger title font size
+                    fontSize: 26,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
                     shadows: [
                       Shadow(
-                        blurRadius: 8.0, // More blur for text shadow
+                        blurRadius: 8.0,
                         color: Colors.black54,
                         offset: Offset(2.0, 2.0),
                       ),
@@ -538,11 +510,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 3), // Increased spacing
+                const SizedBox(height: 3),
                 Text(
                   subtitle,
                   style: const TextStyle(
-                    fontSize: 21, // Larger subtitle font size
+                    fontSize: 21,
                     color: Colors.white70,
                     fontWeight: FontWeight.bold,
                   ),

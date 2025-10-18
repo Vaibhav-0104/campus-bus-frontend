@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'dart:ui'; // Required for ImageFilter for blur effects
+import 'dart:ui';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:intl/intl.dart';
+import 'package:campus_bus_management/config/api_config.dart';
 
 class ViewStudentAttendance extends StatefulWidget {
   const ViewStudentAttendance({super.key});
@@ -18,10 +19,6 @@ class _ViewStudentAttendanceState extends State<ViewStudentAttendance> {
   bool isLoading = false;
   String? errorMessage;
 
-  // Replace with your backend API base URL
-  final String apiBaseUrl = 'http://172.20.10.9:5000/api';
-
-  // Fetch bus numbers from backend
   final List<String> busNumbers = [];
 
   @override
@@ -30,18 +27,16 @@ class _ViewStudentAttendanceState extends State<ViewStudentAttendance> {
     _fetchBusNumbers();
   }
 
-  // Fetch available bus numbers
   Future<void> _fetchBusNumbers() async {
     try {
-      print('Fetching bus numbers from $apiBaseUrl/buses');
-      final response = await http.get(Uri.parse('$apiBaseUrl/buses'));
+      print('Fetching bus numbers from ${ApiConfig.baseUrl}/buses');
+      final response = await http.get(Uri.parse('${ApiConfig.baseUrl}/buses'));
       print('Bus numbers response: ${response.statusCode} ${response.body}');
       if (response.statusCode == 200) {
         final List<dynamic> buses = jsonDecode(response.body);
         setState(() {
           busNumbers.clear();
           busNumbers.addAll(buses.map((bus) => bus['busNumber'].toString()));
-          // If there's only one bus, pre-select it
           if (busNumbers.length == 1) {
             selectedBus = busNumbers.first;
             if (selectedDate != null) {
@@ -62,7 +57,6 @@ class _ViewStudentAttendanceState extends State<ViewStudentAttendance> {
     }
   }
 
-  // Fetch attendance data
   Future<void> _fetchAttendance() async {
     if (selectedDate == null || selectedBus == null) return;
 
@@ -76,7 +70,9 @@ class _ViewStudentAttendanceState extends State<ViewStudentAttendance> {
       final formattedDate = DateFormat('yyyy-MM-dd').format(selectedDate!);
       print('Fetching allocations for bus: $selectedBus');
       final allocationsResponse = await http.get(
-        Uri.parse('$apiBaseUrl/allocations/allocations?busNumber=$selectedBus'),
+        Uri.parse(
+          '${ApiConfig.baseUrl}/allocations/allocations?busNumber=$selectedBus',
+        ),
       );
       print(
         'Allocations response: ${allocationsResponse.statusCode} ${allocationsResponse.body}',
@@ -109,7 +105,7 @@ class _ViewStudentAttendanceState extends State<ViewStudentAttendance> {
         'Fetching attendance for students: $studentIds on date: $formattedDate',
       );
       final attendanceResponse = await http.post(
-        Uri.parse('$apiBaseUrl/students/attendance/date'),
+        Uri.parse('${ApiConfig.baseUrl}/students/attendance/date'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'date': formattedDate, 'studentIds': studentIds}),
       );
@@ -129,7 +125,6 @@ class _ViewStudentAttendanceState extends State<ViewStudentAttendance> {
                   'status': data['status'] ?? 'Unknown',
                 };
               }).toList();
-          // Filter out null names or statuses if any from backend
           studentAttendanceList.removeWhere(
             (student) =>
                 student['name'] == 'Unknown Student' ||
@@ -163,17 +158,17 @@ class _ViewStudentAttendanceState extends State<ViewStudentAttendance> {
     final DateTime now = DateTime.now();
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: selectedDate ?? now, // Default to today if no date selected
-      firstDate: DateTime(2023), // Start date for selection
-      lastDate: now, // Restrict to today or past dates
+      initialDate: selectedDate ?? now,
+      firstDate: DateTime(2023),
+      lastDate: now,
       builder: (BuildContext context, Widget? child) {
         return Theme(
           data: ThemeData.dark().copyWith(
             colorScheme: ColorScheme.dark(
-              primary: Colors.blue.shade600, // Header background
-              onPrimary: Colors.white, // Header text
-              surface: Colors.blueGrey.shade800, // Calendar background
-              onSurface: Colors.white, // Calendar text
+              primary: Colors.blue.shade600,
+              onPrimary: Colors.white,
+              surface: Colors.blueGrey.shade800,
+              onSurface: Colors.white,
             ),
             dialogBackgroundColor: Colors.blueGrey.shade900,
           ),
@@ -192,7 +187,7 @@ class _ViewStudentAttendanceState extends State<ViewStudentAttendance> {
   }
 
   Widget _attendanceStatusChip(String status) {
-    Color chipColor = Colors.grey.shade700; // Default unknown
+    Color chipColor = Colors.grey.shade700;
     if (status == 'Present') {
       chipColor = Colors.green.shade600;
     } else if (status == 'Absent') {
@@ -261,132 +256,191 @@ class _ViewStudentAttendanceState extends State<ViewStudentAttendance> {
         child: Padding(
           padding: EdgeInsets.only(
             top:
-                AppBar().preferredSize.height +
                 MediaQuery.of(context).padding.top +
+                AppBar().preferredSize.height +
                 16,
             left: 16,
             right: 16,
             bottom: 16,
           ),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _buildSectionTitle("Select Date:"),
-              const SizedBox(height: 12),
+              _buildSectionTitle("Select Date and Bus:"),
+              const SizedBox(height: 20),
+              // Select Date
               ClipRRect(
-                borderRadius: BorderRadius.circular(15),
+                borderRadius: BorderRadius.circular(25),
                 child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue.shade600.withOpacity(0.4),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 15,
-                        horizontal: 20,
+                  filter: ImageFilter.blur(sigmaX: 20.0, sigmaY: 20.0),
+                  child: Container(
+                    padding: const EdgeInsets.all(25),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.blueGrey.shade300.withOpacity(0.15),
+                          Colors.blueGrey.shade700.withOpacity(0.15),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
                       ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(15),
-                        side: BorderSide(
-                          color: Colors.white.withOpacity(0.2),
-                          width: 1.5,
+                      borderRadius: BorderRadius.circular(25),
+                      border: Border.all(color: Colors.white.withOpacity(0.3)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.3),
+                          blurRadius: 30,
+                          spreadRadius: 5,
+                          offset: const Offset(10, 10),
                         ),
-                      ),
-                      elevation: 0,
-                      shadowColor: Colors.black.withOpacity(0.3),
+                        BoxShadow(
+                          color: Colors.white.withOpacity(0.15),
+                          blurRadius: 15,
+                          spreadRadius: 2,
+                          offset: const Offset(-8, -8),
+                        ),
+                      ],
                     ),
-                    onPressed: () => _selectDate(context),
-                    icon: const Icon(
-                      Icons.calendar_today,
-                      size: 24,
-                      shadows: [Shadow(blurRadius: 2, color: Colors.black54)],
-                    ),
-                    label: Text(
-                      selectedDate == null
-                          ? "Select Date"
-                          : "Selected Date: ${DateFormat('yyyy-MM-dd').format(selectedDate!)}",
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w500,
-                        shadows: [Shadow(blurRadius: 2, color: Colors.black54)],
+                    child: GestureDetector(
+                      onTap: () => _selectDate(context),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 15,
+                          horizontal: 20,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(15),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.3),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.calendar_today,
+                              color: Colors.lightBlueAccent,
+                            ),
+                            const SizedBox(width: 10),
+                            Text(
+                              selectedDate == null
+                                  ? 'Select Date'
+                                  : DateFormat(
+                                    'dd MMM yyyy',
+                                  ).format(selectedDate!),
+                              style: TextStyle(
+                                color:
+                                    selectedDate == null
+                                        ? Colors.white70
+                                        : Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
                 ),
               ),
-              const SizedBox(height: 25),
-              _buildSectionTitle("Select Bus Number:"),
-              const SizedBox(height: 12),
+              const SizedBox(height: 20),
+              // Select Bus
               ClipRRect(
-                borderRadius: BorderRadius.circular(15),
+                borderRadius: BorderRadius.circular(25),
                 child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                  child: DropdownButtonFormField<String>(
-                    dropdownColor: Colors.blue.shade800.withOpacity(0.7),
-                    style: TextStyle(color: Colors.white, fontSize: 18),
-                    decoration: InputDecoration(
-                      filled: true,
-                      fillColor: Colors.white.withOpacity(0.08),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(15),
-                        borderSide: BorderSide(
-                          color: Colors.white.withOpacity(0.4),
-                          width: 1.5,
+                  filter: ImageFilter.blur(sigmaX: 20.0, sigmaY: 20.0),
+                  child: Container(
+                    padding: const EdgeInsets.all(25),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.blueGrey.shade300.withOpacity(0.15),
+                          Colors.blueGrey.shade700.withOpacity(0.15),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(25),
+                      border: Border.all(color: Colors.white.withOpacity(0.3)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.3),
+                          blurRadius: 30,
+                          spreadRadius: 5,
+                          offset: const Offset(10, 10),
                         ),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(15),
-                        borderSide: BorderSide(
-                          color: Colors.white.withOpacity(0.4),
-                          width: 1.5,
+                        BoxShadow(
+                          color: Colors.white.withOpacity(0.15),
+                          blurRadius: 15,
+                          spreadRadius: 2,
+                          offset: const Offset(-8, -8),
                         ),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(15),
-                        borderSide: const BorderSide(
-                          color: Colors.lightBlueAccent,
-                          width: 2.5,
-                        ),
-                      ),
-                      hintText: "Choose Bus Number",
-                      hintStyle: TextStyle(
-                        color: Colors.white.withOpacity(0.7),
-                        fontSize: 18,
-                      ),
-                      prefixIcon: Icon(
-                        Icons.directions_bus,
-                        color: Colors.lightBlueAccent,
-                        size: 28,
-                      ),
+                      ],
                     ),
-                    value: selectedBus,
-                    items:
-                        busNumbers.isEmpty
-                            ? [
-                              DropdownMenuItem<String>(
-                                value: null,
-                                child: Text(
-                                  'No buses available',
-                                  style: TextStyle(
-                                    color: Colors.white.withOpacity(0.7),
+                    child: DropdownButtonFormField<String>(
+                      value: selectedBus,
+                      decoration: InputDecoration(
+                        filled: true,
+                        fillColor: Colors.white.withOpacity(0.1),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(15),
+                          borderSide: BorderSide(
+                            color: Colors.white.withOpacity(0.3),
+                          ),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(15),
+                          borderSide: BorderSide(
+                            color: Colors.white.withOpacity(0.3),
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(15),
+                          borderSide: const BorderSide(
+                            color: Colors.lightBlueAccent,
+                            width: 2,
+                          ),
+                        ),
+                        prefixIcon: const Icon(
+                          Icons.directions_bus,
+                          color: Colors.lightBlueAccent,
+                        ),
+                        labelText: 'Select Bus',
+                        labelStyle: TextStyle(
+                          color: Colors.white.withOpacity(0.8),
+                        ),
+                      ),
+                      dropdownColor: Colors.blueGrey.shade800,
+                      style: const TextStyle(color: Colors.white, fontSize: 16),
+                      items:
+                          busNumbers.isEmpty
+                              ? [
+                                DropdownMenuItem<String>(
+                                  value: null,
+                                  child: Text(
+                                    'No buses available',
+                                    style: TextStyle(
+                                      color: Colors.white.withOpacity(0.7),
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ]
-                            : busNumbers.map((bus) {
-                              return DropdownMenuItem<String>(
-                                value: bus,
-                                child: Text(bus),
-                              );
-                            }).toList(),
-                    onChanged: (value) {
-                      setState(() {
-                        selectedBus = value;
-                        if (selectedDate != null && value != null) {
-                          _fetchAttendance();
-                        }
-                      });
-                    },
+                              ]
+                              : busNumbers.map((bus) {
+                                return DropdownMenuItem<String>(
+                                  value: bus,
+                                  child: Text(bus),
+                                );
+                              }).toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          selectedBus = value;
+                          if (selectedDate != null && value != null) {
+                            _fetchAttendance();
+                          }
+                        });
+                      },
+                    ),
                   ),
                 ),
               ),

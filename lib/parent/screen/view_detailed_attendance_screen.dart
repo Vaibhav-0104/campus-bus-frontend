@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'child_summary_screen.dart'; // Import to use ChildSummaryConfig
+import 'package:campus_bus_management/config/api_config.dart';
 
 /// Theme-related constants
 class AppTheme {
@@ -213,9 +214,7 @@ class _ViewDetailedAttendanceScreenState
         try {
           final response = await client
               .post(
-                Uri.parse(
-                  '${ChildSummaryConfig.baseUrl}/api/students/attendance/date',
-                ),
+                Uri.parse('${ApiConfig.baseUrl}/students/attendance/date'),
                 headers: {'Content-Type': 'application/json'},
                 body: jsonEncode({
                   'date': dateStr,

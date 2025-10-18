@@ -1,9 +1,8 @@
 import 'dart:convert';
 import 'dart:ui'; // For ImageFilter
-
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-
+import 'package:campus_bus_management/config/api_config.dart'; // Import centralized URL
 import 'package:campus_bus_management/driver/screen/attendance_screen.dart';
 import 'package:campus_bus_management/driver/screen/view_notification_screen.dart';
 import 'package:campus_bus_management/driver/screen/view_student_attendance_screen.dart';
@@ -40,7 +39,7 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
       // Fetch allocations to get total students
       final allocationResponse = await http.get(
         Uri.parse(
-          'http://172.20.10.9:5000/api/allocations/allocations/driver/${widget.driverId}',
+          '${ApiConfig.baseUrl}/allocations/allocations/driver/${widget.driverId}',
         ),
       );
       if (allocationResponse.statusCode == 200) {
@@ -54,7 +53,7 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
 
       // Fetch notifications for driver role
       final notificationResponse = await http.get(
-        Uri.parse('http://172.20.10.9:5000/api/notifications/view/Drivers'),
+        Uri.parse('${ApiConfig.baseUrl}/notifications/view/Drivers'),
       );
       if (notificationResponse.statusCode == 200) {
         final notifications = jsonDecode(notificationResponse.body) as List;
@@ -69,7 +68,7 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
 
       // Fetch driver email
       final driverResponse = await http.get(
-        Uri.parse('http://172.20.10.9:5000/api/drivers/${widget.driverId}'),
+        Uri.parse('${ApiConfig.baseUrl}/drivers/${widget.driverId}'),
       );
       if (driverResponse.statusCode == 200) {
         final driverData = jsonDecode(driverResponse.body);
@@ -228,8 +227,6 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
               context,
               Icons.check_circle_outline,
               "Attendance",
-              // "View your daily attendance records",
-              // Colors.lightBlueAccent,
               const FaceAttendanceScreen(),
             ),
             _buildDrawerItem(

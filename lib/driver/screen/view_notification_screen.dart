@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:ui'; // Required for ImageFilter for blur effects
 import 'package:intl/intl.dart'; // For date formatting
+import 'package:campus_bus_management/config/api_config.dart'; // Import centralized URL
 
 class ViewNotificationsScreen extends StatefulWidget {
   final String userRole; // Accept userRole as a parameter
@@ -33,9 +34,7 @@ class _ViewNotificationsScreenState extends State<ViewNotificationsScreen> {
 
     try {
       final response = await http.get(
-        Uri.parse(
-          "http://172.20.10.9:5000/api/notifications/view/${widget.userRole}",
-        ),
+        Uri.parse("${ApiConfig.baseUrl}/notifications/view/${widget.userRole}"),
       );
 
       if (response.statusCode == 200) {

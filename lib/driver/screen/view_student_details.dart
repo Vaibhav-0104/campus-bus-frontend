@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:ui'; // Required for ImageFilter for blur effects
+import 'package:campus_bus_management/config/api_config.dart'; // Import centralized URL
 
 class ViewStudentDetailsScreen extends StatefulWidget {
   final String? driverId;
@@ -72,7 +73,7 @@ class _ViewStudentDetailsScreenState extends State<ViewStudentDetailsScreen> {
 
     try {
       final url =
-          'http://172.20.10.9:5000/api/allocations/allocations/driver/$_driverId';
+          '${ApiConfig.baseUrl}/allocations/allocations/driver/$_driverId';
       print('Request URL: $url');
       final response = await http
           .get(Uri.parse(url), headers: {'Content-Type': 'application/json'})

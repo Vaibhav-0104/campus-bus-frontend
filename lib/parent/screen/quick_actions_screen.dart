@@ -8,6 +8,7 @@ import 'dart:ui';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'child_summary_screen.dart'; // Import to use ChildSummaryConfig
+import 'package:campus_bus_management/config/api_config.dart';
 
 /// Configuration class for quick actions
 class QuickActionsConfig {
@@ -173,9 +174,7 @@ class _QuickActionsScreenState extends State<QuickActionsScreen> {
     try {
       final response = await client
           .post(
-            Uri.parse(
-              '${ChildSummaryConfig.baseUrl}/api/students/parent-login',
-            ),
+            Uri.parse('${ApiConfig.baseUrl}/students/parent-login'),
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode({
               'parentEmail': widget.parentEmail,

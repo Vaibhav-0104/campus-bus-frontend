@@ -3,9 +3,9 @@ import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'dart:ui'; // Required for ImageFilter
+import 'dart:ui';
+import 'package:campus_bus_management/config/api_config.dart';
 
-// This is the FeesPaymentScreen class, now with an even more enhanced Liquid Glass iOS 26 inspired UI.
 class FeesPaymentScreen extends StatefulWidget {
   final String envNumber;
   const FeesPaymentScreen({Key? key, required this.envNumber})
@@ -17,20 +17,69 @@ class FeesPaymentScreen extends StatefulWidget {
 
 class _FeesPaymentScreenState extends State<FeesPaymentScreen> {
   late Razorpay _razorpay;
-  String? orderId; // To store the order ID received from the backend
+  String? orderId;
+  String? duration;
+  bool isLoading = true;
+  String? errorMessage;
 
   @override
   void initState() {
     super.initState();
     _razorpay = Razorpay();
-    // Register event listeners for payment success, error, and external wallet
     _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
     _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
     _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
+    _fetchFeeDetails();
   }
 
-  /// Shows a confirmation dialog before initiating the payment.
+  Future<void> _fetchFeeDetails() async {
+    try {
+      setState(() {
+        isLoading = true;
+        errorMessage = null;
+      });
+      final response = await http.get(
+        Uri.parse("${ApiConfig.baseUrl}/fees/student/${widget.envNumber}"),
+        headers: {"Content-Type": "application/json"},
+      );
+
+      if (mounted) {
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          setState(() {
+            duration = data['duration'];
+            isLoading = false;
+          });
+        } else {
+          final errorData = jsonDecode(response.body);
+          setState(() {
+            errorMessage = errorData['error'] ?? "Failed to fetch fee details";
+            isLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          errorMessage = "Error fetching fee details: $e";
+          isLoading = false;
+        });
+      }
+    }
+  }
+
   void _showPaymentConfirmationDialog() {
+    if (duration == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("No fee duration set for this enrollment!"),
+          backgroundColor: Colors.redAccent,
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -38,16 +87,14 @@ class _FeesPaymentScreenState extends State<FeesPaymentScreen> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
-          backgroundColor: Colors.white.withOpacity(
-            0.95,
-          ), // Slightly more opaque for clarity
+          backgroundColor: Colors.white.withOpacity(0.95),
           title: Text(
             "Confirm Payment",
             textAlign: TextAlign.center,
             style: TextStyle(
               color: Colors.deepPurple,
               fontWeight: FontWeight.bold,
-              fontSize: 20, // Slightly larger title
+              fontSize: 20,
             ),
           ),
           content: Column(
@@ -57,24 +104,31 @@ class _FeesPaymentScreenState extends State<FeesPaymentScreen> {
                 Icons.warning_amber_rounded,
                 color: Colors.orange.shade700,
                 size: 48,
-              ), // Larger, darker icon
+              ),
               SizedBox(height: 15),
               Text(
-                "You are about to pay the bus fees for enrollment:",
+                "You are about to pay the bus fees for:",
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 17,
-                  color: Colors.black87,
-                ), // Darker text for readability
+                style: TextStyle(fontSize: 17, color: Colors.black87),
               ),
               SizedBox(height: 8),
               Text(
                 widget.envNumber,
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 22, // Larger enrollment number
+                  fontSize: 22,
                   fontWeight: FontWeight.bold,
-                  color: Colors.deepPurple.shade700, // Darker purple
+                  color: Colors.deepPurple.shade700,
+                ),
+              ),
+              SizedBox(height: 8),
+              Text(
+                "Duration: ${duration!.replaceAll('month', ' Month').replaceAll('year', ' Year')}",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.deepPurple.shade600,
                 ),
               ),
               SizedBox(height: 20),
@@ -88,7 +142,7 @@ class _FeesPaymentScreenState extends State<FeesPaymentScreen> {
           actions: <Widget>[
             TextButton(
               onPressed: () {
-                Navigator.of(context).pop(); // Dismiss the dialog
+                Navigator.of(context).pop();
               },
               child: Text(
                 "Cancel",
@@ -101,8 +155,8 @@ class _FeesPaymentScreenState extends State<FeesPaymentScreen> {
             ),
             ElevatedButton(
               onPressed: () {
-                Navigator.of(context).pop(); // Dismiss the dialog
-                _startPayment(); // Proceed with payment
+                Navigator.of(context).pop();
+                _startPayment();
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.green.shade600,
@@ -126,9 +180,18 @@ class _FeesPaymentScreenState extends State<FeesPaymentScreen> {
     );
   }
 
-  /// Initiates the payment process by first creating an order on the backend.
   void _startPayment() async {
-    // Show a loading indicator (optional, but good practice)
+    if (duration == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("No fee duration set for this enrollment!"),
+          backgroundColor: Colors.redAccent,
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text("Initiating payment, please wait..."),
@@ -137,58 +200,43 @@ class _FeesPaymentScreenState extends State<FeesPaymentScreen> {
     );
 
     try {
-      // Make an HTTP POST request to your backend to create a Razorpay order
-      // Ensure your backend server is running and accessible at this IP address.
       final response = await http.post(
-        Uri.parse(
-          "http://172.20.10.9:5000/api/fees/pay",
-        ), // Replace with your actual backend URL
-        body: jsonEncode({"envNumber": widget.envNumber}),
+        Uri.parse("${ApiConfig.baseUrl}/fees/pay"),
+        body: jsonEncode({"envNumber": widget.envNumber, "duration": duration}),
         headers: {"Content-Type": "application/json"},
       );
 
-      // Check if the backend request was successful
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         setState(() {
-          orderId =
-              data['orderId']; // Store the order ID for later use (e.g., if you re-introduce verification)
+          orderId = data['orderId'];
         });
 
-        // Prepare Razorpay options with data from the backend
         var options = {
-          'key':
-              'rzp_test_clLO3OkPO7TcaC', // Your Razorpay API Key ID (test key)
-          'amount':
-              data['amount'], // Amount from backend (in smallest currency unit)
-          'currency': data['currency'], // Currency from backend (e.g., 'INR')
-          'name': 'Campus Bus Management', // Your application/business name
+          'key': 'rzp_test_clLO3OkPO7TcaC',
+          'amount': data['amount'],
+          'currency': data['currency'],
+          'name': 'Campus Bus Management',
           'description':
-              'Bus Route Payment for ${widget.envNumber}', // Payment description
-          'order_id': data['orderId'], // Order ID generated by your backend
+              'Bus Route Payment for ${widget.envNumber} ($duration)',
+          'order_id': data['orderId'],
           'prefill': {
-            'contact':
-                '8320810061', // Pre-fill contact number (can be dynamic, fetched from user profile)
-            'email':
-                'vaibhavsonar012@gmail.com', // Pre-fill email (can be dynamic)
+            'contact': '8320810061',
+            'email': 'vaibhavsonar012@gmail.com',
           },
-          'theme': {
-            'color': '#6200EE',
-          }, // Custom theme color for Razorpay checkout (Deep Purple variation)
+          'theme': {'color': '#6200EE'},
         };
 
-        _razorpay.open(options); // Open the Razorpay checkout
+        _razorpay.open(options);
       } else {
-        // Show an error message if backend order creation failed
         final errorData = jsonDecode(response.body);
         String errorMessage =
             errorData['error'] ??
             'Failed to create payment order! Status: ${response.statusCode}';
-        // Customize the message for the "already paid" case
         if (errorData['error'] ==
-            "Fee for this enrollment number is already paid.") {
+            "Fee for this enrollment number and duration is already paid.") {
           errorMessage =
-              "Fee for envNumber ${widget.envNumber} is already paid.";
+              "Fee for envNumber ${widget.envNumber} ($duration) is already paid.";
         }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -199,7 +247,6 @@ class _FeesPaymentScreenState extends State<FeesPaymentScreen> {
         );
       }
     } catch (e) {
-      // Handle network or other errors during payment initiation
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text("Error starting payment: $e"),
@@ -209,19 +256,15 @@ class _FeesPaymentScreenState extends State<FeesPaymentScreen> {
     }
   }
 
-  /// Handles successful payment responses from Razorpay.
   void _handlePaymentSuccess(PaymentSuccessResponse response) async {
-    // Call the backend to verify the payment and update the database
-    // This step is CRUCIAL for security and to ensure payment authenticity.
     try {
       final verifyResponse = await http.post(
-        Uri.parse(
-          "http://172.20.10.9:5000/api/fees/verify",
-        ), // Your backend verification endpoint
+        Uri.parse("${ApiConfig.baseUrl}/fees/verify"),
         body: jsonEncode({
           "envNumber": widget.envNumber,
+          "duration": duration,
           "paymentId": response.paymentId,
-          "orderId": orderId, // Use the orderId obtained from createPayment
+          "orderId": orderId,
           "signature": response.signature,
         }),
         headers: {"Content-Type": "application/json"},
@@ -238,7 +281,6 @@ class _FeesPaymentScreenState extends State<FeesPaymentScreen> {
           fontSize: 16.0,
         );
       } else {
-        // Verification failed on the backend
         print(
           "Payment Successful but Verification Failed! Status: ${verifyResponse.statusCode}",
         );
@@ -253,7 +295,6 @@ class _FeesPaymentScreenState extends State<FeesPaymentScreen> {
         );
       }
     } catch (e) {
-      // Error during verification request
       print("Error verifying payment: $e");
       Fluttertoast.showToast(
         msg:
@@ -267,14 +308,12 @@ class _FeesPaymentScreenState extends State<FeesPaymentScreen> {
     }
   }
 
-  /// Handles payment error responses from Razorpay.
   void _handlePaymentError(PaymentFailureResponse response) {
     print(
       "Payment Failed: Code: ${response.code}, Message: ${response.message}",
-    ); // Print error to console
+    );
     Fluttertoast.showToast(
-      msg:
-          "❌ Payment Failed: ${response.message ?? 'Unknown Error'}", // Show error message on Flutter toast
+      msg: "❌ Payment Failed: ${response.message ?? 'Unknown Error'}",
       toastLength: Toast.LENGTH_LONG,
       gravity: ToastGravity.BOTTOM,
       backgroundColor: Colors.red,
@@ -283,7 +322,6 @@ class _FeesPaymentScreenState extends State<FeesPaymentScreen> {
     );
   }
 
-  /// Handles external wallet selections (e.g., Google Pay, PhonePe).
   void _handleExternalWallet(ExternalWalletResponse response) {
     print("External Wallet Selected: ${response.walletName}");
     Fluttertoast.showToast(
@@ -298,36 +336,27 @@ class _FeesPaymentScreenState extends State<FeesPaymentScreen> {
 
   @override
   void dispose() {
-    _razorpay.clear(); // Clear Razorpay listeners to prevent memory leaks
+    _razorpay.clear();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBodyBehindAppBar:
-          true, // Extends body behind app bar for full gradient
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: const Text(
           "Pay Bus Fees",
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.deepPurple.shade700.withOpacity(
-          0.4,
-        ), // Slightly more transparent app bar
+        backgroundColor: Colors.deepPurple.shade700.withOpacity(0.4),
         iconTheme: const IconThemeData(color: Colors.white),
-        elevation: 0, // Remove shadow for a flat look
+        elevation: 0,
         centerTitle: true,
         flexibleSpace: ClipRect(
-          // Clip to make the blur effect contained within the AppBar area
           child: BackdropFilter(
-            filter: ImageFilter.blur(
-              sigmaX: 8,
-              sigmaY: 8,
-            ), // Increased blur for app bar background
-            child: Container(
-              color: Colors.transparent, // Transparent to allow blur to show
-            ),
+            filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+            child: Container(color: Colors.transparent),
           ),
         ),
       ),
@@ -340,7 +369,7 @@ class _FeesPaymentScreenState extends State<FeesPaymentScreen> {
               Colors.deepPurple.shade900,
               Colors.deepPurple.shade600,
               Colors.deepPurple.shade400,
-            ], // More vibrant gradient
+            ],
             stops: [0.1, 0.5, 0.9],
           ),
         ),
@@ -348,40 +377,23 @@ class _FeesPaymentScreenState extends State<FeesPaymentScreen> {
           child: Padding(
             padding: const EdgeInsets.all(24.0),
             child: ClipRRect(
-              // Clip for rounded corners on the "glass" effect
-              borderRadius: BorderRadius.circular(
-                30,
-              ), // More rounded corners for the glass card
+              borderRadius: BorderRadius.circular(30),
               child: BackdropFilter(
-                filter: ImageFilter.blur(
-                  sigmaX: 25.0,
-                  sigmaY: 25.0,
-                ), // Significantly stronger blur for the main content glass
+                filter: ImageFilter.blur(sigmaX: 25.0, sigmaY: 25.0),
                 child: Container(
-                  padding: const EdgeInsets.all(30.0), // Increased padding
+                  padding: const EdgeInsets.all(30.0),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(
-                      0.08,
-                    ), // More transparent white for a lighter glass feel
+                    color: Colors.white.withOpacity(0.08),
                     borderRadius: BorderRadius.circular(30),
-                    border: Border.all(
-                      color: Colors.white.withOpacity(0.15),
-                    ), // Thinner, lighter border
+                    border: Border.all(color: Colors.white.withOpacity(0.15)),
                     boxShadow: [
-                      // Enhanced shadows for more depth
                       BoxShadow(
-                        color: Colors.black.withOpacity(
-                          0.3,
-                        ), // Darker, more spread shadow
-                        blurRadius: 40, // Increased blur radius
-                        spreadRadius: 5, // Added spread radius
-                        offset: Offset(
-                          0,
-                          20,
-                        ), // More pronounced vertical offset
+                        color: Colors.black.withOpacity(0.3),
+                        blurRadius: 40,
+                        spreadRadius: 5,
+                        offset: Offset(0, 20),
                       ),
                       BoxShadow(
-                        // Inner light shadow for a subtle glow
                         color: Colors.white.withOpacity(0.1),
                         blurRadius: 10,
                         spreadRadius: 2,
@@ -389,7 +401,6 @@ class _FeesPaymentScreenState extends State<FeesPaymentScreen> {
                       ),
                     ],
                     gradient: LinearGradient(
-                      // Subtle internal gradient for glass sheen
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                       colors: [
@@ -398,118 +409,156 @@ class _FeesPaymentScreenState extends State<FeesPaymentScreen> {
                       ],
                     ),
                   ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min, // Wrap content
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment:
-                        CrossAxisAlignment
-                            .stretch, // Stretch content horizontally
-                    children: [
-                      // Informative header for the fees
-                      Text(
-                        "Outstanding Bus Fees for Enrollment:",
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 22, // Slightly larger font
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white.withOpacity(
-                            0.95,
-                          ), // Brighter white text
-                          shadows: [
-                            Shadow(
-                              blurRadius: 10.0,
-                              color: Colors.black.withOpacity(0.5),
-                              offset: Offset(2.0, 2.0),
+                  child:
+                      isLoading
+                          ? const Center(
+                            child: CircularProgressIndicator(
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.lightBlueAccent,
+                              ),
                             ),
-                          ],
-                        ),
-                      ),
-                      SizedBox(height: 15), // Increased spacing
-                      // Display the enrollment number prominently
-                      Text(
-                        widget.envNumber,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 30, // Larger enrollment number
-                          fontWeight: FontWeight.w900,
-                          color:
-                              Colors.amberAccent.shade200, // Brighter highlight
-                          letterSpacing: 2.0, // More letter spacing
-                          shadows: [
-                            Shadow(
-                              blurRadius: 12.0,
-                              color: Colors.black.withOpacity(0.7),
-                              offset: Offset(3.0, 3.0),
-                            ),
-                          ],
-                        ),
-                      ),
-                      SizedBox(height: 60), // Increased spacing
-                      // Button to initiate payment via backend (for dynamic fee payment)
-                      ElevatedButton.icon(
-                        onPressed:
-                            _showPaymentConfirmationDialog, // Call confirmation dialog first
-                        icon: Icon(
-                          Icons.account_balance_wallet,
-                          color: Colors.white,
-                          size: 30,
-                        ), // Larger icon
-                        label: const Text(
-                          "Pay Now with Razorpay",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 20,
-                          ), // Larger font size
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor:
-                              Colors
-                                  .green
-                                  .shade600, // Green for "Pay Now" action
-                          foregroundColor:
-                              Colors.white, // Text color for button
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 30,
-                            vertical: 20,
-                          ), // More padding
-                          textStyle: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
+                          )
+                          : errorMessage != null
+                          ? Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                errorMessage!,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  color: Colors.redAccent,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              SizedBox(height: 20),
+                              ElevatedButton(
+                                onPressed: _fetchFeeDetails,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.blue.shade600,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                child: Text(
+                                  "Retry",
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          )
+                          : Column(
+                            mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Text(
+                                "Outstanding Bus Fees for Enrollment:",
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white.withOpacity(0.95),
+                                  shadows: [
+                                    Shadow(
+                                      blurRadius: 10.0,
+                                      color: Colors.black.withOpacity(0.5),
+                                      offset: Offset(2.0, 2.0),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              SizedBox(height: 15),
+                              Text(
+                                widget.envNumber,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 30,
+                                  fontWeight: FontWeight.w900,
+                                  color: Colors.amberAccent.shade200,
+                                  letterSpacing: 2.0,
+                                  shadows: [
+                                    Shadow(
+                                      blurRadius: 12.0,
+                                      color: Colors.black.withOpacity(0.7),
+                                      offset: Offset(3.0, 3.0),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              SizedBox(height: 20),
+                              Text(
+                                "Duration: ${duration!.replaceAll('month', ' Month').replaceAll('year', ' Year')}",
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white.withOpacity(0.9),
+                                  shadows: [
+                                    Shadow(
+                                      blurRadius: 5.0,
+                                      color: Colors.black.withOpacity(0.3),
+                                      offset: Offset(1.0, 1.0),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              SizedBox(height: 60),
+                              ElevatedButton.icon(
+                                onPressed: _showPaymentConfirmationDialog,
+                                icon: Icon(
+                                  Icons.account_balance_wallet,
+                                  color: Colors.white,
+                                  size: 30,
+                                ),
+                                label: const Text(
+                                  "Pay Now with Razorpay",
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 20,
+                                  ),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.green.shade600,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 30,
+                                    vertical: 20,
+                                  ),
+                                  textStyle: const TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  elevation: 15,
+                                  shadowColor: Colors.green.shade400,
+                                  splashFactory: InkRipple.splashFactory,
+                                ),
+                              ),
+                              SizedBox(height: 40),
+                              Text(
+                                "Your payments are securely processed by Razorpay.",
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.white.withOpacity(0.8),
+                                  fontStyle: FontStyle.italic,
+                                  shadows: [
+                                    Shadow(
+                                      blurRadius: 5.0,
+                                      color: Colors.black.withOpacity(0.2),
+                                      offset: Offset(1.0, 1.0),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                          ), // More rounded
-                          elevation: 15, // Even more prominent shadow
-                          shadowColor:
-                              Colors
-                                  .green
-                                  .shade400, // Brighter shadow for button
-                          splashFactory:
-                              InkRipple.splashFactory, // Nice ripple effect
-                        ),
-                      ),
-                      SizedBox(height: 40), // Increased spacing
-                      // Security message
-                      Text(
-                        "Your payments are securely processed by Razorpay.",
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 14, // Slightly larger
-                          color: Colors.white.withOpacity(
-                            0.8,
-                          ), // Brighter translucent
-                          fontStyle: FontStyle.italic,
-                          shadows: [
-                            Shadow(
-                              blurRadius: 5.0,
-                              color: Colors.black.withOpacity(0.2),
-                              offset: Offset(1.0, 1.0),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
                 ),
               ),
             ),

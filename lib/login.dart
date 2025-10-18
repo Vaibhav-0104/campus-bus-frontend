@@ -288,7 +288,6 @@
 // }
 
 // ✅ Modified version of your LoginScreen with type-safe JSON extraction and Parent login support
-
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -296,7 +295,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import './admin/screen/dashboard.dart';
 import './driver/screen/driver_dashboard_screen.dart';
 import './student/screen/dashboard.dart';
-import './parent/screen/parent_dashboard_screen.dart'; // ✅ Parent Dashboard
+import './parent/screen/parent_dashboard_screen.dart';
+import 'config/api_config.dart'; // ✅ Import centralized URL
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -317,25 +317,26 @@ class _LoginScreenState extends State<LoginScreen> {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
 
+    // ✅ Centralized URLs using ApiConfig.baseUrl
     final roleApis = [
       {
         'role': 'Admin',
-        'url': 'http://172.20.10.9:5000/api/admin/auth/login',
+        'url': '${ApiConfig.baseUrl}/admin/auth/login',
         'body': {'email': email, 'password': password},
       },
       {
         'role': 'Driver',
-        'url': 'http://172.20.10.9:5000/api/drivers/login',
+        'url': '${ApiConfig.baseUrl}/drivers/login',
         'body': {'email': email, 'password': password},
       },
       {
         'role': 'Student',
-        'url': 'http://172.20.10.9:5000/api/students/login',
+        'url': '${ApiConfig.baseUrl}/students/login',
         'body': {'email': email, 'password': password},
       },
       {
         'role': 'Parent',
-        'url': 'http://172.20.10.9:5000/api/students/parent-login',
+        'url': '${ApiConfig.baseUrl}/students/parent-login',
         'body': {'parentEmail': email, 'parentContact': password},
       },
     ];
@@ -408,7 +409,7 @@ class _LoginScreenState extends State<LoginScreen> {
           return;
         }
       } catch (e) {
-        // Ignore error, continue
+        // Ignore error, continue checking next role
       }
     }
 

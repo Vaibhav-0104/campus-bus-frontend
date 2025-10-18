@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:ui';
 import 'package:logger/logger.dart';
+import 'package:campus_bus_management/config/api_config.dart'; // ✅ Import centralized URL
 
 class AllocateBusScreen extends StatefulWidget {
   const AllocateBusScreen({super.key});
@@ -17,17 +18,15 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
   List<Map<String, dynamic>> buses = [];
   List<Map<String, dynamic>> allocations = [];
   List<String> toDestinations = [];
-  List<String> departments = []; // New list for departments
-  List<Map<String, dynamic>> filteredStudents =
-      []; // New filtered students list
-
+  List<String> departments = [];
+  List<Map<String, dynamic>> filteredStudents = [];
   String? selectedStudentId;
   String studentName = '';
   String? selectedTo;
   String? selectedBusId;
   String? selectedSeatNumber;
   String? editingAllocationId;
-  String? selectedDepartment; // New selected department
+  String? selectedDepartment;
   List<Map<String, dynamic>> filteredBuses = [];
   List<String> availableSeats = [];
   List<String> allocatedSeats = [];
@@ -46,7 +45,7 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
     try {
       setState(() => isLoadingStudents = true);
       final response = await http.get(
-        Uri.parse('http://172.20.10.9:5000/api/students'),
+        Uri.parse('${ApiConfig.baseUrl}/students'), // ✅ Updated URL
       );
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -57,19 +56,17 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
                 'id': student['_id'],
                 'envNumber': student['envNumber'],
                 'name': student['name'] ?? 'Unknown',
-                'department':
-                    student['department'] ?? 'Unknown', // Include department
+                'department': student['department'] ?? 'Unknown',
               },
             ),
           );
-          // Extract unique departments
           departments =
               students
                   .map((student) => student['department'] as String)
                   .where((dept) => dept.isNotEmpty && dept != 'Unknown')
                   .toSet()
                   .toList();
-          filteredStudents = students; // Initially, all students
+          filteredStudents = students;
           isLoadingStudents = false;
         });
       } else {
@@ -85,7 +82,7 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
   Future<void> fetchBuses() async {
     try {
       final response = await http.get(
-        Uri.parse('http://172.20.10.9:5000/api/buses'),
+        Uri.parse('${ApiConfig.baseUrl}/buses'), // ✅ Updated URL
       );
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -121,7 +118,9 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
   Future<void> fetchAllocations() async {
     try {
       final response = await http.get(
-        Uri.parse('http://172.20.10.9:5000/api/allocations/allocations'),
+        Uri.parse(
+          '${ApiConfig.baseUrl}/allocations/allocations',
+        ), // ✅ Updated URL
       );
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -140,7 +139,7 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
     try {
       setState(() => isLoadingSeats = true);
       final response = await http.get(
-        Uri.parse('http://172.20.10.9:5000/api/buses/$busId'),
+        Uri.parse('${ApiConfig.baseUrl}/buses/$busId'), // ✅ Updated URL
       );
       if (response.statusCode == 200) {
         final bus = json.decode(response.body);
@@ -245,7 +244,9 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
 
         if (editingAllocationId == null) {
           response = await http.post(
-            Uri.parse('http://172.20.10.9:5000/api/allocations/allocate'),
+            Uri.parse(
+              '${ApiConfig.baseUrl}/allocations/allocate',
+            ), // ✅ Updated URL
             headers: {'Content-Type': 'application/json'},
             body: json.encode(allocationData),
           );
@@ -253,8 +254,8 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
         } else {
           response = await http.put(
             Uri.parse(
-              'http://172.20.10.9:5000/api/allocations/$editingAllocationId',
-            ),
+              '${ApiConfig.baseUrl}/allocations/$editingAllocationId',
+            ), // ✅ Updated URL
             headers: {'Content-Type': 'application/json'},
             body: json.encode(allocationData),
           );
@@ -324,8 +325,8 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
                 try {
                   final response = await http.delete(
                     Uri.parse(
-                      'http://172.20.10.9:5000/api/allocations/$allocationId',
-                    ),
+                      '${ApiConfig.baseUrl}/allocations/$allocationId',
+                    ), // ✅ Updated URL
                     headers: {'Content-Type': 'application/json'},
                   );
                   if (response.statusCode == 200) {
@@ -377,13 +378,12 @@ class _AllocateBusScreenState extends State<AllocateBusScreen> {
       editingAllocationId = allocation['_id'];
       selectedStudentId = allocation['studentId']?['_id'] ?? '';
       studentName = allocation['studentId']?['name'] ?? 'N/A';
-      selectedDepartment =
-          allocation['studentId']?['department'] ?? ''; // Set department
+      selectedDepartment = allocation['studentId']?['department'] ?? '';
       selectedTo = allocation['to'] ?? allocation['busId']?['to'] ?? '';
       selectedBusId = allocation['busId']?['_id'] ?? '';
       selectedSeatNumber = allocation['seatNumber']?.toString() ?? '';
       filterBusesByTo(selectedTo);
-      filterStudentsByDepartment(selectedDepartment); // Filter students
+      filterStudentsByDepartment(selectedDepartment);
       if (selectedBusId != null) {
         fetchAvailableSeats(selectedBusId!);
       }

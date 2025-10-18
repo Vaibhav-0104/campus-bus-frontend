@@ -3,14 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:campus_bus_management/config/api_config.dart'; // ✅ Import centralized URL
 
 /// Configuration class for child summary
 class ChildSummaryConfig {
   static const String screenTitle = 'Child Summary';
   static const String headerTitle = 'Child Profiles';
-  static const String baseUrl =
-      'http://172.20.10.9:5000'; // For Android emulator
-  // static const String baseUrl = 'http://192.168.31.104:5000'; // For physical device
 }
 
 /// Theme-related constants
@@ -70,7 +68,7 @@ class ChildCard extends StatelessWidget {
               backgroundImage:
                   child.profileImage.isNotEmpty
                       ? NetworkImage(
-                        '${ChildSummaryConfig.baseUrl}/api/students/${child.profileImage}',
+                        '${ApiConfig.baseUrl}/students/${child.profileImage}', // ✅ Use centralized URL
                       )
                       : null,
               onBackgroundImageError:
@@ -233,8 +231,8 @@ class _ChildSummaryScreenState extends State<ChildSummaryScreen> {
       final parentResponse = await client
           .post(
             Uri.parse(
-              '${ChildSummaryConfig.baseUrl}/api/students/parent-login',
-            ), // Add /api
+              '${ApiConfig.baseUrl}/students/parent-login', // ✅ Use centralized URL
+            ),
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode({
               'parentEmail': widget.parentEmail,
@@ -287,7 +285,7 @@ class _ChildSummaryScreenState extends State<ChildSummaryScreen> {
         final attendanceResponse = await client
             .post(
               Uri.parse(
-                '${ChildSummaryConfig.baseUrl}/api/students/attendance/date',
+                '${ApiConfig.baseUrl}/students/attendance/date', // ✅ Use centralized URL
               ),
               headers: {'Content-Type': 'application/json'},
               body: jsonEncode({
@@ -315,7 +313,7 @@ class _ChildSummaryScreenState extends State<ChildSummaryScreen> {
         final routeResponse = await client
             .get(
               Uri.parse(
-                '${ChildSummaryConfig.baseUrl}/api/students/route-by-env/${student['envNumber']}',
+                '${ApiConfig.baseUrl}/students/route-by-env/${student['envNumber']}', // ✅ Use centralized URL
               ),
               headers: {'Content-Type': 'application/json'},
             )
@@ -336,7 +334,7 @@ class _ChildSummaryScreenState extends State<ChildSummaryScreen> {
         final busStatusResponse = await client
             .get(
               Uri.parse(
-                '${ChildSummaryConfig.baseUrl}/api/students/bus-status/${student['envNumber']}',
+                '${ApiConfig.baseUrl}/students/bus-status/${student['envNumber']}', // ✅ Use centralized URL
               ),
               headers: {'Content-Type': 'application/json'},
             )

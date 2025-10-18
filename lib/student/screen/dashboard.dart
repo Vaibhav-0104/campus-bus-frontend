@@ -10,6 +10,7 @@ import 'package:campus_bus_management/student/screen/fees_screen.dart'; // Ensur
 import 'package:campus_bus_management/driver/screen/attendance_screen.dart';
 import 'package:campus_bus_management/student/screen/notifications_screen.dart';
 import 'package:campus_bus_management/student/screen/monthly_attendance_screen.dart'; // New import for the monthly attendance screen
+import 'package:campus_bus_management/config/api_config.dart'; // ✅ Import centralized URL
 
 class StudentDashboardScreen extends StatefulWidget {
   final String studentName;
@@ -63,9 +64,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       // Fetch Total Fees
       final feesResponse = await http
           .get(
-            Uri.parse(
-              'http://172.20.10.9:5000/api/fees/student/${widget.envNumber}',
-            ),
+            Uri.parse('${ApiConfig.baseUrl}/fees/student/${widget.envNumber}'),
             headers: {'Content-Type': 'application/json'},
           )
           .timeout(const Duration(seconds: 10));
@@ -112,7 +111,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       final attendanceResponse = await http
           .post(
             Uri.parse(
-              'http://172.20.10.9:5000/api/students/attendance/by-date', // This route should map to getAttendancePercentageByDateRange
+              '${ApiConfig.baseUrl}/students/attendance/by-date', // This route should map to getAttendancePercentageByDateRange
             ),
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode({
@@ -163,9 +162,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
       // Fetch Notifications
       final notificationsResponse = await http
           .get(
-            Uri.parse(
-              'http://172.20.10.9:5000/api/notifications/view/Students',
-            ),
+            Uri.parse('${ApiConfig.baseUrl}/notifications/view/Students'),
             headers: {'Content-Type': 'application/json'},
           )
           .timeout(const Duration(seconds: 10));

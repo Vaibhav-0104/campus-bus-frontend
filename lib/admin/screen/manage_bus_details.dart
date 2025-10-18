@@ -2,10 +2,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'dart:ui'; // Required for ImageFilter for blur effects
-
-const String busApiUrl = "http://172.20.10.9:5000/api/buses";
-const String driverApiUrl = "http://172.20.10.9:5000/api/drivers";
+import 'dart:ui';
+import 'package:campus_bus_management/config/api_config.dart'; // ✅ Import centralized URL
 
 class ManageBusDetailsScreen extends StatefulWidget {
   const ManageBusDetailsScreen({super.key});
@@ -52,7 +50,9 @@ class _ManageBusDetailsScreenState extends State<ManageBusDetailsScreen> {
 
   Future<void> _fetchBuses() async {
     try {
-      final response = await http.get(Uri.parse(busApiUrl));
+      final response = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}/buses'),
+      ); // ✅ Updated URL
       debugPrint('Bus API response: ${response.statusCode} ${response.body}');
       if (response.statusCode == 200) {
         setState(() {
@@ -80,7 +80,9 @@ class _ManageBusDetailsScreenState extends State<ManageBusDetailsScreen> {
 
   Future<void> _fetchDrivers() async {
     try {
-      final response = await http.get(Uri.parse(driverApiUrl));
+      final response = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}/drivers'),
+      ); // ✅ Updated URL
       debugPrint(
         'Driver API response: ${response.statusCode} ${response.body}',
       );
@@ -122,7 +124,7 @@ class _ManageBusDetailsScreenState extends State<ManageBusDetailsScreen> {
       try {
         if (_selectedBusIndex == null) {
           final response = await http.post(
-            Uri.parse(busApiUrl),
+            Uri.parse('${ApiConfig.baseUrl}/buses'), // ✅ Updated URL
             headers: {'Content-Type': 'application/json'},
             body: json.encode(busDetails),
           );
@@ -136,7 +138,7 @@ class _ManageBusDetailsScreenState extends State<ManageBusDetailsScreen> {
         } else {
           String busId = _busList[_selectedBusIndex!]['_id'];
           final response = await http.put(
-            Uri.parse('$busApiUrl/$busId'),
+            Uri.parse('${ApiConfig.baseUrl}/buses/$busId'), // ✅ Updated URL
             headers: {'Content-Type': 'application/json'},
             body: json.encode(busDetails),
           );
@@ -180,7 +182,9 @@ class _ManageBusDetailsScreenState extends State<ManageBusDetailsScreen> {
                 try {
                   String busId = _busList[index]['_id'];
                   final response = await http.delete(
-                    Uri.parse('$busApiUrl/$busId'),
+                    Uri.parse(
+                      '${ApiConfig.baseUrl}/buses/$busId',
+                    ), // ✅ Updated URL
                   );
                   debugPrint(
                     'Delete bus response: ${response.statusCode} ${response.body}',
@@ -283,12 +287,9 @@ class _ManageBusDetailsScreenState extends State<ManageBusDetailsScreen> {
   }
 
   Widget _buildDriverDropdown() {
-    // Compute assigned driver IDs from active buses only
     final Set<String> assignedDriverIds =
         _busList
-            .where(
-              (bus) => bus['status'] == 'Active',
-            ) // Only consider active buses
+            .where((bus) => bus['status'] == 'Active')
             .map((bus) => bus['driverId']?.toString() ?? '')
             .where((id) => id.isNotEmpty)
             .toSet();
@@ -298,12 +299,10 @@ class _ManageBusDetailsScreenState extends State<ManageBusDetailsScreen> {
       currentDriverId = _busList[_selectedBusIndex!]['driverId']?.toString();
     }
 
-    // Unique drivers map
     final uniqueDrivers = <String, Map<String, dynamic>>{};
     for (var driver in _driverList) {
       final id = driver['_id']?.toString() ?? '';
       if (id.isNotEmpty && !uniqueDrivers.containsKey(id)) {
-        // Include driver if unassigned, assigned to an inactive bus, or the current bus's driver
         final isAssignedToActiveBus = assignedDriverIds.contains(id);
         if (!isAssignedToActiveBus ||
             (currentDriverId != null && id == currentDriverId)) {

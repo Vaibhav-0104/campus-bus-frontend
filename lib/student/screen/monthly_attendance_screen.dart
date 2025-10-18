@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'dart:ui'; // Required for ImageFilter for blur effects
 import 'package:intl/intl.dart'; // For date formatting and month names
 import 'package:campus_bus_management/student/screen/daily_attendance_detail_screen.dart'; // New import
+import 'package:campus_bus_management/config/api_config.dart'; // ✅ Import centralized URL
 
 class MonthlyAttendanceScreen extends StatefulWidget {
   final String envNumber;
@@ -78,9 +79,7 @@ class _MonthlyAttendanceScreenState extends State<MonthlyAttendanceScreen> {
 
         final response = await http
             .post(
-              Uri.parse(
-                'http://172.20.10.9:5000/api/students/attendance/by-date',
-              ),
+              Uri.parse('${ApiConfig.baseUrl}/students/attendance/by-date'),
               headers: {'Content-Type': 'application/json'},
               body: jsonEncode({
                 'envNumber': widget.envNumber,

@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'dart:convert';
 import 'dart:ui'; // Required for ImageFilter for blur effects
+import 'package:campus_bus_management/config/api_config.dart'; // Import centralized URL
 
 class ViewAttendanceScreen extends StatefulWidget {
   final String driverId; // Driver ID passed to the screen
@@ -42,7 +43,7 @@ class _ViewAttendanceScreenState extends State<ViewAttendanceScreen> {
       // Step 1: Fetch allocations for the driver's bus
       final allocationsResponse = await http.get(
         Uri.parse(
-          'http://172.20.10.9:5000/api/allocations/allocations/driver/${widget.driverId}',
+          '${ApiConfig.baseUrl}/allocations/allocations/driver/${widget.driverId}',
         ),
       );
 
@@ -72,7 +73,7 @@ class _ViewAttendanceScreenState extends State<ViewAttendanceScreen> {
       // Step 2: Fetch attendance for the selected date and student IDs
       final formattedDate = DateFormat('yyyy-MM-dd').format(_selectedDate);
       final attendanceResponse = await http.post(
-        Uri.parse('http://172.20.10.9:5000/api/students/attendance/date'),
+        Uri.parse('${ApiConfig.baseUrl}/students/attendance/date'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'date': formattedDate, 'studentIds': studentIds}),
       );
@@ -125,11 +126,12 @@ class _ViewAttendanceScreenState extends State<ViewAttendanceScreen> {
   }
 
   Future<void> _selectDate(BuildContext context) async {
+    final DateTime now = DateTime.now();
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: _selectedDate,
       firstDate: DateTime(2024, 1),
-      lastDate: DateTime(2025, 12),
+      lastDate: now, // Restrict to today or past dates
       builder: (context, child) {
         return Theme(
           data: ThemeData.light().copyWith(
@@ -168,44 +170,31 @@ class _ViewAttendanceScreenState extends State<ViewAttendanceScreen> {
     EdgeInsetsGeometry? padding,
   }) {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(
-        25,
-      ), // Rounded corners for liquid glass card
+      borderRadius: BorderRadius.circular(25),
       child: BackdropFilter(
-        filter: ImageFilter.blur(
-          sigmaX: 20.0,
-          sigmaY: 20.0,
-        ), // Stronger blur for the card
+        filter: ImageFilter.blur(sigmaX: 20.0, sigmaY: 20.0),
         child: Container(
-          padding:
-              padding ??
-              const EdgeInsets.all(
-                25,
-              ), // Increased padding inside the card, made optional
+          padding: padding ?? const EdgeInsets.all(25),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                Colors.white.withOpacity(
-                  0.1,
-                ), // More transparent white for lighter glass
+                Colors.white.withOpacity(0.1),
                 Colors.white.withOpacity(0.05),
               ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(25),
-            border: Border.all(
-              color: Colors.white.withOpacity(0.2),
-            ), // Thinner border
+            border: Border.all(color: Colors.white.withOpacity(0.2)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.3), // Stronger shadow
-                blurRadius: 30, // Increased blur
-                spreadRadius: 5, // Increased spread
+                color: Colors.black.withOpacity(0.3),
+                blurRadius: 30,
+                spreadRadius: 5,
                 offset: const Offset(10, 10),
               ),
               BoxShadow(
-                color: Colors.white.withOpacity(0.15), // Inner light glow
+                color: Colors.white.withOpacity(0.15),
                 blurRadius: 15,
                 spreadRadius: 2,
                 offset: const Offset(-8, -8),
@@ -221,33 +210,20 @@ class _ViewAttendanceScreenState extends State<ViewAttendanceScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBodyBehindAppBar:
-          true, // Extend body behind app bar for full gradient
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: const Text(
           "View Student Attendance",
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.deepPurple.shade700.withOpacity(
-          0.4,
-        ), // Liquid glass app bar
-        iconTheme: const IconThemeData(
-          color: Colors.white,
-        ), // White back button
-        elevation: 0, // Remove default shadow
+        backgroundColor: Colors.deepPurple.shade700.withOpacity(0.4),
+        iconTheme: const IconThemeData(color: Colors.white),
+        elevation: 0,
         centerTitle: true,
         flexibleSpace: ClipRect(
-          // Clip to make the blur effect contained within the AppBar area
           child: BackdropFilter(
-            filter: ImageFilter.blur(
-              sigmaX: 10,
-              sigmaY: 10,
-            ), // Blur effect for app bar
-            child: Container(
-              color:
-                  Colors
-                      .transparent, // Transparent to show blurred content behind
-            ),
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            child: Container(color: Colors.transparent),
           ),
         ),
       ),
@@ -262,7 +238,7 @@ class _ViewAttendanceScreenState extends State<ViewAttendanceScreen> {
               Colors.deepPurple.shade900,
               Colors.deepPurple.shade700,
               Colors.deepPurple.shade500,
-            ], // Deep Purple themed gradient background
+            ],
             stops: const [0.0, 0.5, 1.0],
           ),
         ),
@@ -273,7 +249,7 @@ class _ViewAttendanceScreenState extends State<ViewAttendanceScreen> {
                   AppBar().preferredSize.height +
                   MediaQuery.of(context).padding.top +
                   16,
-            ), // Padding for blurred app bar
+            ),
             _buildDatePicker(context),
             _buildSearchBar(),
             Expanded(child: _buildAttendanceList()),
@@ -361,7 +337,7 @@ class _ViewAttendanceScreenState extends State<ViewAttendanceScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         child: TextField(
           controller: _searchController,
-          style: TextStyle(color: Colors.white, fontSize: 16 + 2),
+          style: TextStyle(color: Colors.white, fontSize: 18),
           decoration: InputDecoration(
             prefixIcon: Icon(
               Icons.search,
@@ -371,7 +347,7 @@ class _ViewAttendanceScreenState extends State<ViewAttendanceScreen> {
             hintText: "Search student by name...",
             hintStyle: TextStyle(
               color: Colors.white.withOpacity(0.6),
-              fontSize: 16 + 2,
+              fontSize: 18,
             ),
             suffixIcon:
                 _searchController.text.isNotEmpty
@@ -382,7 +358,7 @@ class _ViewAttendanceScreenState extends State<ViewAttendanceScreen> {
                       ),
                       onPressed: () {
                         _searchController.clear();
-                        _filterAttendance(''); // Show all results when cleared
+                        _filterAttendance('');
                       },
                     )
                     : null,
@@ -434,15 +410,12 @@ class _ViewAttendanceScreenState extends State<ViewAttendanceScreen> {
       );
     }
     return ListView.builder(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 16,
-        vertical: 8,
-      ), // Added vertical padding
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       itemCount: _filteredAttendance.length,
       itemBuilder: (context, index) {
         final student = _filteredAttendance[index];
         return Padding(
-          padding: const EdgeInsets.only(bottom: 12.0), // Spacing between cards
+          padding: const EdgeInsets.only(bottom: 12.0),
           child: _buildAttendanceCard(student['name'], student['status']),
         );
       },
@@ -462,12 +435,8 @@ class _ViewAttendanceScreenState extends State<ViewAttendanceScreen> {
         children: [
           CircleAvatar(
             backgroundColor: iconBackgroundColor,
-            radius: 28, // Larger avatar
-            child: Icon(
-              statusIcon,
-              color: Colors.white,
-              size: 28,
-            ), // Larger icon
+            radius: 28,
+            child: Icon(statusIcon, color: Colors.white, size: 28),
           ),
           const SizedBox(width: 15),
           Expanded(

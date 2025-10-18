@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import 'dart:ui'; // Required for ImageFilter for blur effects
-import 'package:intl/intl.dart'; // For date formatting
-import 'package:http/http.dart' as http; // Import for HTTP requests
-import 'dart:convert'; // Import for JSON decoding
-import 'package:flutter/foundation.dart' show debugPrint; // For debugPrint
-import 'package:fluttertoast/fluttertoast.dart'; // Import for Fluttertoast
+import 'dart:ui';
+import 'package:intl/intl.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:flutter/foundation.dart' show debugPrint;
+import 'package:fluttertoast/fluttertoast.dart';
+import 'package:campus_bus_management/config/api_config.dart'; // ✅ Import centralized URL
 
-// Define the Fee data model in Dart, mirroring your Mongoose schema
 class Fee {
   final String envNumber;
   final String studentName;
@@ -26,16 +26,13 @@ class Fee {
     this.transactionId,
   });
 
-  // Factory constructor to create a Fee object from a JSON map
   factory Fee.fromJson(Map<String, dynamic> json) {
     DateTime? parsedPaymentDate;
     if (json['paymentDate'] != null) {
-      // Handle various date formats if necessary, or ensure backend sends ISO 8601
       try {
         parsedPaymentDate = DateTime.parse(json['paymentDate']);
       } catch (e) {
         debugPrint('Error parsing paymentDate: ${json['paymentDate']} - $e');
-        // Fallback to null or current date if parsing fails
         parsedPaymentDate = null;
       }
     }
@@ -60,8 +57,8 @@ class ReportsScreen extends StatefulWidget {
 }
 
 class _ReportsScreenState extends State<ReportsScreen> {
-  List<Fee> _allFeeHistory = []; // Stores all fetched fee data
-  List<Fee> _filteredFeeHistory = []; // Stores filtered fee data for display
+  List<Fee> _allFeeHistory = [];
+  List<Fee> _filteredFeeHistory = [];
   bool _isLoading = false;
   String? _errorMessage;
   final TextEditingController _searchController = TextEditingController();
@@ -69,7 +66,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
   @override
   void initState() {
     super.initState();
-    _fetchFeeHistory(); // Fetch all data on initial load
+    _fetchFeeHistory();
     _searchController.addListener(_onSearchChanged);
   }
 
@@ -101,18 +98,17 @@ class _ReportsScreenState extends State<ReportsScreen> {
     });
   }
 
-  // Method to fetch ALL fee history from the backend
   Future<void> _fetchFeeHistory() async {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
-      _allFeeHistory = []; // Clear previous data
-      _filteredFeeHistory = []; // Clear previous data
+      _allFeeHistory = [];
+      _filteredFeeHistory = [];
     });
 
     try {
       final response = await http.get(
-        Uri.parse('http://172.20.10.9:5000/api/fees/all'), // Fetch all fees
+        Uri.parse('${ApiConfig.baseUrl}/fees/all'), // ✅ Updated URL
       );
 
       if (response.statusCode == 200) {
@@ -120,8 +116,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
         setState(() {
           _allFeeHistory =
               responseData.map((json) => Fee.fromJson(json)).toList();
-          _filteredFeeHistory =
-              _allFeeHistory; // Initially show all fetched data
+          _filteredFeeHistory = _allFeeHistory;
           _isLoading = false;
         });
 
@@ -224,60 +219,50 @@ class _ReportsScreenState extends State<ReportsScreen> {
         child: SingleChildScrollView(
           padding: EdgeInsets.only(
             top: totalAppBarAndStatusBarHeight + 16,
-            left: 16.0,
-            right: 16.0,
-            bottom: 16.0,
+            left: 16,
+            right: 16,
+            bottom: 16,
           ),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _buildSearchBar(), // Search bar
-              const SizedBox(height: 20),
-              _buildSectionTitle("Student Fees Details"),
+              _buildSectionTitle("Fee History"),
               const SizedBox(height: 10),
-              _buildFeeHistoryContent(), // Displays filtered or all fees
+              _buildLiquidGlassCard(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 10,
+                ),
+                child: TextField(
+                  controller: _searchController,
+                  style: const TextStyle(color: Colors.white, fontSize: 16),
+                  decoration: InputDecoration(
+                    hintText: "Search by student name...",
+                    hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
+                    prefixIcon: const Icon(Icons.search, color: Colors.white70),
+                    suffixIcon:
+                        _searchController.text.isNotEmpty
+                            ? IconButton(
+                              icon: Icon(
+                                Icons.clear,
+                                color: Colors.white.withOpacity(0.8),
+                              ),
+                              onPressed: () {
+                                _searchController.clear();
+                                _filterFeeHistory('');
+                              },
+                            )
+                            : null,
+                    border: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              _buildFeeHistoryContent(),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSearchBar() {
-    return _buildLiquidGlassCard(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: TextField(
-        controller: _searchController,
-        style: TextStyle(color: Colors.white, fontSize: 16 + 2),
-        keyboardType: TextInputType.text,
-        textInputAction: TextInputAction.search, // Show search icon on keyboard
-        decoration: InputDecoration(
-          hintText: 'Search student by name...',
-          hintStyle: TextStyle(
-            color: Colors.white.withOpacity(0.6),
-            fontSize: 16 + 2,
-          ),
-          prefixIcon: Icon(
-            Icons.search,
-            color: Colors.white.withOpacity(0.8),
-            size: 28,
-          ),
-          suffixIcon:
-              _searchController.text.isNotEmpty
-                  ? IconButton(
-                    icon: Icon(
-                      Icons.clear,
-                      color: Colors.white.withOpacity(0.8),
-                    ),
-                    onPressed: () {
-                      _searchController.clear();
-                      _filterFeeHistory(''); // Show all results when cleared
-                    },
-                  )
-                  : null,
-          border: InputBorder.none,
-          focusedBorder: InputBorder.none,
-          enabledBorder: InputBorder.none,
         ),
       ),
     );
@@ -289,7 +274,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       child: Text(
         title,
         style: TextStyle(
-          fontSize: 22 + 2,
+          fontSize: 24,
           fontWeight: FontWeight.bold,
           color: Colors.white,
           shadows: [Shadow(blurRadius: 5, color: Colors.black54)],
@@ -354,21 +339,20 @@ class _ReportsScreenState extends State<ReportsScreen> {
         child: Center(
           child: Text(
             _errorMessage!,
-            style: TextStyle(color: Colors.redAccent, fontSize: 16 + 2),
+            style: TextStyle(color: Colors.redAccent, fontSize: 18),
             textAlign: TextAlign.center,
           ),
         ),
       );
     } else if (_filteredFeeHistory.isEmpty) {
-      // This will now correctly show if no search results or no data initially
       return _buildLiquidGlassCard(
         padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
         child: Center(
           child: Text(
             _searchController.text.isEmpty
-                ? 'No fee records found in the database.' // Message if no data initially
-                : 'No student found matching "${_searchController.text}".', // Message for no search results
-            style: TextStyle(color: Colors.white70, fontSize: 16 + 2),
+                ? 'No fee records found in the database.'
+                : 'No student found matching "${_searchController.text}".',
+            style: TextStyle(color: Colors.white70, fontSize: 18),
             textAlign: TextAlign.center,
           ),
         ),
@@ -407,7 +391,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 Text(
                   fee.studentName,
                   style: TextStyle(
-                    fontSize: 18 + 2,
+                    fontSize: 20,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
                     shadows: [Shadow(blurRadius: 3, color: Colors.black54)],
@@ -416,15 +400,15 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 const SizedBox(height: 5),
                 Text(
                   "Enrollment: ${fee.envNumber}",
-                  style: TextStyle(fontSize: 14 + 2, color: Colors.white70),
+                  style: TextStyle(fontSize: 16, color: Colors.white70),
                 ),
                 Text(
                   "Route: ${fee.route}",
-                  style: TextStyle(fontSize: 14 + 2, color: Colors.white70),
+                  style: TextStyle(fontSize: 16, color: Colors.white70),
                 ),
                 Text(
                   "Amount: ₹${fee.feeAmount.toStringAsFixed(2)}",
-                  style: TextStyle(fontSize: 14 + 2, color: Colors.white70),
+                  style: TextStyle(fontSize: 16, color: Colors.white70),
                 ),
                 const SizedBox(height: 8),
                 Row(
@@ -441,7 +425,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     Text(
                       fee.isPaid ? "Status: PAID" : "Status: UNPAID",
                       style: TextStyle(
-                        fontSize: 16 + 2,
+                        fontSize: 18,
                         fontWeight: FontWeight.bold,
                         color:
                             fee.isPaid
@@ -456,14 +440,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   const SizedBox(height: 5),
                   Text(
                     "Paid On: ${DateFormat('dd MMM BCE').format(fee.paymentDate!)}",
-                    style: TextStyle(fontSize: 14 + 2, color: Colors.white70),
+                    style: TextStyle(fontSize: 16, color: Colors.white70),
                   ),
                 ],
                 if (fee.isPaid && fee.transactionId != null) ...[
                   const SizedBox(height: 5),
                   Text(
                     "Txn ID: ${fee.transactionId}",
-                    style: TextStyle(fontSize: 14 + 2, color: Colors.white70),
+                    style: TextStyle(fontSize: 16, color: Colors.white70),
                   ),
                 ],
               ],

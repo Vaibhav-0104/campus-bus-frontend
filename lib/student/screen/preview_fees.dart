@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'dart:ui'; // Required for ImageFilter for blur effects
+import 'dart:ui';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:io';
-import 'package:intl/intl.dart'; // For date formatting if paymentDate is used
-import 'package:path_provider/path_provider.dart'; // For getting application document directory
-import 'package:pdf/pdf.dart'; // Core PDF package
-import 'package:pdf/widgets.dart' as pw; // PDF widgets
-import 'package:open_file/open_file.dart'; // For opening the generated PDF file
-import 'package:flutter/services.dart'
-    show rootBundle; // For loading assets like fonts
+import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:open_file/open_file.dart';
+import 'package:flutter/services.dart' show rootBundle;
+import 'package:campus_bus_management/config/api_config.dart';
 
 class PreviewFeesScreen extends StatefulWidget {
   final String envNumber;
@@ -41,14 +41,10 @@ class _PreviewFeesScreenState extends State<PreviewFeesScreen> {
     try {
       final response = await http
           .get(
-            Uri.parse(
-              'http://172.20.10.9:5000/api/fees/student/${widget.envNumber}',
-            ),
+            Uri.parse('${ApiConfig.baseUrl}/fees/student/${widget.envNumber}'),
             headers: {'Content-Type': 'application/json'},
           )
-          .timeout(
-            const Duration(seconds: 15),
-          ); // Add timeout for network requests
+          .timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> decodedData = jsonDecode(response.body);
@@ -78,7 +74,6 @@ class _PreviewFeesScreenState extends State<PreviewFeesScreen> {
     }
   }
 
-  // Reusable widget for a liquid glass detail card (key-value pair)
   Widget _buildLiquidGlassDetailCard(
     IconData icon,
     Color iconColor,
@@ -123,19 +118,15 @@ class _PreviewFeesScreenState extends State<PreviewFeesScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Expanded(
-                  // Use Expanded to ensure text wraps if it's too long
                   child: Row(
                     children: [
-                      Icon(icon, color: iconColor, size: 24), // Colorful icon
-                      const SizedBox(
-                        width: 12,
-                      ), // Spacing between icon and title
+                      Icon(icon, color: iconColor, size: 24),
+                      const SizedBox(width: 12),
                       Flexible(
-                        // Flexible to prevent overflow if title is too long
                         child: Text(
                           title,
                           style: const TextStyle(
-                            fontSize: 20, // Increased font size for title
+                            fontSize: 20,
                             fontWeight: FontWeight.w600,
                             color: Colors.white,
                             shadows: [
@@ -148,11 +139,10 @@ class _PreviewFeesScreenState extends State<PreviewFeesScreen> {
                   ),
                 ),
                 Flexible(
-                  // Flexible to prevent overflow if value is too long
                   child: Text(
                     value,
                     style: const TextStyle(
-                      fontSize: 20, // Increased font size for value
+                      fontSize: 20,
                       color: Colors.white70,
                       fontWeight: FontWeight.w500,
                     ),
@@ -167,7 +157,6 @@ class _PreviewFeesScreenState extends State<PreviewFeesScreen> {
     );
   }
 
-  // Function to show the export PDF confirmation dialog
   void _showExportPdfConfirmationDialog() {
     if (feeData == null || feeData!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -187,9 +176,7 @@ class _PreviewFeesScreenState extends State<PreviewFeesScreen> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
-          backgroundColor: Colors.deepPurple.shade700.withOpacity(
-            0.8,
-          ), // Liquid glass dialog background
+          backgroundColor: Colors.deepPurple.shade700.withOpacity(0.8),
           title: const Text(
             "Export Fee Details",
             style: TextStyle(
@@ -205,7 +192,7 @@ class _PreviewFeesScreenState extends State<PreviewFeesScreen> {
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.of(context).pop(); // Dismiss dialog
+                Navigator.of(context).pop();
               },
               child: Text(
                 "No",
@@ -217,11 +204,11 @@ class _PreviewFeesScreenState extends State<PreviewFeesScreen> {
             ),
             ElevatedButton(
               onPressed: () async {
-                Navigator.of(context).pop(); // Dismiss dialog
+                Navigator.of(context).pop();
                 await generateAndOpenPdf();
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.lightBlueAccent, // Button color
+                backgroundColor: Colors.lightBlueAccent,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(15),
                 ),
@@ -245,7 +232,6 @@ class _PreviewFeesScreenState extends State<PreviewFeesScreen> {
   }
 
   Future<void> generateAndOpenPdf() async {
-    // Show loading indicator
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text("Generating PDF..."),
@@ -256,24 +242,24 @@ class _PreviewFeesScreenState extends State<PreviewFeesScreen> {
 
     final pdf = pw.Document();
 
-    // Load the font from assets (ensure you have this font in your assets/fonts/ directory)
-    // Add 'assets/fonts/NotoSans-Regular.ttf' to your pubspec.yaml under assets:
-    // flutter:
-    //   assets:
-    //     - assets/fonts/NotoSans-Regular.ttf
     try {
       final fontData = await rootBundle.load(
         'assets/fonts/NotoSans-Regular.ttf',
       );
       final ttf = pw.Font.ttf(fontData.buffer.asByteData());
 
-      // Prepare fee details for the PDF table
       final List<List<String>> tableData = [
         ['Detail', 'Value'],
         ['Env Number', widget.envNumber],
         ['Student Name', feeData?['studentName'] ?? 'N/A'],
         ['Route', feeData?['route'] ?? 'N/A'],
         ['Fee Amount', '${feeData?['feeAmount'] ?? '0'} INR'],
+        [
+          'Duration',
+          (feeData?['duration'] ?? 'N/A')
+              .replaceAll('month', ' Month')
+              .replaceAll('year', ' Year'),
+        ],
         ['Paid Status', feeData?['isPaid'] == true ? "Yes" : "No"],
       ];
 
@@ -296,7 +282,6 @@ class _PreviewFeesScreenState extends State<PreviewFeesScreen> {
             return pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
-                // Title
                 pw.Center(
                   child: pw.Text(
                     'UTU Student PassYojna',
@@ -321,8 +306,6 @@ class _PreviewFeesScreenState extends State<PreviewFeesScreen> {
                 pw.SizedBox(height: 20),
                 pw.Divider(color: PdfColors.grey400, thickness: 1),
                 pw.SizedBox(height: 20),
-
-                // Student Info Section
                 pw.Text(
                   'Student Information:',
                   style: pw.TextStyle(
@@ -342,8 +325,6 @@ class _PreviewFeesScreenState extends State<PreviewFeesScreen> {
                   style: pw.TextStyle(font: ttf, fontSize: 16),
                 ),
                 pw.SizedBox(height: 30),
-
-                // Fee Details Table
                 pw.Text(
                   'Fee Breakdown:',
                   style: pw.TextStyle(
@@ -378,8 +359,7 @@ class _PreviewFeesScreenState extends State<PreviewFeesScreen> {
                   },
                   cellPadding: const pw.EdgeInsets.all(8),
                 ),
-                pw.Expanded(child: pw.SizedBox()), // Fills remaining space
-                // Footer
+                pw.Expanded(child: pw.SizedBox()),
                 pw.Align(
                   alignment: pw.Alignment.bottomRight,
                   child: pw.Text(
@@ -402,7 +382,6 @@ class _PreviewFeesScreenState extends State<PreviewFeesScreen> {
       final file = File(filePath);
       await file.writeAsBytes(await pdf.save());
 
-      // Open the generated PDF
       final result = await OpenFile.open(filePath);
       if (result.type != ResultType.done) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -428,16 +407,13 @@ class _PreviewFeesScreenState extends State<PreviewFeesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBodyBehindAppBar:
-          true, // Extend body behind app bar for full gradient
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: const Text(
           'Fee Details',
           style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
-        backgroundColor: Colors.deepPurple.shade700.withOpacity(
-          0.3,
-        ), // Liquid glass app bar
+        backgroundColor: Colors.deepPurple.shade700.withOpacity(0.3),
         iconTheme: const IconThemeData(color: Colors.white),
         elevation: 0,
         centerTitle: true,
@@ -499,7 +475,7 @@ class _PreviewFeesScreenState extends State<PreviewFeesScreen> {
                         AppBar().preferredSize.height +
                         MediaQuery.of(context).padding.top +
                         5,
-                    bottom: 5.0, // Added padding for the button
+                    bottom: 5.0,
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -529,6 +505,14 @@ class _PreviewFeesScreenState extends State<PreviewFeesScreen> {
                         '${feeData!['feeAmount'] ?? '0'} INR',
                       ),
                       _buildLiquidGlassDetailCard(
+                        Icons.calendar_today,
+                        Colors.cyanAccent,
+                        'Duration',
+                        (feeData!['duration'] ?? 'N/A')
+                            .replaceAll('month', ' Month')
+                            .replaceAll('year', ' Year'),
+                      ),
+                      _buildLiquidGlassDetailCard(
                         Icons.check_circle_outline,
                         feeData!['isPaid'] == true
                             ? Colors.lightGreenAccent
@@ -541,7 +525,6 @@ class _PreviewFeesScreenState extends State<PreviewFeesScreen> {
                           Icons.calendar_today,
                           Colors.purpleAccent,
                           'Payment Date',
-                          // Format date for better readability if it's a valid date string
                           DateFormat('MMM dd, yyyy').format(
                             DateTime.tryParse(feeData!['paymentDate']) ??
                                 DateTime.now(),
@@ -554,27 +537,22 @@ class _PreviewFeesScreenState extends State<PreviewFeesScreen> {
                           'Transaction ID',
                           feeData!['transactionId'],
                         ),
-
-                      const SizedBox(height: 5), // Spacing before the button
+                      const SizedBox(height: 5),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16.0),
                         child: ElevatedButton(
                           onPressed: _showExportPdfConfirmationDialog,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.deepPurple.shade600
-                                .withOpacity(0.8), // Darker liquid glass button
+                                .withOpacity(0.8),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(
-                                30,
-                              ), // More rounded button
+                              borderRadius: BorderRadius.circular(30),
                               side: BorderSide(
                                 color: Colors.white.withOpacity(0.3),
                                 width: 1,
-                              ), // Subtle border
+                              ),
                             ),
-                            padding: const EdgeInsets.symmetric(
-                              vertical: 18,
-                            ), // Larger padding
+                            padding: const EdgeInsets.symmetric(vertical: 18),
                             shadowColor: Colors.black.withOpacity(0.4),
                             elevation: 10,
                           ),
