@@ -32,6 +32,13 @@ dependencies:
   google_maps_flutter: ^2.12.3
   file_picker: ^10.3.3
   permission_handler: ^12.0.1
+  # Location & Maps
+  geolocator:
+  geocoding:
+  flutter_map:
+  latlong2:
+
+
 
 dev_dependencies:
   flutter_test:

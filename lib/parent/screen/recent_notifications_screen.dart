@@ -1,38 +1,21 @@
 import 'package:flutter/material.dart';
 import 'dart:ui';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:campus_bus_management/config/api_config.dart';
+import 'package:intl/intl.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 /// Configuration class for notifications
 class NotificationsConfig {
   static const String screenTitle = 'Recent Notifications';
   static const String headerTitle = 'Notifications';
-  static const List<Map<String, dynamic>> mockNotifications = [
-    {
-      'id': 1,
-      'message': 'Child boarded the bus at 7:45 AM',
-      'type': 'pickup',
-      'read': false,
-    },
-    {
-      'id': 2,
-      'message': 'Bus running late by 10 mins',
-      'type': 'delay',
-      'read': false,
-    },
-    {
-      'id': 3,
-      'message': 'Child has been dropped at school',
-      'type': 'drop',
-      'read': false,
-    },
-  ];
 }
 
 /// Theme-related constants
 class AppTheme {
   static const Color primaryColor = Colors.blue;
-  static const Color backgroundColor = Color(
-    0xFF0D47A1,
-  ); // Deep blue (Colors.blue[900])
+  static const Color backgroundColor = Color(0xFF0D47A1); // Deep blue
   static const Color accentColor = Colors.lightBlueAccent;
   static const Color successColor = Colors.green;
   static const Color pendingColor = Colors.orange;
@@ -62,13 +45,20 @@ class NotificationCard extends StatelessWidget {
   });
 
   IconData _getNotificationIcon(String type) {
-    switch (type) {
+    switch (type.toLowerCase()) {
       case 'pickup':
+      case 'emergency':
         return Icons.directions_bus;
       case 'drop':
         return Icons.home;
       case 'delay':
         return Icons.warning;
+      case 'route change':
+        return Icons.alt_route;
+      case 'holiday':
+        return Icons.calendar_today;
+      case 'general info':
+        return Icons.info;
       default:
         return Icons.notifications;
     }
@@ -76,9 +66,9 @@ class NotificationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isRead = notification['read'] as bool;
+    final isRead = notification['read'] as bool? ?? false;
     return Dismissible(
-      key: Key(notification['id'].toString()),
+      key: Key(notification['_id'].toString()),
       background: Container(
         color: AppTheme.absentColor,
         alignment: Alignment.centerRight,
@@ -116,11 +106,11 @@ class NotificationCard extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.all(AppTheme.cardPadding),
               decoration: BoxDecoration(
-                color: Colors.white.withAlpha(26), // 0.1 * 255 = 26
+                color: Colors.white.withAlpha(26),
                 border: Border.all(
                   color: Colors.white.withAlpha(76),
                   width: 1.5,
-                ), // 0.3 * 255 = 76
+                ),
               ),
               child: Row(
                 children: [
@@ -143,6 +133,16 @@ class NotificationCard extends StatelessWidget {
                             fontWeight:
                                 isRead ? FontWeight.normal : FontWeight.bold,
                             fontSize: 18,
+                          ),
+                        ),
+                        Text(
+                          DateFormat('MMM dd, hh:mm a').format(
+                            DateTime.tryParse(notification['date'] ?? '') ??
+                                DateTime.now(),
+                          ),
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 12,
                           ),
                         ),
                       ],
@@ -188,9 +188,54 @@ class RecentNotificationsScreen extends StatefulWidget {
 }
 
 class _RecentNotificationsScreenState extends State<RecentNotificationsScreen> {
-  final List<Map<String, dynamic>> _notifications = List.from(
-    NotificationsConfig.mockNotifications,
-  );
+  List<Map<String, dynamic>> _notifications = [];
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchNotifications();
+  }
+
+  Future<void> _fetchNotifications() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final response = await http.get(
+        Uri.parse("${ApiConfig.baseUrl}/notifications/view/Parents"),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data is List) {
+          setState(() {
+            _notifications = List<Map<String, dynamic>>.from(
+              data.map(
+                (item) => {
+                  ...item,
+                  'read': false, // Assuming notifications are initially unread
+                },
+              ),
+            );
+            _isLoading = false;
+          });
+        } else {
+          throw Exception("Invalid response format");
+        }
+      } else {
+        throw Exception("Failed to load notifications: ${response.statusCode}");
+      }
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error loading notifications: $e")),
+      );
+    }
+  }
 
   void _markAllRead() {
     setState(() {
@@ -224,9 +269,7 @@ class _RecentNotificationsScreenState extends State<RecentNotificationsScreen> {
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: const Text(NotificationsConfig.screenTitle),
-        backgroundColor: AppTheme.backgroundColor.withAlpha(
-          76,
-        ), // 0.3 * 255 = 76
+        backgroundColor: AppTheme.backgroundColor.withAlpha(76),
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
         flexibleSpace: ClipRect(
@@ -256,12 +299,16 @@ class _RecentNotificationsScreenState extends State<RecentNotificationsScreen> {
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        color: AppTheme.backgroundColor, // Solid deep blue background
+        color: AppTheme.backgroundColor,
         child: SafeArea(
           child: Padding(
             padding: const EdgeInsets.all(AppTheme.cardPadding),
             child:
-                _notifications.isEmpty
+                _isLoading
+                    ? const Center(
+                      child: CircularProgressIndicator(color: Colors.white),
+                    )
+                    : _notifications.isEmpty
                     ? Center(
                       child: Text(
                         'No notifications available',

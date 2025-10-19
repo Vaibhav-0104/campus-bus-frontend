@@ -4,7 +4,7 @@ import 'dart:convert';
 import 'dart:ui';
 import 'package:intl/intl.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
-import 'package:campus_bus_management/config/api_config.dart'; // ✅ Import centralized URL
+import 'package:campus_bus_management/config/api_config.dart';
 
 class NotificationsScreen extends StatefulWidget {
   final String userRole;
@@ -26,7 +26,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     "Holiday",
     "General Info",
   ];
-  final List<String> _recipients = ["Students", "Drivers"];
+  final List<String> _recipients = ["Students", "Drivers", "Parents"];
   List<String> _selectedRecipients = [];
   bool _isLoading = false;
 
@@ -49,7 +49,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
     try {
       final response = await http.get(
-        Uri.parse("${ApiConfig.baseUrl}/notifications/all"), // ✅ Updated URL
+        Uri.parse("${ApiConfig.baseUrl}/notifications/all"),
       );
 
       if (response.statusCode == 200) {
@@ -87,7 +87,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
     try {
       final response = await http.post(
-        Uri.parse("${ApiConfig.baseUrl}/notifications/send"), // ✅ Updated URL
+        Uri.parse("${ApiConfig.baseUrl}/notifications/send"),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
           "type": _selectedNotificationType,

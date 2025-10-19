@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:ui'; // For ImageFilter
+import 'package:campus_bus_management/driver/screen/live_location_share_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:campus_bus_management/config/api_config.dart'; // Import centralized URL
@@ -240,6 +241,13 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
               Icons.calendar_today,
               "View Attendance",
               ViewAttendanceScreen(driverId: widget.driverId),
+            ),
+            // --- NEW ITEM ADDED BELOW ---
+            _buildDrawerItem(
+              context,
+              Icons.location_on, // Changed icon to location
+              "Live Location", // New name
+              LiveLocationShareScreen(), // New screen widget
             ),
             const Divider(color: Colors.white54, thickness: 1),
             ListTile(
