@@ -12,6 +12,8 @@ import 'package:campus_bus_management/admin/screen/manage_student_fees.dart';
 import 'package:campus_bus_management/admin/screen/manage_notification.dart';
 import 'package:campus_bus_management/admin/screen/view_student_attendance.dart';
 import 'package:campus_bus_management/admin/screen/reports.dart';
+// Note: You must create and import the new screen
+// For simplicity, the new screen code is included at the bottom of this file.
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -26,7 +28,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     try {
       final response = await http.get(
         Uri.parse('${ApiConfig.baseUrl}/students'),
-      ); // ✅ Updated URL
+      ); // Updated URL
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
         return data.length;
@@ -44,7 +46,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     try {
       final response = await http.get(
         Uri.parse('${ApiConfig.baseUrl}/buses'),
-      ); // ✅ Updated URL
+      ); // Updated URL
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
         return data.length;
@@ -62,7 +64,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     try {
       final response = await http.get(
         Uri.parse('${ApiConfig.baseUrl}/drivers'),
-      ); // ✅ Updated URL
+      ); // Updated URL
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
         return data.length;
@@ -153,33 +155,47 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       }
                     },
                   ),
-                  FutureBuilder<int>(
-                    future: fetchTotalDrivers(),
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return _statCard(
-                          Icons.group,
-                          Colors.greenAccent,
-                          "Total Drivers",
-                          "Loading...",
-                        );
-                      } else if (snapshot.hasError) {
-                        return _statCard(
-                          Icons.group,
-                          Colors.redAccent,
-                          "Total Drivers",
-                          "Error: ${snapshot.error}",
-                        );
-                      } else {
-                        return _statCard(
-                          Icons.group,
-                          Colors.greenAccent,
-                          "Total Drivers",
-                          snapshot.data.toString(),
-                        );
-                      }
+
+                  // 👇 WRAPPED IN GESTUREDETECTOR TO NAVIGATE
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const ShowDriversScreen(),
+                        ),
+                      );
                     },
+                    child: FutureBuilder<int>(
+                      future: fetchTotalDrivers(),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return _statCard(
+                            Icons.group,
+                            Colors.greenAccent,
+                            "Total Drivers",
+                            "Loading...",
+                          );
+                        } else if (snapshot.hasError) {
+                          return _statCard(
+                            Icons.group,
+                            Colors.redAccent,
+                            "Total Drivers",
+                            "Error: ${snapshot.error}",
+                          );
+                        } else {
+                          return _statCard(
+                            Icons.group,
+                            Colors.greenAccent,
+                            "Total Drivers",
+                            snapshot.data.toString(),
+                          );
+                        }
+                      },
+                    ),
                   ),
+
                   FutureBuilder<int>(
                     future: fetchTotalBuses(),
                     builder: (context, snapshot) {
@@ -524,6 +540,332 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+// ----------------------------------------------------------------------
+//
+// New Screen to Display All Driver Details: ShowDriversScreen
+//
+// ----------------------------------------------------------------------
+
+class ShowDriversScreen extends StatefulWidget {
+  const ShowDriversScreen({super.key});
+
+  @override
+  State<ShowDriversScreen> createState() => _ShowDriversScreenState();
+}
+
+class _ShowDriversScreenState extends State<ShowDriversScreen> {
+  Future<List<Driver>>? _driversFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _driversFuture = fetchDrivers();
+  }
+
+  // Fetch all drivers from the backend /api/drivers endpoint
+  Future<List<Driver>> fetchDrivers() async {
+    try {
+      final response = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}/drivers'),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        List<dynamic> driversJson = jsonDecode(response.body);
+        return driversJson.map((json) => Driver.fromJson(json)).toList();
+      } else {
+        throw Exception(
+          'Failed to load drivers. Status Code: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      print('Error fetching drivers: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('All Drivers Details'),
+        backgroundColor: Colors.blue.shade800,
+        foregroundColor: Colors.white,
+      ),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Colors.blue.shade900, Colors.blue.shade700],
+          ),
+        ),
+        child: FutureBuilder<List<Driver>>(
+          future: _driversFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(
+                child: CircularProgressIndicator(color: Colors.white),
+              );
+            } else if (snapshot.hasError) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Text(
+                    'Error: ${snapshot.error.toString().contains('Failed to load') ? 'Failed to connect to server or load data.' : 'An unexpected error occurred.'}',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.redAccent,
+                      fontSize: 18,
+                    ),
+                  ),
+                ),
+              );
+            } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+              return const Center(
+                child: Text(
+                  'No drivers found.',
+                  style: TextStyle(color: Colors.white70, fontSize: 20),
+                ),
+              );
+            }
+
+            final drivers = snapshot.data!;
+            return ListView.builder(
+              padding: const EdgeInsets.all(10.0),
+              itemCount: drivers.length,
+              itemBuilder: (context, index) {
+                return DriverDetailCard(driver: drivers[index]);
+              },
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+// Data Model to map API response
+class Driver {
+  final String id;
+  final String name;
+  final String contact;
+  final String license;
+  final String email;
+  final String status;
+  final String? licenseDocument;
+
+  Driver({
+    required this.id,
+    required this.name,
+    required this.contact,
+    required this.license,
+    required this.email,
+    required this.status,
+    this.licenseDocument,
+  });
+
+  factory Driver.fromJson(Map<String, dynamic> json) {
+    return Driver(
+      id: json['_id'] as String,
+      name: json['name'] as String,
+      contact: json['contact'] as String,
+      license: json['license'] as String,
+      email: json['email'] as String,
+      // Note: password is removed from the model as it's not needed for display
+      status: json['status'] as String,
+      licenseDocument: json['licenseDocument'] as String?,
+    );
+  }
+}
+
+// UI Card Component for each Driver
+class DriverDetailCard extends StatelessWidget {
+  final Driver driver;
+
+  const DriverDetailCard({super.key, required this.driver});
+
+  // Helper method to resolve the full URL for the document
+  String _getDocumentUrl(String? docPath) {
+    if (docPath == null || docPath.isEmpty) {
+      return '';
+    }
+    // Your backend serves files under /uploads route
+    // The server.js has: app.use('/api/uploads', express.static(path.join(path.resolve(), 'uploads')));
+    // The driverController.js saves: licenseDocument: `/uploads/${req.file.filename}`
+    // You need to combine the base URL and the relative path
+    // Example: http://your-api-url.com/api/uploads/driver-license-1234.pdf
+    return '${ApiConfig.baseUrl}$docPath';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final statusColor = driver.status == 'Active' ? Colors.green : Colors.red;
+    final documentUrl = _getDocumentUrl(driver.licenseDocument);
+    final isDocumentAvailable = documentUrl.isNotEmpty;
+
+    return Card(
+      elevation: 8,
+      margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 5),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      color: Colors.white.withOpacity(0.95),
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Driver Name & Status Header
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    driver.name,
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue.shade800,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: statusColor.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: Text(
+                    driver.status,
+                    style: TextStyle(
+                      color: statusColor,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const Divider(height: 25, thickness: 1.5, color: Colors.black12),
+
+            // Driver Details
+            _buildDetailRow(Icons.email, 'Email:', driver.email),
+            _buildDetailRow(Icons.phone, 'Contact:', driver.contact),
+            _buildDetailRow(Icons.badge, 'License No:', driver.license),
+
+            const SizedBox(height: 15),
+
+            // License Document/Screenshot
+            Text(
+              'License Document:',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.blue.shade700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              height: 150,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.grey.shade300),
+                color: Colors.grey.shade100,
+              ),
+              child:
+                  isDocumentAvailable
+                      ? Center(
+                        child: GestureDetector(
+                          onTap: () {
+                            // Handle document opening/viewing (e.g., launch URL)
+                            print('Attempting to open document: $documentUrl');
+                            // You would typically use a package like url_launcher here
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'Document available at: $documentUrl',
+                                ),
+                              ),
+                            );
+                          },
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(
+                                Icons.picture_as_pdf,
+                                size: 40,
+                                color: Colors.red,
+                              ),
+                              const SizedBox(height: 5),
+                              Text(
+                                'View License Document (Tap)',
+                                style: TextStyle(
+                                  color: Colors.blue.shade700,
+                                  decoration: TextDecoration.underline,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                      : Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(
+                              Icons.document_scanner,
+                              size: 40,
+                              color: Colors.grey,
+                            ),
+                            const SizedBox(height: 5),
+                            Text(
+                              'No Document Uploaded',
+                              style: TextStyle(color: Colors.grey.shade600),
+                            ),
+                          ],
+                        ),
+                      ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 22, color: Colors.blue.shade600),
+          const SizedBox(width: 10),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(width: 5),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(fontSize: 16, color: Colors.black54),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
       ),
     );
   }

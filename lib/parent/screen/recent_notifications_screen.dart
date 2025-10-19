@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:campus_bus_management/config/api_config.dart';
 import 'package:intl/intl.dart';
-import 'package:flutter/foundation.dart' show debugPrint;
+//import 'package:flutter/foundation' show debugPrint;
 
 /// Configuration class for notifications
 class NotificationsConfig {
@@ -68,7 +68,10 @@ class NotificationCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isRead = notification['read'] as bool? ?? false;
     return Dismissible(
-      key: Key(notification['_id'].toString()),
+      key: Key(
+        notification['_id']?.toString() ??
+            'notification_${UniqueKey().toString()}',
+      ),
       background: Container(
         color: AppTheme.absentColor,
         alignment: Alignment.centerRight,
@@ -137,7 +140,9 @@ class NotificationCard extends StatelessWidget {
                         ),
                         Text(
                           DateFormat('MMM dd, hh:mm a').format(
-                            DateTime.tryParse(notification['date'] ?? '') ??
+                            DateTime.tryParse(
+                                  notification['date']?.toString() ?? '',
+                                ) ??
                                 DateTime.now(),
                           ),
                           style: const TextStyle(
@@ -211,18 +216,35 @@ class _RecentNotificationsScreenState extends State<RecentNotificationsScreen> {
         final data = jsonDecode(response.body);
         if (data is List) {
           setState(() {
-            _notifications = List<Map<String, dynamic>>.from(
-              data.map(
-                (item) => {
-                  ...item,
-                  'read': false, // Assuming notifications are initially unread
-                },
-              ),
-            );
+            _notifications =
+                data
+                    .map((item) {
+                      return (item is Map)
+                          ? item.map(
+                            (key, value) => MapEntry(key.toString(), value),
+                          )
+                          : {
+                            'message': 'Invalid notification data',
+                            'read': false,
+                          };
+                    })
+                    .cast<Map<String, dynamic>>()
+                    .toList()
+                    .map((item) {
+                      return {
+                        ...item,
+                        'read':
+                            item['read'] ??
+                            false, // Default to false if not present
+                      };
+                    })
+                    .toList();
             _isLoading = false;
           });
         } else {
-          throw Exception("Invalid response format");
+          throw Exception(
+            "Invalid response format: Expected a List, got ${data.runtimeType}",
+          );
         }
       } else {
         throw Exception("Failed to load notifications: ${response.statusCode}");
