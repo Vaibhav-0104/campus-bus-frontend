@@ -4,23 +4,27 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:campus_bus_management/config/api_config.dart'; // Import centralized API config
 
 class LiveLocationShareScreen extends StatefulWidget {
-  const LiveLocationShareScreen({super.key});
+  final String driverId; // Required to identify the driver
+  const LiveLocationShareScreen({super.key, required this.driverId});
 
   @override
-  State<LiveLocationShareScreen> createState() => _LiveLocationShareScreenState();
+  State<LiveLocationShareScreen> createState() =>
+      _LiveLocationShareScreenState();
 }
 
-class _LiveLocationShareScreenState extends State<LiveLocationShareScreen> with SingleTickerProviderStateMixin {
+class _LiveLocationShareScreenState extends State<LiveLocationShareScreen>
+    with SingleTickerProviderStateMixin {
   LatLng? currentLocation;
   String currentAddress = "Fetching address...";
   StreamSubscription<Position>? positionStream;
   bool isSharing = false;
-  bool _isBlinking = false; // State for the blinking indicator
+  bool _isBlinking = false;
   final MapController _mapController = MapController();
-
-  // Animation controller for the blinking effect
   late AnimationController _blinkController;
   Timer? _blinkTimer;
 
@@ -30,9 +34,10 @@ class _LiveLocationShareScreenState extends State<LiveLocationShareScreen> with 
     _blinkController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 500),
-    )..repeat(reverse: true); // Repeats the animation, reversing at the end
-    
+    )..repeat(reverse: true);
+
     _checkPermissionAndFetch();
+    _fetchSharingStatus(); // Fetch initial sharing status
   }
 
   @override
@@ -47,12 +52,9 @@ class _LiveLocationShareScreenState extends State<LiveLocationShareScreen> with 
 
   void _showSnackbar(String message, {Color color = Colors.black87}) {
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-          backgroundColor: color,
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message), backgroundColor: color));
     }
   }
 
@@ -68,6 +70,214 @@ class _LiveLocationShareScreenState extends State<LiveLocationShareScreen> with 
     }
   }
 
+  // --- Backend API Calls ---
+
+  Future<void> _fetchSharingStatus() async {
+    try {
+      final response = await http.get(
+        Uri.parse(
+          '${ApiConfig.baseUrl}/driver-locations/status?driverId=${widget.driverId}',
+        ),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      print('Status Endpoint Response Status: ${response.statusCode}');
+      print('Status Endpoint Response Body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        setState(() {
+          isSharing = data['shareStatus'] ?? false;
+        });
+        _showSnackbar(
+          isSharing ? 'Location sharing = on' : 'Location sharing = off',
+          color: isSharing ? Colors.green : Colors.grey,
+        );
+        if (isSharing) {
+          _startBlinkIndicator();
+        } else {
+          _stopBlinkIndicator();
+        }
+      } else {
+        _showSnackbar(
+          'Failed to fetch sharing status: ${response.statusCode}',
+          color: Colors.red.shade700,
+        );
+      }
+    } catch (e) {
+      print('Error fetching sharing status: $e');
+      _showSnackbar(
+        'Error fetching sharing status: $e',
+        color: Colors.red.shade700,
+      );
+    }
+  }
+
+  Future<void> _startSharing() async {
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/driver-locations/start-sharing'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'driverId': widget.driverId,
+          'latitude': currentLocation?.latitude,
+          'longitude': currentLocation?.longitude,
+          'address': currentAddress,
+        }),
+      );
+
+      print('Start Sharing Response Status: ${response.statusCode}');
+      print('Start Sharing Response Body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        setState(() => isSharing = data['shareStatus'] ?? true);
+        _showSnackbar('Location sharing = on', color: Colors.green);
+        _startBlinkIndicator();
+      } else {
+        final data = jsonDecode(response.body);
+        _showSnackbar(
+          data['message'] ?? 'Failed to start sharing',
+          color: Colors.red.shade700,
+        );
+      }
+    } catch (e) {
+      print('Error starting location sharing: $e');
+      _showSnackbar(
+        'Error starting location sharing: $e',
+        color: Colors.red.shade700,
+      );
+    }
+
+    if (isSharing) {
+      // Start location stream
+      const LocationSettings locationSettings = LocationSettings(
+        accuracy: LocationAccuracy.bestForNavigation,
+        distanceFilter: 0,
+      );
+
+      positionStream = Geolocator.getPositionStream(
+        locationSettings: locationSettings,
+      ).listen(
+        (Position position) async {
+          await _updateLocation(position);
+        },
+        onError: (e) {
+          print("Location Stream Error: $e");
+          _stopSharing();
+          _showSnackbar(
+            "Location stream failed. Sharing stopped.",
+            color: Colors.orange,
+          );
+        },
+      );
+    }
+  }
+
+  Future<void> _stopSharing() async {
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/driver-locations/stop-sharing'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'driverId': widget.driverId}),
+      );
+
+      print('Stop Sharing Response Status: ${response.statusCode}');
+      print('Stop Sharing Response Body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        setState(() => isSharing = data['shareStatus'] ?? false);
+        _showSnackbar('Location sharing = off', color: Colors.red);
+        _stopBlinkIndicator();
+        positionStream?.cancel();
+      } else {
+        final data = jsonDecode(response.body);
+        _showSnackbar(
+          data['message'] ?? 'Failed to stop sharing',
+          color: Colors.red.shade700,
+        );
+      }
+    } catch (e) {
+      print('Error stopping location sharing: $e');
+      _showSnackbar(
+        'Error stopping location sharing: $e',
+        color: Colors.red.shade700,
+      );
+    }
+  }
+
+  Future<void> _updateLocation(Position position) async {
+    if (!mounted) return;
+
+    setState(() {
+      currentLocation = LatLng(position.latitude, position.longitude);
+    });
+
+    _mapController.moveAndRotate(currentLocation!, 16.5, 0);
+
+    try {
+      List<Placemark> placemarks = await placemarkFromCoordinates(
+        position.latitude,
+        position.longitude,
+      );
+      Placemark place = placemarks.first;
+      setState(() {
+        String street = place.street ?? '';
+        String locality = place.locality ?? place.subLocality ?? '';
+        currentAddress =
+            "$street, $locality, ${place.administrativeArea ?? ''}";
+        currentAddress =
+            currentAddress.replaceAll(RegExp(r',\s*,*'), ', ').trim();
+        if (currentAddress.endsWith(',')) {
+          currentAddress = currentAddress.substring(
+            0,
+            currentAddress.length - 1,
+          );
+        }
+      });
+
+      // Send location update to backend
+      if (isSharing) {
+        final response = await http.post(
+          Uri.parse('${ApiConfig.baseUrl}/driver-locations/update-location'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'driverId': widget.driverId,
+            'latitude': position.latitude,
+            'longitude': position.longitude,
+            'address': currentAddress,
+          }),
+        );
+
+        print('Update Location Response Status: ${response.statusCode}');
+        print('Update Location Response Body: ${response.body}');
+
+        if (response.statusCode != 200) {
+          final data = jsonDecode(response.body);
+          _showSnackbar(
+            data['message'] ?? 'Failed to update location',
+            color: Colors.red.shade700,
+          );
+        } else {
+          print(
+            "✅ Update: Lat: ${position.latitude.toStringAsFixed(6)}, Lng: ${position.longitude.toStringAsFixed(6)} | Address: $currentAddress",
+          );
+        }
+      }
+    } catch (e) {
+      setState(() => currentAddress = "Unable to fetch address");
+    }
+
+    if (isSharing) {
+      _startBlinkIndicator();
+      _blinkTimer?.cancel();
+      _blinkTimer = Timer(const Duration(milliseconds: 150), () {
+        if (mounted) setState(() => _isBlinking = false);
+      });
+    }
+  }
+
   // --- Geolocation Methods ---
 
   Future<void> _checkPermissionAndFetch() async {
@@ -76,7 +286,10 @@ class _LiveLocationShareScreenState extends State<LiveLocationShareScreen> with 
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
       await Geolocator.openLocationSettings();
-      _showSnackbar('Location services are disabled!', color: Colors.red.shade700);
+      _showSnackbar(
+        'Location services are disabled!',
+        color: Colors.red.shade700,
+      );
       return;
     }
 
@@ -84,13 +297,19 @@ class _LiveLocationShareScreenState extends State<LiveLocationShareScreen> with 
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
-        _showSnackbar('Location permission denied!', color: Colors.red.shade700);
+        _showSnackbar(
+          'Location permission denied!',
+          color: Colors.red.shade700,
+        );
         return;
       }
     }
 
     if (permission == LocationPermission.deniedForever) {
-      _showSnackbar('Location permission permanently denied!', color: Colors.red.shade700);
+      _showSnackbar(
+        'Location permission permanently denied!',
+        color: Colors.red.shade700,
+      );
       return;
     }
 
@@ -100,88 +319,17 @@ class _LiveLocationShareScreenState extends State<LiveLocationShareScreen> with 
   Future<void> _getCurrentLocation() async {
     try {
       Position position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
       );
       _updateLocation(position);
     } catch (e) {
       print("Initial location error: $e");
-    }
-  }
-
-  void _startSharing() {
-    // Setting distanceFilter to 0 ensures we get updates for every movement,
-    // which is the closest we can get to a 1-second interval using the stream,
-    // as Geolocator relies on system events.
-    const LocationSettings locationSettings = LocationSettings(
-      accuracy: LocationAccuracy.bestForNavigation,
-      distanceFilter: 0, 
-    );
-
-    positionStream = Geolocator.getPositionStream(
-      locationSettings: locationSettings,
-    ).listen((Position position) async {
-      _updateLocation(position);
-      // Terminal output (safe print)
-      print("✅ Update: Lat: ${position.latitude.toStringAsFixed(6)}, Lng: ${position.longitude.toStringAsFixed(6)} | Address: $currentAddress");
-    }, onError: (e) {
-      print("Location Stream Error: $e");
-      _stopSharing();
-      _showSnackbar("Location stream failed. Sharing stopped.", color: Colors.orange);
-    });
-
-    setState(() => isSharing = true);
-    _startBlinkIndicator();
-    _showSnackbar('Live location sharing started! 🟢', color: Colors.green);
-  }
-
-  void _stopSharing() {
-    positionStream?.cancel();
-    setState(() => isSharing = false);
-    _stopBlinkIndicator();
-    _showSnackbar('Stopped sharing location. 🛑', color: Colors.red);
-  }
-
-  Future<void> _updateLocation(Position position) async {
-    if (!mounted) return;
-
-    setState(() {
-      currentLocation = LatLng(position.latitude, position.longitude);
-    });
-    
-    // Animate map to new location
-    _mapController.moveAndRotate(
-      currentLocation!,
-      16.5,
-      0,
-    );
-
-    // Reverse Geocoding
-    try {
-      List<Placemark> placemarks =
-          await placemarkFromCoordinates(position.latitude, position.longitude);
-      Placemark place = placemarks.first;
-      setState(() {
-        // Constructing a robust address string
-        String street = place.street ?? '';
-        String locality = place.locality ?? place.subLocality ?? '';
-        currentAddress = "$street, $locality, ${place.administrativeArea ?? ''}";
-        currentAddress = currentAddress.replaceAll(RegExp(r',\s*,*'), ', ').trim();
-        if (currentAddress.endsWith(',')) {
-          currentAddress = currentAddress.substring(0, currentAddress.length - 1);
-        }
-      });
-    } catch (e) {
-      setState(() => currentAddress = "Unable to fetch address");
-    }
-
-    // Toggle the blinking effect on every update (if sharing)
-    if (isSharing) {
-       _startBlinkIndicator();
-       // Use a short timer to briefly turn off the blink
-       _blinkTimer?.cancel();
-       _blinkTimer = Timer(const Duration(milliseconds: 150), () {
-         if (mounted) setState(() => _isBlinking = false);
-       });
+      _showSnackbar(
+        'Error fetching initial location: $e',
+        color: Colors.red.shade700,
+      );
     }
   }
 
@@ -196,25 +344,28 @@ class _LiveLocationShareScreenState extends State<LiveLocationShareScreen> with 
           height: 12,
           margin: const EdgeInsets.only(right: 8),
           decoration: BoxDecoration(
-            color: isSharing && _isBlinking
-                ? Colors.redAccent.withOpacity(0.5 + _blinkController.value * 0.5)
-                : Colors.grey.shade400,
+            color:
+                isSharing && _isBlinking
+                    ? Colors.redAccent.withOpacity(
+                      0.5 + _blinkController.value * 0.5,
+                    )
+                    : Colors.grey.shade400,
             shape: BoxShape.circle,
-            boxShadow: isSharing && _isBlinking
-                ? [
-                    BoxShadow(
-                      color: Colors.white,
-                      blurRadius: 5.0 * _blinkController.value,
-                      spreadRadius: 3.0 * _blinkController.value,
-                    ),
-                  ]
-                : null,
+            boxShadow:
+                isSharing && _isBlinking
+                    ? [
+                      BoxShadow(
+                        color: Colors.white,
+                        blurRadius: 5.0 * _blinkController.value,
+                        spreadRadius: 3.0 * _blinkController.value,
+                      ),
+                    ]
+                    : null,
           ),
         );
       },
     );
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -245,56 +396,55 @@ class _LiveLocationShareScreenState extends State<LiveLocationShareScreen> with 
         children: [
           currentLocation == null
               ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      CircularProgressIndicator(color: Colors.deepPurple.shade700),
-                      const SizedBox(height: 10),
-                      Text(currentAddress),
-                    ],
-                  ),
-                )
-              : FlutterMap(
-                  mapController: _mapController,
-                  options: MapOptions(
-                    initialCenter: currentLocation!,
-                    initialZoom: 15,
-                    interactionOptions: const InteractionOptions(
-                      flags: InteractiveFlag.pinchZoom | InteractiveFlag.drag,
-                    ),
-                  ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    TileLayer(
-                      urlTemplate: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-                      // FIX: Remove subdomains and add userAgent to comply with policy
-                      userAgentPackageName: 'com.example.live_location_share', 
+                    CircularProgressIndicator(
+                      color: Colors.deepPurple.shade700,
                     ),
-                    MarkerLayer(
-                      markers: [
-                        Marker(
-                          point: currentLocation!,
-                          width: 60,
-                          height: 60,
-                          child: Icon(
-                            // FIX: Changed icon to Bus Icon
-                            Icons.directions_bus, 
-                            color: Colors.yellow.shade800,
-                            size: 45,
-                            shadows: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.5),
-                                blurRadius: 4,
-                                offset: const Offset(1, 1),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
+                    const SizedBox(height: 10),
+                    Text(currentAddress),
                   ],
                 ),
-
-          // --- Bottom Info Card (Attractive UI) ---
+              )
+              : FlutterMap(
+                mapController: _mapController,
+                options: MapOptions(
+                  initialCenter: currentLocation!,
+                  initialZoom: 15,
+                  interactionOptions: const InteractionOptions(
+                    flags: InteractiveFlag.pinchZoom | InteractiveFlag.drag,
+                  ),
+                ),
+                children: [
+                  TileLayer(
+                    urlTemplate:
+                        "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+                    userAgentPackageName: 'com.example.live_location_share',
+                  ),
+                  MarkerLayer(
+                    markers: [
+                      Marker(
+                        point: currentLocation!,
+                        width: 60,
+                        height: 60,
+                        child: Icon(
+                          Icons.directions_bus,
+                          color: Colors.yellow.shade800,
+                          size: 45,
+                          shadows: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.5),
+                              blurRadius: 4,
+                              offset: const Offset(1, 1),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
           Align(
             alignment: Alignment.bottomCenter,
             child: Container(
@@ -332,9 +482,10 @@ class _LiveLocationShareScreenState extends State<LiveLocationShareScreen> with 
                   _buildInfoRow(
                     icon: Icons.alt_route,
                     title: "Coordinates",
-                    value: currentLocation == null
-                        ? "N/A"
-                        : "${currentLocation!.latitude.toStringAsFixed(6)}, ${currentLocation!.longitude.toStringAsFixed(6)}",
+                    value:
+                        currentLocation == null
+                            ? "N/A"
+                            : "${currentLocation!.latitude.toStringAsFixed(6)}, ${currentLocation!.longitude.toStringAsFixed(6)}",
                   ),
                   const SizedBox(height: 15),
                   Row(
@@ -363,7 +514,11 @@ class _LiveLocationShareScreenState extends State<LiveLocationShareScreen> with 
     );
   }
 
-  Widget _buildInfoRow({required IconData icon, required String title, required String value}) {
+  Widget _buildInfoRow({
+    required IconData icon,
+    required String title,
+    required String value,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: Row(
@@ -400,7 +555,7 @@ class _LiveLocationShareScreenState extends State<LiveLocationShareScreen> with 
       ),
     );
   }
-  
+
   Widget _buildActionButton({
     required IconData icon,
     required String label,

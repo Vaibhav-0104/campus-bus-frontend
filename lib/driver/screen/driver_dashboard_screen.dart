@@ -242,12 +242,13 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
               "View Attendance",
               ViewAttendanceScreen(driverId: widget.driverId),
             ),
-            // --- NEW ITEM ADDED BELOW ---
             _buildDrawerItem(
               context,
-              Icons.location_on, // Changed icon to location
-              "Live Location", // New name
-              LiveLocationShareScreen(), // New screen widget
+              Icons.location_on,
+              "Live Location",
+              LiveLocationShareScreen(
+                driverId: widget.driverId,
+              ), // Fixed: Added driverId
             ),
             const Divider(color: Colors.white54, thickness: 1),
             ListTile(
