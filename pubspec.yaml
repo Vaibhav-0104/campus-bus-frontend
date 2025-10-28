@@ -39,7 +39,6 @@ dependencies:
   latlong2:
 
 
-
 dev_dependencies:
   flutter_test:
     sdk: flutter

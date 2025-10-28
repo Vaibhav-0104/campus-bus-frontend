@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:ui';
+import 'dart:developer' as developer;
 
 /// Configuration class for contact information
 class ContactConfig {
@@ -13,19 +15,20 @@ class ContactConfig {
 
 /// Theme-related constants
 class AppTheme {
-  static const Color primaryColor = Colors.blue;
-  static const Color backgroundColor = Color(
-    0xFF0D47A1,
-  ); // Deep blue (Colors.blue[900])
-  static const Color accentColor = Colors.lightBlueAccent;
+  static const Color primaryColor = Color(0xFF1E88E5); // Bright Blue
+  static const Color backgroundColor = Color(0xFF0C1337); // Very Dark Blue
+  static const Color accentColor = Color(0xFF80D8FF); // Light Cyan/Blue Accent
   static const Color successColor = Colors.green;
   static const Color pendingColor = Colors.orange;
-  static const Color absentColor = Colors.redAccent;
+  static const Color absentColor = Color(0xFFFF5252); // Red for absences
   static const Color cardBackground = Color(
-    0xFF1E2A44,
-  ); // Darker blue for cards
+    0xFF16204C,
+  ); // Darker Blue for cards
+  static const Color iconColor1 = Color(0xFF69F0AE); // Green for icons
+  static const Color iconColor2 = Color(0xFFFFC107); // Amber for icons
+  static const Color iconColor3 = Color(0xFFFF5252); // Red for icons
   static const double cardBorderRadius = 20.0;
-  static const double blurSigma = 10.0;
+  static const double blurSigma = 12.0; // Aligned with other screens
   static const double cardPadding = 16.0;
   static const double spacing = 16.0;
   static const double elevation = 8.0;
@@ -36,6 +39,8 @@ class AppTheme {
 class ContactCard extends StatelessWidget {
   final String title;
   final String phone;
+  final IconData icon;
+  final Color iconColor;
   final VoidCallback onCall;
   final VoidCallback onChat;
 
@@ -43,6 +48,8 @@ class ContactCard extends StatelessWidget {
     super.key,
     required this.title,
     required this.phone,
+    required this.icon,
+    required this.iconColor,
     required this.onCall,
     required this.onChat,
   });
@@ -50,7 +57,7 @@ class ContactCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
+      duration: const Duration(milliseconds: 300),
       curve: Curves.easeInOut,
       margin: const EdgeInsets.symmetric(vertical: AppTheme.spacing / 2),
       decoration: BoxDecoration(
@@ -58,12 +65,12 @@ class ContactCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppTheme.cardBorderRadius),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.2),
+            color: Colors.black.withValues(alpha: 0.2),
             offset: const Offset(4, 4),
             blurRadius: AppTheme.blurSigma,
           ),
           BoxShadow(
-            color: Colors.white.withOpacity(0.05),
+            color: Colors.white.withValues(alpha: 0.05),
             offset: const Offset(-4, -4),
             blurRadius: AppTheme.blurSigma,
           ),
@@ -79,29 +86,47 @@ class ContactCard extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.all(AppTheme.cardPadding),
             decoration: BoxDecoration(
-              color: Colors.white.withAlpha(26), // 0.1 * 255 = 26
+              color: Colors.white.withValues(alpha: 0.102), // 26/255
               border: Border.all(
-                color: Colors.white.withAlpha(76),
+                color: Colors.white.withValues(alpha: 0.298), // 76/255
                 width: 1.5,
-              ), // 0.3 * 255 = 76
+              ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                  ),
+                Row(
+                  children: [
+                    Icon(icon, color: iconColor, size: AppTheme.iconSize),
+                    const SizedBox(width: AppTheme.spacing / 2),
+                    Text(
+                      title,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: AppTheme.spacing / 2),
-                Text(
-                  'Phone: $phone',
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: Colors.white.withAlpha(204), // 0.8 * 255 = 204
-                    fontSize: 16,
+                GestureDetector(
+                  onTap: () {
+                    Clipboard.setData(ClipboardData(text: phone));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: const Text('Phone number copied to clipboard'),
+                        backgroundColor: AppTheme.accentColor,
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  },
+                  child: Text(
+                    'Phone: $phone',
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      color: Colors.white.withValues(alpha: 0.8), // 204/255
+                      fontSize: 16,
+                    ),
                   ),
                 ),
                 const SizedBox(height: AppTheme.spacing),
@@ -111,7 +136,7 @@ class ContactCard extends StatelessWidget {
                     IconButton(
                       icon: Icon(
                         Icons.phone,
-                        color: AppTheme.successColor,
+                        color: AppTheme.iconColor1,
                         size: AppTheme.iconSize,
                       ),
                       onPressed: onCall,
@@ -146,47 +171,124 @@ class ContactSupportScreen extends StatefulWidget {
 }
 
 class _ContactSupportScreenState extends State<ContactSupportScreen> {
+  /// Shows confirmation dialog before launching action
+  Future<bool> _showConfirmationDialog(String action, String phone) async {
+    return await showDialog<bool>(
+          context: context,
+          builder:
+              (context) => AlertDialog(
+                backgroundColor: AppTheme.cardBackground,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(
+                    AppTheme.cardBorderRadius,
+                  ),
+                ),
+                title: Text(
+                  'Confirm $action',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                content: Text(
+                  'Do you want to $action $phone?',
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: Colors.white.withValues(alpha: 0.8),
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(false),
+                    child: Text(
+                      'Cancel',
+                      style: TextStyle(color: AppTheme.absentColor),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(true),
+                    child: Text(
+                      'Confirm',
+                      style: TextStyle(color: AppTheme.accentColor),
+                    ),
+                  ),
+                ],
+              ),
+        ) ??
+        false;
+  }
+
   /// Launches phone call with error handling
   Future<void> _launchPhone(String phoneNumber) async {
+    if (!await _showConfirmationDialog('call', phoneNumber)) return;
+
     final Uri phoneUri = Uri(scheme: 'tel', path: phoneNumber);
     try {
       if (await canLaunchUrl(phoneUri)) {
         await launchUrl(phoneUri);
-      } else if (mounted) {
-        _showErrorSnackBar('Could not launch phone call');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Initiated call to $phoneNumber'),
+              backgroundColor: AppTheme.accentColor,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      } else {
+        throw 'Could not launch phone call';
       }
     } catch (e) {
+      developer.log(
+        'Error launching phone call to $phoneNumber: $e',
+        name: 'ContactSupportScreen',
+      );
       if (mounted) {
-        _showErrorSnackBar('Error launching phone call: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error launching phone call: $e'),
+            backgroundColor: AppTheme.absentColor,
+            duration: const Duration(seconds: 3),
+          ),
+        );
       }
     }
   }
 
   /// Launches SMS chat with error handling
   Future<void> _launchChat(String phoneNumber) async {
+    if (!await _showConfirmationDialog('message', phoneNumber)) return;
+
     final Uri chatUri = Uri(scheme: 'sms', path: phoneNumber);
     try {
       if (await canLaunchUrl(chatUri)) {
         await launchUrl(chatUri);
-      } else if (mounted) {
-        _showErrorSnackBar('Could not launch chat');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Opened chat with $phoneNumber'),
+              backgroundColor: AppTheme.accentColor,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      } else {
+        throw 'Could not launch chat';
       }
     } catch (e) {
+      developer.log(
+        'Error launching chat with $phoneNumber: $e',
+        name: 'ContactSupportScreen',
+      );
       if (mounted) {
-        _showErrorSnackBar('Error launching chat: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error launching chat: $e'),
+            backgroundColor: AppTheme.absentColor,
+            duration: const Duration(seconds: 3),
+          ),
+        );
       }
     }
-  }
-
-  /// Shows error message in SnackBar
-  void _showErrorSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: AppTheme.absentColor,
-        duration: const Duration(seconds: 3),
-      ),
-    );
   }
 
   @override
@@ -194,10 +296,11 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> {
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: const Text(ContactConfig.screenTitle),
-        backgroundColor: AppTheme.backgroundColor.withAlpha(
-          76,
-        ), // 0.3 * 255 = 76
+        title: const Text(
+          ContactConfig.screenTitle,
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: AppTheme.backgroundColor.withValues(alpha: 0.3),
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
         flexibleSpace: ClipRect(
@@ -213,7 +316,7 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> {
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        color: AppTheme.backgroundColor, // Solid deep blue background
+        color: AppTheme.backgroundColor,
         child: SafeArea(
           child: Padding(
             padding: const EdgeInsets.all(AppTheme.cardPadding),
@@ -228,15 +331,23 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> {
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
-                        colors: [AppTheme.backgroundColor, Colors.blue[600]!],
+                        colors: [
+                          AppTheme.backgroundColor,
+                          AppTheme.primaryColor,
+                        ],
                       ),
                       borderRadius: BorderRadius.circular(
                         AppTheme.cardBorderRadius,
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
+                          color: Colors.black.withValues(alpha: 0.2),
                           offset: const Offset(4, 4),
+                          blurRadius: AppTheme.blurSigma,
+                        ),
+                        BoxShadow(
+                          color: Colors.white.withValues(alpha: 0.05),
+                          offset: const Offset(-4, -4),
                           blurRadius: AppTheme.blurSigma,
                         ),
                       ],
@@ -257,6 +368,8 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> {
                   ContactCard(
                     title: 'Transport Admin',
                     phone: ContactConfig.transportAdminPhone,
+                    icon: Icons.admin_panel_settings,
+                    iconColor: AppTheme.iconColor2, // Amber for admin
                     onCall:
                         () => _launchPhone(ContactConfig.transportAdminPhone),
                     onChat:
@@ -265,27 +378,33 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> {
                   ContactCard(
                     title: 'Bus Driver',
                     phone: ContactConfig.busDriverPhone,
+                    icon: Icons.directions_bus,
+                    iconColor: AppTheme.iconColor1, // Green for driver
                     onCall: () => _launchPhone(ContactConfig.busDriverPhone),
                     onChat: () => _launchChat(ContactConfig.busDriverPhone),
                   ),
                   const SizedBox(height: AppTheme.spacing * 1.5),
                   // Emergency Contact Button
                   AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
+                    duration: const Duration(milliseconds: 300),
                     curve: Curves.easeInOut,
                     decoration: BoxDecoration(
-                      color: AppTheme.absentColor,
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [AppTheme.absentColor, AppTheme.iconColor3],
+                      ),
                       borderRadius: BorderRadius.circular(
                         AppTheme.cardBorderRadius,
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
+                          color: Colors.black.withValues(alpha: 0.2),
                           offset: const Offset(4, 4),
                           blurRadius: AppTheme.blurSigma,
                         ),
                         BoxShadow(
-                          color: Colors.white.withOpacity(0.05),
+                          color: Colors.white.withValues(alpha: 0.05),
                           offset: const Offset(-4, -4),
                           blurRadius: AppTheme.blurSigma,
                         ),

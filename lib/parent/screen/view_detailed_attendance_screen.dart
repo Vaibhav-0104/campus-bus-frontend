@@ -2,25 +2,29 @@ import 'package:flutter/material.dart';
 import 'dart:ui';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:developer' as developer;
 import 'child_summary_screen.dart'; // Import to use ChildSummaryConfig
 import 'package:campus_bus_management/config/api_config.dart';
 
 /// Theme-related constants
 class AppTheme {
-  static const Color primaryColor = Colors.blue;
-  static const Color backgroundColor = Color(0xFF0D47A1); // Deep blue
-  static const Color accentColor = Colors.lightBlueAccent;
+  static const Color primaryColor = Color(0xFF1E88E5); // Bright Blue
+  static const Color backgroundColor = Color(0xFF0C1337); // Very Dark Blue
+  static const Color accentColor = Color(0xFF80D8FF); // Light Cyan/Blue Accent
   static const Color successColor = Colors.green;
-  static const Color absentColor = Colors.redAccent;
+  static const Color absentColor = Color(0xFFFF5252); // Red for absences
   static const Color cardBackground = Color(
-    0xFF1E2A44,
-  ); // Darker blue for cards
+    0xFF16204C,
+  ); // Darker Blue for cards
+  static const Color iconColor1 = Color(0xFF69F0AE); // Green for icons
+  static const Color iconColor2 = Color(0xFFFFC107); // Amber for icons
+  static const Color iconColor3 = Color(0xFFFF5252); // Red for icons
   static const double cardBorderRadius = 20.0;
-  static const double blurSigma = 10.0;
+  static const double blurSigma = 12.0; // Slightly increased for smoother blur
   static const double cardPadding = 16.0;
   static const double spacing = 16.0;
   static const double iconSize = 28.0;
-  static const double avatarRadius = 24.0; // Added for CircleAvatar
+  static const double avatarRadius = 30.0; // Increased for better visibility
 }
 
 /// Configuration class for attendance details
@@ -28,7 +32,7 @@ class AttendanceConfig {
   static const String screenTitle = 'Detailed Attendance';
   static const List<String> filterOptions = [
     'Last 7 Days',
-    'Last 30 Days',
+    'Last 15 Days',
     'This Month',
   ];
 }
@@ -50,9 +54,18 @@ class AttendanceCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isPresent = status == 'Present';
     return GestureDetector(
-      onTap: () {}, // Placeholder for future interactivity
+      onTap: () {
+        // Placeholder for future interactivity (e.g., show detailed trip info)
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Tapped on $date: $status'),
+            backgroundColor: AppTheme.accentColor,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      },
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
+        duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
         margin: const EdgeInsets.symmetric(vertical: AppTheme.spacing / 2),
         decoration: BoxDecoration(
@@ -135,6 +148,11 @@ class AttendanceCard extends StatelessWidget {
                         ),
                       ],
                     ),
+                  ),
+                  Icon(
+                    Icons.arrow_forward_ios,
+                    color: AppTheme.iconColor1,
+                    size: AppTheme.iconSize / 1.5,
                   ),
                 ],
               ),
@@ -229,15 +247,20 @@ class _ViewDetailedAttendanceScreenState
             return;
           }
 
-          // Log raw response for debugging
-          print('API Response for $dateStr: ${response.body}');
+          developer.log(
+            'API Response for $dateStr: ${response.body}',
+            name: 'ViewDetailedAttendanceScreen',
+          );
 
           if (response.statusCode == 200) {
             var rawData;
             try {
               rawData = jsonDecode(response.body);
             } catch (e) {
-              print('JSON Decode Error for $dateStr: $e');
+              developer.log(
+                'JSON Decode Error for $dateStr: $e',
+                name: 'ViewDetailedAttendanceScreen',
+              );
               attendanceData.add({
                 'date': dateStr,
                 'status': 'Absent',
@@ -255,10 +278,11 @@ class _ViewDetailedAttendanceScreenState
 
               if (record != null) {
                 attendanceData.add({
-                  'date':
-                      dateStr, // Use requested date since response doesn't include it
+                  'date': dateStr,
                   'status': record['status']?.toString() ?? 'Absent',
-                  'time': '-', // Time not provided by backend
+                  'time':
+                      record['time']?.toString() ??
+                      '-', // Handle time if provided
                 });
               } else {
                 attendanceData.add({
@@ -268,7 +292,10 @@ class _ViewDetailedAttendanceScreenState
                 });
               }
             } else {
-              print('Invalid response format for $dateStr: $rawData');
+              developer.log(
+                'Invalid response format for $dateStr: $rawData',
+                name: 'ViewDetailedAttendanceScreen',
+              );
               attendanceData.add({
                 'date': dateStr,
                 'status': 'Absent',
@@ -276,7 +303,10 @@ class _ViewDetailedAttendanceScreenState
               });
             }
           } else {
-            print('API Error for $dateStr: Status ${response.statusCode}');
+            developer.log(
+              'API Error for $dateStr: Status ${response.statusCode}',
+              name: 'ViewDetailedAttendanceScreen',
+            );
             attendanceData.add({
               'date': dateStr,
               'status': 'Absent',
@@ -284,7 +314,10 @@ class _ViewDetailedAttendanceScreenState
             });
           }
         } catch (e) {
-          print('Request Error for $dateStr: $e');
+          developer.log(
+            'Request Error for $dateStr: $e',
+            name: 'ViewDetailedAttendanceScreen',
+          );
           attendanceData.add({
             'date': dateStr,
             'status': 'Absent',
@@ -307,9 +340,13 @@ class _ViewDetailedAttendanceScreenState
         client.close();
         return;
       }
+      developer.log(
+        'Exception in _fetchAttendanceData: $e',
+        name: 'ViewDetailedAttendanceScreen',
+      );
       setState(() {
         _isLoading = false;
-        _errorMessage = 'Failed to load data: $e';
+        _errorMessage = 'Failed to load attendance data: $e';
       });
     } finally {
       client.close();
@@ -321,10 +358,11 @@ class _ViewDetailedAttendanceScreenState
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: const Text(AttendanceConfig.screenTitle),
-        backgroundColor: AppTheme.backgroundColor.withValues(
-          alpha: 0.3,
-        ), // 76/255
+        title: const Text(
+          AttendanceConfig.screenTitle,
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: AppTheme.backgroundColor.withValues(alpha: 0.3),
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
         flexibleSpace: ClipRect(
@@ -336,6 +374,17 @@ class _ViewDetailedAttendanceScreenState
             child: Container(color: Colors.transparent),
           ),
         ),
+        actions: [
+          IconButton(
+            icon: Icon(
+              Icons.refresh,
+              color: AppTheme.iconColor1,
+              size: AppTheme.iconSize,
+            ),
+            onPressed: _fetchAttendanceData,
+            tooltip: 'Refresh Data',
+          ),
+        ],
       ),
       body: Container(
         width: double.infinity,
@@ -355,7 +404,10 @@ class _ViewDetailedAttendanceScreenState
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
-                        colors: [AppTheme.backgroundColor, Colors.blue[600]!],
+                        colors: [
+                          AppTheme.backgroundColor,
+                          AppTheme.primaryColor,
+                        ],
                       ),
                       borderRadius: BorderRadius.circular(
                         AppTheme.cardBorderRadius,
@@ -375,11 +427,11 @@ class _ViewDetailedAttendanceScreenState
                           backgroundColor: AppTheme.accentColor,
                           child: Text(
                             widget.childName.isNotEmpty
-                                ? widget.childName[0]
+                                ? widget.childName[0].toUpperCase()
                                 : 'N/A',
                             style: const TextStyle(
                               color: Colors.white,
-                              fontSize: 24,
+                              fontSize: 28,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -399,38 +451,57 @@ class _ViewDetailedAttendanceScreenState
                                   fontSize: 20,
                                 ),
                               ),
-                              const SizedBox(height: AppTheme.spacing / 4),
-                              DropdownButton<String>(
-                                value: _selectedFilter,
-                                dropdownColor: AppTheme.cardBackground,
-                                icon: const Icon(
-                                  Icons.arrow_drop_down,
-                                  color: Colors.white,
+                              const SizedBox(height: AppTheme.spacing / 2),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: AppTheme.cardPadding,
+                                  vertical: AppTheme.spacing / 4,
                                 ),
-                                style: Theme.of(
-                                  context,
-                                ).textTheme.bodyLarge?.copyWith(
-                                  color: Colors.white,
-                                  fontSize: 16,
+                                decoration: BoxDecoration(
+                                  color: AppTheme.cardBackground,
+                                  borderRadius: BorderRadius.circular(
+                                    AppTheme.cardBorderRadius / 2,
+                                  ),
+                                  border: Border.all(
+                                    color: Colors.white.withValues(
+                                      alpha: 0.298,
+                                    ),
+                                    width: 1.0,
+                                  ),
                                 ),
-                                underline: Container(),
-                                items:
-                                    AttendanceConfig.filterOptions
-                                        .map(
-                                          (option) => DropdownMenuItem(
-                                            value: option,
-                                            child: Text(option),
-                                          ),
-                                        )
-                                        .toList(),
-                                onChanged: (value) {
-                                  if (value != null && mounted) {
-                                    setState(() {
-                                      _selectedFilter = value;
-                                    });
-                                    _fetchAttendanceData();
-                                  }
-                                },
+                                child: DropdownButton<String>(
+                                  value: _selectedFilter,
+                                  isExpanded: true,
+                                  dropdownColor: AppTheme.cardBackground,
+                                  icon: Icon(
+                                    Icons.arrow_drop_down,
+                                    color: AppTheme.iconColor1,
+                                  ),
+                                  style: Theme.of(
+                                    context,
+                                  ).textTheme.bodyLarge?.copyWith(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                  ),
+                                  underline: const SizedBox(),
+                                  items:
+                                      AttendanceConfig.filterOptions
+                                          .map(
+                                            (option) => DropdownMenuItem(
+                                              value: option,
+                                              child: Text(option),
+                                            ),
+                                          )
+                                          .toList(),
+                                  onChanged: (value) {
+                                    if (value != null && mounted) {
+                                      setState(() {
+                                        _selectedFilter = value;
+                                      });
+                                      _fetchAttendanceData();
+                                    }
+                                  },
+                                ),
                               ),
                             ],
                           ),
@@ -439,7 +510,7 @@ class _ViewDetailedAttendanceScreenState
                     ),
                   ),
                   const SizedBox(height: AppTheme.spacing * 1.5),
-                  // Loading or Error State
+                  // Loading, Error, or Empty State
                   if (_isLoading)
                     Center(
                       child: Container(
@@ -451,8 +522,8 @@ class _ViewDetailedAttendanceScreenState
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.1),
-                              offset: const Offset(2, 2),
+                              color: Colors.black.withValues(alpha: 0.2),
+                              offset: const Offset(4, 4),
                               blurRadius: AppTheme.blurSigma,
                             ),
                           ],
@@ -474,6 +545,7 @@ class _ViewDetailedAttendanceScreenState
                             ).textTheme.bodyLarge?.copyWith(
                               color: Colors.white.withValues(alpha: 0.8),
                               fontSize: 16,
+                              height: 1.5,
                             ),
                             textAlign: TextAlign.center,
                           ),
@@ -484,23 +556,70 @@ class _ViewDetailedAttendanceScreenState
                               backgroundColor: AppTheme.accentColor,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(
-                                  AppTheme.cardBorderRadius,
+                                  AppTheme.cardBorderRadius / 2,
                                 ),
                               ),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: AppTheme.cardPadding * 2,
+                                vertical: AppTheme.spacing,
+                              ),
                             ),
-                            child: const Text('Retry'),
+                            child: Text(
+                              'Retry',
+                              style: Theme.of(
+                                context,
+                              ).textTheme.bodyLarge?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                           ),
                         ],
                       ),
                     )
+                  else if (_attendanceData.isEmpty)
+                    Center(
+                      child: Container(
+                        padding: const EdgeInsets.all(AppTheme.cardPadding),
+                        decoration: BoxDecoration(
+                          color: AppTheme.cardBackground,
+                          borderRadius: BorderRadius.circular(
+                            AppTheme.cardBorderRadius,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.2),
+                              offset: const Offset(4, 4),
+                              blurRadius: AppTheme.blurSigma,
+                            ),
+                          ],
+                        ),
+                        child: Text(
+                          'No attendance records found for the selected period.',
+                          style: Theme.of(
+                            context,
+                          ).textTheme.bodyLarge?.copyWith(
+                            color: Colors.white.withValues(alpha: 0.8),
+                            fontSize: 16,
+                            height: 1.5,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    )
                   else
                     // Attendance Records
-                    ..._attendanceData.map(
-                      (record) => AttendanceCard(
-                        date: record['date'] as String,
-                        status: record['status'] as String,
-                        time: record['time'] as String,
-                      ),
+                    Column(
+                      children:
+                          _attendanceData
+                              .map(
+                                (record) => AttendanceCard(
+                                  date: record['date'] as String,
+                                  status: record['status'] as String,
+                                  time: record['time'] as String,
+                                ),
+                              )
+                              .toList(),
                     ),
                 ],
               ),

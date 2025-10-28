@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'dart:ui';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+// NOTE: Assuming ApiConfig is defined elsewhere in the user's environment.
 import 'package:campus_bus_management/config/api_config.dart';
 import 'package:intl/intl.dart';
-//import 'package:flutter/foundation' show debugPrint;
 
 /// Configuration class for notifications
 class NotificationsConfig {
@@ -12,38 +12,47 @@ class NotificationsConfig {
   static const String headerTitle = 'Notifications';
 }
 
-/// Theme-related constants
+/// Theme-related constants updated with the user's dark theme palette
 class AppTheme {
-  static const Color primaryColor = Colors.blue;
-  static const Color backgroundColor = Color(0xFF0D47A1); // Deep blue
-  static const Color accentColor = Colors.lightBlueAccent;
-  static const Color successColor = Colors.green;
-  static const Color pendingColor = Colors.orange;
-  static const Color absentColor = Colors.redAccent;
+  static const Color primaryColor = Color(0xFF1E88E5); // Bright Blue
+  static const Color backgroundColor = Color(0xFF0C1337); // Very Dark Blue
+  static const Color accentColor = Color(0xFF80D8FF); // Light Cyan/Blue Accent
   static const Color cardBackground = Color(
-    0xFF1E2A44,
-  ); // Darker blue for cards
+    0xFF16204C,
+  ); // Darker Blue for cards
+
+  // New specific icon colors for visual importance
+  static const Color iconColor1 = Color(
+    0xFF69F0AE,
+  ); // Bright Green (General/Info)
+  static const Color iconColor2 = Color(0xFFFFC107); // Amber (Warning/Schedule)
+  static const Color iconColor3 = Color(
+    0xFFFF5252,
+  ); // Red Accent (Emergency/Critical)
+
+  // Using the Red Accent color for the dismiss background
+  static const Color dismissColor = iconColor3;
+
   static const double cardBorderRadius = 20.0;
   static const double blurSigma = 10.0;
   static const double cardPadding = 16.0;
   static const double spacing = 16.0;
-  static const double elevation = 8.0;
   static const double iconSize = 28.0;
 }
 
 /// Reusable notification card widget
 class NotificationCard extends StatelessWidget {
   final Map<String, dynamic> notification;
-  final VoidCallback onMarkRead;
+  // onMarkRead removed as per request
   final VoidCallback onDismiss;
 
   const NotificationCard({
     super.key,
     required this.notification,
-    required this.onMarkRead,
     required this.onDismiss,
   });
 
+  /// Determines the icon based on notification type
   IconData _getNotificationIcon(String type) {
     switch (type.toLowerCase()) {
       case 'pickup':
@@ -64,19 +73,41 @@ class NotificationCard extends StatelessWidget {
     }
   }
 
+  /// Determines the icon color based on notification type for visual distinction
+  Color _getNotificationColor(String type) {
+    switch (type.toLowerCase()) {
+      case 'emergency':
+      case 'delay':
+        return AppTheme.iconColor3; // Red for critical/urgent
+      case 'pickup':
+      case 'drop':
+      case 'route change':
+        return AppTheme.iconColor2; // Amber for schedule/route info
+      case 'holiday':
+      case 'general info':
+      default:
+        return AppTheme.iconColor1; // Green for general info
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final isRead = notification['read'] as bool? ?? false;
+    final notificationType = notification['type'] as String? ?? 'default';
+    final iconColor = _getNotificationColor(notificationType);
+    final iconData = _getNotificationIcon(notificationType);
+
     return Dismissible(
       key: Key(
         notification['_id']?.toString() ??
             'notification_${UniqueKey().toString()}',
       ),
+      direction: DismissDirection.endToStart,
       background: Container(
-        color: AppTheme.absentColor,
+        // Use the new red color for the dismiss background
+        color: AppTheme.dismissColor.withOpacity(0.8),
         alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: AppTheme.cardPadding),
-        child: const Icon(Icons.delete, color: Colors.white),
+        padding: const EdgeInsets.only(right: AppTheme.cardPadding * 1.5),
+        child: const Icon(Icons.delete_forever, color: Colors.white),
       ),
       onDismissed: (direction) => onDismiss(),
       child: AnimatedContainer(
@@ -84,17 +115,12 @@ class NotificationCard extends StatelessWidget {
         curve: Curves.easeInOut,
         margin: const EdgeInsets.symmetric(vertical: AppTheme.spacing / 2),
         decoration: BoxDecoration(
-          color: AppTheme.cardBackground,
+          color: AppTheme.cardBackground.withOpacity(0.8),
           borderRadius: BorderRadius.circular(AppTheme.cardBorderRadius),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.2),
+              color: Colors.black.withOpacity(0.4),
               offset: const Offset(4, 4),
-              blurRadius: AppTheme.blurSigma,
-            ),
-            BoxShadow(
-              color: Colors.white.withOpacity(0.05),
-              offset: const Offset(-4, -4),
               blurRadius: AppTheme.blurSigma,
             ),
           ],
@@ -102,25 +128,35 @@ class NotificationCard extends StatelessWidget {
         child: ClipRRect(
           borderRadius: BorderRadius.circular(AppTheme.cardBorderRadius),
           child: BackdropFilter(
+            // Reduced blur to keep the card content clear on a dark background
             filter: ImageFilter.blur(
-              sigmaX: AppTheme.blurSigma,
-              sigmaY: AppTheme.blurSigma,
+              sigmaX: AppTheme.blurSigma / 2,
+              sigmaY: AppTheme.blurSigma / 2,
             ),
             child: Container(
               padding: const EdgeInsets.all(AppTheme.cardPadding),
               decoration: BoxDecoration(
-                color: Colors.white.withAlpha(26),
+                // Use a subtle accent-colored border for the glass effect
+                color: AppTheme.accentColor.withAlpha(20),
                 border: Border.all(
-                  color: Colors.white.withAlpha(76),
-                  width: 1.5,
+                  color: AppTheme.accentColor.withAlpha(50),
+                  width: 1.0,
                 ),
               ),
               child: Row(
                 children: [
-                  Icon(
-                    _getNotificationIcon(notification['type'] as String),
-                    color: AppTheme.accentColor,
-                    size: AppTheme.iconSize,
+                  // Icon container with colored background
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: iconColor.withOpacity(0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      iconData,
+                      color: iconColor,
+                      size: AppTheme.iconSize - 4,
+                    ),
                   ),
                   const SizedBox(width: AppTheme.spacing),
                   Expanded(
@@ -133,11 +169,11 @@ class NotificationCard extends StatelessWidget {
                             context,
                           ).textTheme.titleLarge?.copyWith(
                             color: Colors.white,
-                            fontWeight:
-                                isRead ? FontWeight.normal : FontWeight.bold,
-                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 17,
                           ),
                         ),
+                        const SizedBox(height: 4),
                         Text(
                           DateFormat('MMM dd, hh:mm a').format(
                             DateTime.tryParse(
@@ -153,26 +189,8 @@ class NotificationCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  const SizedBox(width: AppTheme.spacing),
-                  Container(
-                    width: 10,
-                    height: 10,
-                    decoration: BoxDecoration(
-                      color:
-                          isRead
-                              ? AppTheme.successColor
-                              : AppTheme.pendingColor,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  IconButton(
-                    icon: Icon(
-                      isRead ? Icons.check : Icons.mark_email_read,
-                      color: Colors.white,
-                      size: AppTheme.iconSize,
-                    ),
-                    onPressed: onMarkRead,
-                  ),
+                  // Removed colored status indicator (read/pending dot)
+                  // Removed Mark Read IconButton
                 ],
               ),
             ),
@@ -202,6 +220,7 @@ class _RecentNotificationsScreenState extends State<RecentNotificationsScreen> {
     _fetchNotifications();
   }
 
+  // NOTE: This method remains conceptually the same, as requested.
   Future<void> _fetchNotifications() async {
     setState(() {
       _isLoading = true;
@@ -225,19 +244,11 @@ class _RecentNotificationsScreenState extends State<RecentNotificationsScreen> {
                           )
                           : {
                             'message': 'Invalid notification data',
-                            'read': false,
+                            'type': 'Error',
+                            'date': DateTime.now().toIso8601String(),
                           };
                     })
                     .cast<Map<String, dynamic>>()
-                    .toList()
-                    .map((item) {
-                      return {
-                        ...item,
-                        'read':
-                            item['read'] ??
-                            false, // Default to false if not present
-                      };
-                    })
                     .toList();
             _isLoading = false;
           });
@@ -253,25 +264,16 @@ class _RecentNotificationsScreenState extends State<RecentNotificationsScreen> {
       setState(() {
         _isLoading = false;
       });
+      // In a real app, use a less intrusive error reporting mechanism
+      // or a custom dialog instead of SnackBar.
+      // Keeping SnackBar since it was used in the original logic.
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Error loading notifications: $e")),
       );
     }
   }
 
-  void _markAllRead() {
-    setState(() {
-      for (var notification in _notifications) {
-        notification['read'] = true;
-      }
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('All notifications marked as read'),
-        duration: Duration(seconds: 2),
-      ),
-    );
-  }
+  // Removed _markAllRead() method as per request
 
   void _clearAllNotifications() {
     setState(() {
@@ -289,27 +291,28 @@ class _RecentNotificationsScreenState extends State<RecentNotificationsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       extendBodyBehindAppBar: true,
+      backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
-        title: const Text(NotificationsConfig.screenTitle),
-        backgroundColor: AppTheme.backgroundColor.withAlpha(76),
+        title: Text(
+          NotificationsConfig.screenTitle,
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        // Use primaryColor for the AppBar background (subtle difference from main background)
+        backgroundColor: const Color(0xFF0C1337).withOpacity(0.8),
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
         flexibleSpace: ClipRect(
           child: BackdropFilter(
+            // Apply blur to AppBar for a glass effect
             filter: ImageFilter.blur(
-              sigmaX: AppTheme.blurSigma,
-              sigmaY: AppTheme.blurSigma,
+              sigmaX: AppTheme.blurSigma / 2,
+              sigmaY: AppTheme.blurSigma / 2,
             ),
             child: Container(color: Colors.transparent),
           ),
         ),
         actions: [
-          if (_notifications.isNotEmpty)
-            IconButton(
-              icon: const Icon(Icons.done_all, color: Colors.white),
-              tooltip: 'Mark All Read',
-              onPressed: _markAllRead,
-            ),
+          // Removed Mark All Read button
           if (_notifications.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.delete_sweep, color: Colors.white),
@@ -327,17 +330,32 @@ class _RecentNotificationsScreenState extends State<RecentNotificationsScreen> {
             padding: const EdgeInsets.all(AppTheme.cardPadding),
             child:
                 _isLoading
-                    ? const Center(
-                      child: CircularProgressIndicator(color: Colors.white),
+                    ? Center(
+                      child: CircularProgressIndicator(
+                        color: AppTheme.accentColor,
+                      ),
                     )
                     : _notifications.isEmpty
                     ? Center(
-                      child: Text(
-                        'No notifications available',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          color: Colors.white.withAlpha(204),
-                          fontSize: 18,
-                        ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.notifications_off,
+                            size: 64,
+                            color: AppTheme.accentColor.withAlpha(150),
+                          ),
+                          const SizedBox(height: AppTheme.spacing),
+                          Text(
+                            'No new notifications!',
+                            style: Theme.of(
+                              context,
+                            ).textTheme.titleLarge?.copyWith(
+                              color: Colors.white.withAlpha(204),
+                              fontSize: 18,
+                            ),
+                          ),
+                        ],
                       ),
                     )
                     : ListView.builder(
@@ -346,11 +364,7 @@ class _RecentNotificationsScreenState extends State<RecentNotificationsScreen> {
                         final notification = _notifications[index];
                         return NotificationCard(
                           notification: notification,
-                          onMarkRead: () {
-                            setState(() {
-                              notification['read'] = true;
-                            });
-                          },
+                          // onMarkRead removed
                           onDismiss: () {
                             setState(() {
                               _notifications.removeAt(index);
@@ -360,6 +374,7 @@ class _RecentNotificationsScreenState extends State<RecentNotificationsScreen> {
                                 content: Text(
                                   '${notification['message']} deleted',
                                 ),
+                                duration: const Duration(seconds: 2),
                               ),
                             );
                           },

@@ -2,35 +2,33 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:campus_bus_management/config/api_config.dart'; // ✅ Import centralized URL
+// Assuming the environment provides this config file
+import 'package:campus_bus_management/config/api_config.dart';
 
-/// Configuration class for child summary
+/// Configuration class for the Parent Dashboard
 class ChildSummaryConfig {
-  static const String screenTitle = 'Child Summary';
-  static const String headerTitle = 'Child Profiles';
+  static const String screenTitle = 'Parent Dashboard';
+  static const String headerTitle = 'Your Children';
 }
 
-/// Theme-related constants
+/// Theme-related constants (Updated to new deep blue theme)
 class AppTheme {
-  static const Color primaryColor = Colors.blue;
-  static const Color backgroundColor = Color(0xFF0D47A1);
-  static const Color accentColor = Colors.lightBlueAccent;
-  static const Color successColor = Colors.green;
-  static const Color pendingColor = Colors.orange;
+  static const Color primaryColor = Color(0xFF1E88E5); // Bright Blue
+  static const Color backgroundColor = Color(0xFF0C1337); // Very Dark Blue
+  static const Color accentColor = Color(0xFF80D8FF); // Light Cyan/Blue Accent
+  static const Color successColor = Colors.greenAccent;
+  static const Color pendingColor = Colors.orangeAccent;
   static const Color absentColor = Colors.redAccent;
-  static const Color cardBackground = Color(0xFF1E2A44);
-  static const double cardBorderRadius = 20.0;
+  static const Color cardBackground = Color(0xFF16204C); // Card Background
+  static const double cardBorderRadius = 16.0;
   static const double blurSigma = 5.0;
   static const double cardPadding = 16.0;
   static const double spacing = 16.0;
   static const double elevation = 8.0;
-  static const double iconSize = 28.0;
-
-  static var avatarRadius;
+  static const double iconSize = 24.0;
 }
 
-/// Reusable child card widget
+/// Reusable child card widget (Dashboard Summary Style)
 class ChildCard extends StatelessWidget {
   final ChildData child;
 
@@ -38,153 +36,83 @@ class ChildCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      curve: Curves.easeInOut,
-      margin: const EdgeInsets.symmetric(vertical: AppTheme.spacing / 2),
+    return Container(
+      margin: const EdgeInsets.only(bottom: AppTheme.spacing * 0.75),
+      padding: const EdgeInsets.symmetric(
+        vertical: 20.0,
+        horizontal: AppTheme.cardPadding,
+      ),
       decoration: BoxDecoration(
         color: AppTheme.cardBackground,
         borderRadius: BorderRadius.circular(AppTheme.cardBorderRadius),
+        border: Border.all(
+          color: AppTheme.accentColor.withOpacity(0.2),
+          width: 1,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            offset: const Offset(2, 2),
+            color: Colors.black.withOpacity(0.3),
+            offset: const Offset(0, 4),
             blurRadius: AppTheme.blurSigma,
           ),
         ],
       ),
-      child: Container(
-        padding: const EdgeInsets.all(AppTheme.cardPadding),
-        decoration: BoxDecoration(
-          color: Colors.white.withAlpha(20),
-          border: Border.all(color: Colors.white.withAlpha(50), width: 1.0),
-          borderRadius: BorderRadius.circular(AppTheme.cardBorderRadius),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CircleAvatar(
-              radius: 50,
-              backgroundImage:
-                  child.profileImage.isNotEmpty
-                      ? NetworkImage(
-                        '${ApiConfig.baseUrl}/students/${child.profileImage}', // ✅ Use centralized URL
-                      )
-                      : null,
-              onBackgroundImageError:
-                  (_, __) => const Icon(
-                    Icons.error,
-                    color: AppTheme.absentColor,
-                    size: AppTheme.iconSize,
-                  ),
-              child:
-                  child.profileImage.isEmpty
-                      ? const Icon(
-                        Icons.person,
-                        color: Colors.white,
-                        size: AppTheme.iconSize * 2,
-                      )
-                      : null,
-            ),
-            const SizedBox(height: AppTheme.spacing),
-            Text(
-              child.name,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 24,
-              ),
-            ),
-            Text(
-              'Class: ${child.className}',
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: Colors.white.withAlpha(204),
-                fontSize: 16,
-              ),
-            ),
-            Text(
-              'Assigned Bus: ${child.busNumber}',
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: Colors.white.withAlpha(204),
-                fontSize: 16,
-              ),
-            ),
-            const SizedBox(height: AppTheme.spacing),
-            _buildStatusRow(
-              context,
-              label: 'Attendance',
-              status: child.attendanceStatus,
-              icon:
-                  child.attendanceStatus == 'Present'
-                      ? Icons.check_circle
-                      : Icons.cancel,
-              color:
-                  child.attendanceStatus == 'Present'
-                      ? AppTheme.successColor
-                      : AppTheme.absentColor,
-            ),
-            _buildStatusRow(
-              context,
-              label: 'Status',
-              status: child.busStatus,
-              icon: _getBusStatusIcon(child.busStatus),
-              color: _getBusStatusColor(child.busStatus),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStatusRow(
-    BuildContext context, {
-    required String label,
-    required String status,
-    required IconData icon,
-    required Color color,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Icon(icon, color: color, size: AppTheme.iconSize),
-          const SizedBox(width: 8),
-          Text(
-            '$label: $status',
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: Colors.white.withAlpha(204),
-              fontSize: 16,
+          // Left side: Name and Class (Primary Focus)
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Child Name
+                Text(
+                  child.name,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700, // Extra bold for prominence
+                    fontSize: 19,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                // Class Name
+                Text(
+                  'Grade: ${child.className}',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Colors.white70,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+              ],
             ),
+          ),
+
+          // Right side: Assigned Bus (Action/Info)
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.directions_bus,
+                color: AppTheme.accentColor,
+                size: AppTheme.iconSize,
+              ),
+              const SizedBox(width: 8),
+              // Bus Number (Highlighted)
+              Text(
+                child.busNumber,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: AppTheme.accentColor,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 17,
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
-  }
-
-  IconData _getBusStatusIcon(String status) {
-    switch (status) {
-      case 'Boarded':
-        return Icons.directions_bus;
-      case 'Dropped':
-        return Icons.home;
-      case 'Not Yet Boarded':
-        return Icons.hourglass_empty;
-      default:
-        return Icons.info;
-    }
-  }
-
-  Color _getBusStatusColor(String status) {
-    switch (status) {
-      case 'Boarded':
-      case 'Dropped':
-        return AppTheme.successColor;
-      case 'Not Yet Boarded':
-        return AppTheme.pendingColor;
-      default:
-        return Colors.grey;
-    }
   }
 }
 
@@ -216,6 +144,7 @@ class _ChildSummaryScreenState extends State<ChildSummaryScreen> {
     _fetchChildData();
   }
 
+  // API fetching logic remains unchanged
   Future<void> _fetchChildData() async {
     if (!mounted) return;
 
@@ -230,9 +159,7 @@ class _ChildSummaryScreenState extends State<ChildSummaryScreen> {
       // Step 1: Fetch students by parent contact and email
       final parentResponse = await client
           .post(
-            Uri.parse(
-              '${ApiConfig.baseUrl}/students/parent-login', // ✅ Use centralized URL
-            ),
+            Uri.parse('${ApiConfig.baseUrl}/students/parent-login'),
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode({
               'parentEmail': widget.parentEmail,
@@ -284,9 +211,7 @@ class _ChildSummaryScreenState extends State<ChildSummaryScreen> {
         // Fetch attendance
         final attendanceResponse = await client
             .post(
-              Uri.parse(
-                '${ApiConfig.baseUrl}/students/attendance/date', // ✅ Use centralized URL
-              ),
+              Uri.parse('${ApiConfig.baseUrl}/students/attendance/date'),
               headers: {'Content-Type': 'application/json'},
               body: jsonEncode({
                 'date': today,
@@ -313,7 +238,7 @@ class _ChildSummaryScreenState extends State<ChildSummaryScreen> {
         final routeResponse = await client
             .get(
               Uri.parse(
-                '${ApiConfig.baseUrl}/students/route-by-env/${student['envNumber']}', // ✅ Use centralized URL
+                '${ApiConfig.baseUrl}/students/route-by-env/${student['envNumber']}',
               ),
               headers: {'Content-Type': 'application/json'},
             )
@@ -330,11 +255,11 @@ class _ChildSummaryScreenState extends State<ChildSummaryScreen> {
           );
         }
 
-        // Fetch bus status
+        // Fetch bus status (Keeping this call even though status is not displayed, as requested)
         final busStatusResponse = await client
             .get(
               Uri.parse(
-                '${ApiConfig.baseUrl}/students/bus-status/${student['envNumber']}', // ✅ Use centralized URL
+                '${ApiConfig.baseUrl}/students/bus-status/${student['envNumber']}',
               ),
               headers: {'Content-Type': 'application/json'},
             )
@@ -397,7 +322,8 @@ class _ChildSummaryScreenState extends State<ChildSummaryScreen> {
           ChildSummaryConfig.screenTitle,
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
-        backgroundColor: AppTheme.backgroundColor.withAlpha(76),
+        // Use a semi-transparent version of the dark background color for the app bar
+        backgroundColor: AppTheme.backgroundColor.withAlpha(128),
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
         flexibleSpace: ClipRect(
@@ -413,7 +339,7 @@ class _ChildSummaryScreenState extends State<ChildSummaryScreen> {
           IconButton(
             icon: Icon(
               Icons.refresh,
-              color: Colors.white,
+              color: AppTheme.accentColor,
               size: AppTheme.iconSize,
             ),
             onPressed: _fetchChildData,
@@ -424,13 +350,13 @@ class _ChildSummaryScreenState extends State<ChildSummaryScreen> {
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        color: AppTheme.backgroundColor,
+        color: AppTheme.backgroundColor, // Applied new background color
         child: SafeArea(
           child:
               _isLoading
                   ? Center(
                     child: Container(
-                      padding: const EdgeInsets.all(AppTheme.cardPadding),
+                      padding: const EdgeInsets.all(AppTheme.cardPadding * 1.5),
                       decoration: BoxDecoration(
                         color: AppTheme.cardBackground,
                         borderRadius: BorderRadius.circular(
@@ -438,7 +364,7 @@ class _ChildSummaryScreenState extends State<ChildSummaryScreen> {
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
+                            color: Colors.black.withOpacity(0.3),
                             offset: const Offset(2, 2),
                             blurRadius: AppTheme.blurSigma,
                           ),
@@ -451,111 +377,92 @@ class _ChildSummaryScreenState extends State<ChildSummaryScreen> {
                   )
                   : _errorMessage != null
                   ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          _errorMessage!,
-                          style: Theme.of(
-                            context,
-                          ).textTheme.bodyLarge?.copyWith(
-                            color: Colors.white.withAlpha(204),
-                            fontSize: 16,
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppTheme.spacing * 2),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            _errorMessage!,
+                            style: Theme.of(
+                              context,
+                            ).textTheme.bodyLarge?.copyWith(
+                              color: AppTheme.accentColor.withOpacity(0.8),
+                              fontSize: 16,
+                            ),
+                            textAlign: TextAlign.center,
                           ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: AppTheme.spacing),
-                        ElevatedButton(
-                          onPressed: _fetchChildData,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.accentColor,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(
-                                AppTheme.cardBorderRadius,
+                          const SizedBox(height: AppTheme.spacing * 1.5),
+                          ElevatedButton.icon(
+                            onPressed: _fetchChildData,
+                            icon: const Icon(Icons.cached, size: 20),
+                            label: const Text('Retry Fetching Data'),
+                            style: ElevatedButton.styleFrom(
+                              foregroundColor: AppTheme.backgroundColor,
+                              backgroundColor: AppTheme.accentColor,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(
+                                  AppTheme.cardBorderRadius,
+                                ),
+                              ),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                                vertical: 12,
                               ),
                             ),
                           ),
-                          child: const Text('Retry'),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   )
                   : Padding(
                     padding: const EdgeInsets.all(AppTheme.cardPadding),
-                    child: SingleChildScrollView(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(AppTheme.cardPadding),
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: [
-                                  AppTheme.backgroundColor,
-                                  Colors.blue[600]!,
-                                ],
-                              ),
-                              borderRadius: BorderRadius.circular(
-                                AppTheme.cardBorderRadius,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.1),
-                                  offset: const Offset(2, 2),
-                                  blurRadius: AppTheme.blurSigma,
-                                ),
-                              ],
+                    child: CustomScrollView(
+                      slivers: [
+                        // Header Section
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.only(
+                              top: AppTheme.spacing,
+                              bottom: AppTheme.spacing * 1.5,
                             ),
                             child: Text(
                               ChildSummaryConfig.headerTitle,
                               style: Theme.of(
                                 context,
-                              ).textTheme.headlineSmall?.copyWith(
+                              ).textTheme.headlineMedium?.copyWith(
                                 color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 20,
+                                fontWeight: FontWeight.w900,
+                                fontSize: 30,
+                                letterSpacing: 1.2,
                               ),
                             ),
                           ),
-                          const SizedBox(height: AppTheme.spacing * 1.5),
-                          Text(
-                            'Profiles',
-                            style: Theme.of(
-                              context,
-                            ).textTheme.titleLarge?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18,
-                            ),
-                          ),
-                          const SizedBox(height: AppTheme.spacing),
-                          _children.isEmpty
-                              ? Center(
+                        ),
+
+                        // Children List
+                        _children.isEmpty
+                            ? SliverFillRemaining(
+                              child: Center(
                                 child: Text(
-                                  'No Child Data Available',
+                                  'No Children Registered',
                                   style: Theme.of(
                                     context,
-                                  ).textTheme.bodyLarge?.copyWith(
-                                    color: Colors.white.withAlpha(204),
-                                    fontSize: 16,
+                                  ).textTheme.titleMedium?.copyWith(
+                                    color: Colors.white54,
+                                    fontSize: 18,
                                   ),
                                 ),
-                              )
-                              : Column(
-                                children:
-                                    _children
-                                        .asMap()
-                                        .entries
-                                        .map(
-                                          (entry) =>
-                                              ChildCard(child: entry.value),
-                                        )
-                                        .toList(),
                               ),
-                        ],
-                      ),
+                            )
+                            : SliverList(
+                              delegate: SliverChildListDelegate(
+                                _children
+                                    .map((child) => ChildCard(child: child))
+                                    .toList(),
+                              ),
+                            ),
+                      ],
                     ),
                   ),
         ),

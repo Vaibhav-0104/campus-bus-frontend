@@ -5,7 +5,7 @@ import 'dart:convert';
 import 'dart:ui';
 import 'dart:developer' as developer;
 import 'view_detailed_attendance_screen.dart';
-import 'package:campus_bus_management/config/api_config.dart'; // ✅ Import centralized URL
+import 'package:campus_bus_management/config/api_config.dart'; // Centralized URL
 
 /// Configuration class for attendance summary
 class AttendanceSummaryConfig {
@@ -16,25 +16,28 @@ class AttendanceSummaryConfig {
 
 /// Theme-related constants
 class AppTheme {
-  static const Color primaryColor = Colors.blue;
-  static const Color backgroundColor = Color(0xFF0D47A1); // Deep blue
-  static const Color accentColor = Colors.lightBlueAccent;
+  static const Color primaryColor = Color(0xFF1E88E5); // Bright Blue
+  static const Color backgroundColor = Color(0xFF0C1337); // Very Dark Blue
+  static const Color accentColor = Color(0xFF80D8FF); // Light Cyan/Blue Accent
   static const Color successColor = Colors.green;
-  static const Color absentColor = Colors.redAccent;
+  static const Color absentColor = Color(0xFFFF5252); // Red for absences
   static const Color cardBackground = Color(
-    0xFF1E2A44,
-  ); // Darker blue for cards
+    0xFF16204C,
+  ); // Darker Blue for cards
+  static const Color iconColor1 = Color(0xFF69F0AE); // Green for icons
+  static const Color iconColor2 = Color(0xFFFFC107); // Amber for icons
+  static const Color iconColor3 = Color(0xFFFF5252); // Red for icons
   static const double cardBorderRadius = 20.0;
-  static const double blurSigma = 10.0;
+  static const double blurSigma = 12.0; // Slightly increased for smoother blur
   static const double cardPadding = 16.0;
   static const double spacing = 16.0;
   static const double elevation = 8.0;
   static const double iconSize = 28.0;
   static const List<Color> studentColors = [
-    Colors.greenAccent,
-    Colors.orangeAccent,
-    Colors.purpleAccent,
-    Colors.cyanAccent,
+    Color(0xFF69F0AE), // Green
+    Color(0xFFFFC107), // Amber
+    Color(0xFFFF5252), // Red
+    Color(0xFF80D8FF), // Cyan
   ]; // Colors for multiple students
 }
 
@@ -161,9 +164,7 @@ class _AttendanceSummaryScreenState extends State<AttendanceSummaryScreen> {
       // Step 1: Fetch students by parent contact and email
       final parentResponse = await client
           .post(
-            Uri.parse(
-              '${ApiConfig.baseUrl}/students/parent-login', // ✅ Use centralized URL
-            ),
+            Uri.parse('${ApiConfig.baseUrl}/students/parent-login'),
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode({
               'parentEmail': widget.parentEmail,
@@ -223,9 +224,7 @@ class _AttendanceSummaryScreenState extends State<AttendanceSummaryScreen> {
 
           final attendanceResponse = await client
               .post(
-                Uri.parse(
-                  '${ApiConfig.baseUrl}/students/attendance/date', // ✅ Use centralized URL
-                ),
+                Uri.parse('${ApiConfig.baseUrl}/students/attendance/date'),
                 headers: {'Content-Type': 'application/json'},
                 body: jsonEncode({
                   'date': dateStr,
@@ -353,8 +352,10 @@ class _AttendanceSummaryScreenState extends State<AttendanceSummaryScreen> {
             show: true,
             gradient: LinearGradient(
               colors: [
-                color.withValues(alpha: 0.3),
-                color.withValues(alpha: 0.0),
+                color.withValues(
+                  alpha: 0.4,
+                ), // Slightly more opaque for visibility
+                color.withValues(alpha: 0.1),
               ],
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
@@ -372,10 +373,11 @@ class _AttendanceSummaryScreenState extends State<AttendanceSummaryScreen> {
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: const Text(AttendanceSummaryConfig.screenTitle),
-        backgroundColor: AppTheme.backgroundColor.withValues(
-          alpha: 0.3,
-        ), // 76/255
+        title: const Text(
+          AttendanceSummaryConfig.screenTitle,
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: AppTheme.backgroundColor.withValues(alpha: 0.3),
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
         flexibleSpace: ClipRect(
@@ -391,7 +393,7 @@ class _AttendanceSummaryScreenState extends State<AttendanceSummaryScreen> {
           IconButton(
             icon: Icon(
               Icons.refresh,
-              color: Colors.white,
+              color: AppTheme.iconColor1,
               size: AppTheme.iconSize,
             ),
             onPressed: _fetchAttendanceData,
@@ -437,9 +439,7 @@ class _AttendanceSummaryScreenState extends State<AttendanceSummaryScreen> {
                           style: Theme.of(
                             context,
                           ).textTheme.bodyLarge?.copyWith(
-                            color: Colors.white.withValues(
-                              alpha: 0.8,
-                            ), // 204/255
+                            color: Colors.white.withValues(alpha: 0.8),
                             fontSize: 16,
                           ),
                           textAlign: TextAlign.center,
@@ -509,7 +509,7 @@ class _AttendanceSummaryScreenState extends State<AttendanceSummaryScreen> {
                             ),
                           if (_students.length > 1 && !_showAllStudents)
                             const SizedBox(height: AppTheme.spacing),
-                          // Student Selection Dropdown (shown only if not showing all students)
+                          // Student Selection Dropdown
                           if (_students.length > 1 && !_showAllStudents)
                             Container(
                               padding: const EdgeInsets.symmetric(
@@ -527,7 +527,7 @@ class _AttendanceSummaryScreenState extends State<AttendanceSummaryScreen> {
                                 dropdownColor: AppTheme.cardBackground,
                                 icon: Icon(
                                   Icons.arrow_drop_down,
-                                  color: Colors.white,
+                                  color: AppTheme.iconColor1,
                                 ),
                                 underline: const SizedBox(),
                                 items:
@@ -571,7 +571,7 @@ class _AttendanceSummaryScreenState extends State<AttendanceSummaryScreen> {
                               dropdownColor: AppTheme.cardBackground,
                               icon: Icon(
                                 Icons.arrow_drop_down,
-                                color: Colors.white,
+                                color: AppTheme.iconColor1,
                               ),
                               underline: const SizedBox(),
                               items:
@@ -611,7 +611,7 @@ class _AttendanceSummaryScreenState extends State<AttendanceSummaryScreen> {
                                 end: Alignment.bottomRight,
                                 colors: [
                                   AppTheme.backgroundColor,
-                                  Colors.blue[600]!,
+                                  AppTheme.primaryColor,
                                 ],
                               ),
                               borderRadius: BorderRadius.circular(
@@ -640,7 +640,6 @@ class _AttendanceSummaryScreenState extends State<AttendanceSummaryScreen> {
                                 ),
                                 ElevatedButton(
                                   onPressed: () {
-                                    // Use selected student or default to first student
                                     final studentId =
                                         _showAllStudents
                                             ? (_students.isNotEmpty
@@ -684,7 +683,9 @@ class _AttendanceSummaryScreenState extends State<AttendanceSummaryScreen> {
                                         context,
                                       ).showSnackBar(
                                         SnackBar(
-                                          content: Text('No student selected'),
+                                          content: const Text(
+                                            'No student selected',
+                                          ),
                                           backgroundColor: AppTheme.absentColor,
                                         ),
                                       );
@@ -740,7 +741,7 @@ class _AttendanceSummaryScreenState extends State<AttendanceSummaryScreen> {
                                 ),
                               ],
                             ),
-                            height: 350, // Increased height for legend
+                            height: 400, // Increased for better visibility
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(
                                 AppTheme.cardBorderRadius,
@@ -754,13 +755,13 @@ class _AttendanceSummaryScreenState extends State<AttendanceSummaryScreen> {
                                   decoration: BoxDecoration(
                                     color: Colors.white.withValues(
                                       alpha: 0.102,
-                                    ), // 26/255
+                                    ),
                                     border: Border.all(
                                       color: Colors.white.withValues(
                                         alpha: 0.298,
                                       ),
                                       width: 1.5,
-                                    ), // 76/255
+                                    ),
                                   ),
                                   child: Column(
                                     children: [
@@ -772,8 +773,8 @@ class _AttendanceSummaryScreenState extends State<AttendanceSummaryScreen> {
                                             bottom: AppTheme.spacing,
                                           ),
                                           child: Wrap(
-                                            spacing: 8,
-                                            runSpacing: 4,
+                                            spacing: 12,
+                                            runSpacing: 8,
                                             children:
                                                 _students.asMap().entries.map((
                                                   entry,
@@ -785,8 +786,8 @@ class _AttendanceSummaryScreenState extends State<AttendanceSummaryScreen> {
                                                         MainAxisSize.min,
                                                     children: [
                                                       Container(
-                                                        width: 12,
-                                                        height: 12,
+                                                        width: 14,
+                                                        height: 14,
                                                         decoration: BoxDecoration(
                                                           shape:
                                                               BoxShape.circle,
@@ -798,7 +799,7 @@ class _AttendanceSummaryScreenState extends State<AttendanceSummaryScreen> {
                                                                       .length],
                                                         ),
                                                       ),
-                                                      const SizedBox(width: 4),
+                                                      const SizedBox(width: 6),
                                                       Text(
                                                         student['name']
                                                                 as String? ??
@@ -809,7 +810,7 @@ class _AttendanceSummaryScreenState extends State<AttendanceSummaryScreen> {
                                                             ?.copyWith(
                                                               color:
                                                                   Colors.white,
-                                                              fontSize: 12,
+                                                              fontSize: 14,
                                                             ),
                                                       ),
                                                     ],
@@ -821,10 +822,18 @@ class _AttendanceSummaryScreenState extends State<AttendanceSummaryScreen> {
                                         child: LineChart(
                                           LineChartData(
                                             lineBarsData: _createChartData(),
+                                            clipData: const FlClipData(
+                                              top: true,
+                                              bottom: true,
+                                              left: true,
+                                              right: true,
+                                            ), // Enable clipping for zoom
                                             gridData: FlGridData(
                                               show: true,
                                               drawVerticalLine: true,
-                                              horizontalInterval: 0.5,
+                                              drawHorizontalLine: true,
+                                              horizontalInterval:
+                                                  0.25, // Finer grid
                                               verticalInterval: 1,
                                               getDrawingHorizontalLine: (
                                                 value,
@@ -833,6 +842,7 @@ class _AttendanceSummaryScreenState extends State<AttendanceSummaryScreen> {
                                                   color: Colors.white
                                                       .withValues(alpha: 0.2),
                                                   strokeWidth: 1,
+                                                  dashArray: [5, 5],
                                                 );
                                               },
                                               getDrawingVerticalLine: (value) {
@@ -840,6 +850,7 @@ class _AttendanceSummaryScreenState extends State<AttendanceSummaryScreen> {
                                                   color: Colors.white
                                                       .withValues(alpha: 0.2),
                                                   strokeWidth: 1,
+                                                  dashArray: [5, 5],
                                                 );
                                               },
                                             ),
@@ -847,7 +858,8 @@ class _AttendanceSummaryScreenState extends State<AttendanceSummaryScreen> {
                                               leftTitles: AxisTitles(
                                                 sideTitles: SideTitles(
                                                   showTitles: true,
-                                                  reservedSize: 40,
+                                                  reservedSize: 50,
+                                                  interval: 0.5,
                                                   getTitlesWidget: (
                                                     value,
                                                     meta,
@@ -855,7 +867,9 @@ class _AttendanceSummaryScreenState extends State<AttendanceSummaryScreen> {
                                                     return Text(
                                                       value == 1.0
                                                           ? 'Present'
-                                                          : 'Absent',
+                                                          : value == 0.0
+                                                          ? 'Absent'
+                                                          : '',
                                                       style: Theme.of(context)
                                                           .textTheme
                                                           .bodyLarge
@@ -863,7 +877,7 @@ class _AttendanceSummaryScreenState extends State<AttendanceSummaryScreen> {
                                                             color: Colors.white
                                                                 .withValues(
                                                                   alpha: 0.8,
-                                                                ), // 204/255
+                                                                ),
                                                             fontSize: 12,
                                                           ),
                                                     );
@@ -883,11 +897,11 @@ class _AttendanceSummaryScreenState extends State<AttendanceSummaryScreen> {
                                               bottomTitles: AxisTitles(
                                                 sideTitles: SideTitles(
                                                   showTitles: true,
-                                                  reservedSize: 40,
+                                                  reservedSize: 50,
                                                   interval:
                                                       _selectedDateRange > 14
                                                           ? 2
-                                                          : 1, // Reduce label density for longer ranges
+                                                          : 1,
                                                   getTitlesWidget: (
                                                     value,
                                                     meta,
@@ -914,9 +928,7 @@ class _AttendanceSummaryScreenState extends State<AttendanceSummaryScreen> {
                                                             : day.day;
                                                     return Transform.rotate(
                                                       angle:
-                                                          -45 *
-                                                          3.14159 /
-                                                          180, // Rotate 45 degrees
+                                                          -45 * 3.14159 / 180,
                                                       child: Text(
                                                         label,
                                                         style: Theme.of(context)
@@ -927,7 +939,7 @@ class _AttendanceSummaryScreenState extends State<AttendanceSummaryScreen> {
                                                                   .white
                                                                   .withValues(
                                                                     alpha: 0.8,
-                                                                  ), // 204/255
+                                                                  ),
                                                               fontSize: 12,
                                                             ),
                                                       ),
@@ -937,18 +949,27 @@ class _AttendanceSummaryScreenState extends State<AttendanceSummaryScreen> {
                                               ),
                                             ),
                                             borderData: FlBorderData(
-                                              show: false,
+                                              show: true,
+                                              border: Border.all(
+                                                color: Colors.white.withValues(
+                                                  alpha: 0.2,
+                                                ),
+                                                width: 1,
+                                              ),
                                             ),
-                                            minY: 0,
-                                            maxY: 1,
+                                            minY:
+                                                -0.1, // Slight padding for zoom
+                                            maxY: 1.1,
                                             lineTouchData: LineTouchData(
                                               enabled: true,
+                                              handleBuiltInTouches: true,
                                               touchTooltipData: LineTouchTooltipData(
                                                 getTooltipColor:
                                                     (_) =>
                                                         AppTheme.cardBackground,
                                                 tooltipPadding:
                                                     const EdgeInsets.all(8),
+                                                tooltipRoundedRadius: 8,
                                                 getTooltipItems: (
                                                   touchedSpots,
                                                 ) {
@@ -970,7 +991,10 @@ class _AttendanceSummaryScreenState extends State<AttendanceSummaryScreen> {
                                                     final attendance =
                                                         data[spot.x.toInt()];
                                                     return LineTooltipItem(
-                                                      '${student['name']}\n${attendance.date}\n${attendance.present == 1 ? 'Present' : 'Absent'}',
+                                                      '${student['name']}\n'
+                                                      'Date: ${attendance.date}\n'
+                                                      'Day: ${attendance.day}\n'
+                                                      'Status: ${attendance.present == 1 ? 'Present' : 'Absent'}',
                                                       Theme.of(context)
                                                               .textTheme
                                                               .bodyLarge
@@ -988,6 +1012,17 @@ class _AttendanceSummaryScreenState extends State<AttendanceSummaryScreen> {
                                                   }).toList();
                                                 },
                                               ),
+                                              touchCallback: (
+                                                FlTouchEvent event,
+                                                LineTouchResponse? response,
+                                              ) {
+                                                if (event
+                                                    .isInterestedForInteractions) {
+                                                  setState(
+                                                    () {},
+                                                  ); // Refresh for smooth zoom/pan
+                                                }
+                                              },
                                             ),
                                             extraLinesData: ExtraLinesData(
                                               horizontalLines: [
@@ -1036,9 +1071,7 @@ class _AttendanceSummaryScreenState extends State<AttendanceSummaryScreen> {
                                   style: Theme.of(
                                     context,
                                   ).textTheme.bodyLarge?.copyWith(
-                                    color: Colors.white.withValues(
-                                      alpha: 0.8,
-                                    ), // 204/255
+                                    color: Colors.white.withValues(alpha: 0.8),
                                     fontSize: 16,
                                   ),
                                 ),

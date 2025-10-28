@@ -5,10 +5,22 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:geolocator/geolocator.dart';
-// NOTE: geocoding import is not strictly needed for the functionality
-// import 'package:geocoding/geocoding.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart' as latlong;
+
+// New AppTheme class provided in the prompt
+class AppTheme {
+  static const Color primaryColor = Color(0xFF1E88E5); // Bright Blue
+  static const Color backgroundColor = Color(0xFF0C1337); // Very Dark Blue
+  static const Color accentColor = Color(0xFF80D8FF); // Light Cyan/Blue Accent
+  static const Color cardBackground = Color(
+    0xFF16204C,
+  ); // Darker Blue for cards
+
+  static const Color iconColor1 = Color(0xFF69F0AE); // Green for active status
+  static const Color iconColor2 = Color(0xFFFFC107); // Amber
+  static const Color iconColor3 = Color(0xFFFF5252); // Red
+}
 
 class LiveBusLocationScreen extends StatefulWidget {
   const LiveBusLocationScreen({super.key});
@@ -19,7 +31,6 @@ class LiveBusLocationScreen extends StatefulWidget {
 
 class _LiveBusLocationScreenState extends State<LiveBusLocationScreen> {
   Map<String, dynamic>? locationData;
-  // Use 'isLoading' for the initial fetch state (CircularProgressIndicator)
   bool isLoading = true;
   String errorMessage = '';
   String? driverId;
@@ -27,20 +38,17 @@ class _LiveBusLocationScreenState extends State<LiveBusLocationScreen> {
   latlong.LatLng? driverLocation;
   bool _isMapReady = false;
 
-  // 'isFetching' is now purely for the blinking indicator state
   bool isBlinking = false;
   double? distanceInKm;
 
   final MapController _mapController = MapController();
   Timer? _timer;
 
-  // Track if we need to show the inactive dialog
   bool _showInactiveMessage = false;
 
   @override
   void initState() {
     super.initState();
-    // Start the combined process
     _initializeDataAndStartFetch();
   }
 
@@ -50,7 +58,7 @@ class _LiveBusLocationScreenState extends State<LiveBusLocationScreen> {
     super.dispose();
   }
 
-  // --- Core Initialization and Data Flow Logic ---
+  // --- Core Initialization and Data Flow Logic (Unchanged) ---
 
   Future<void> _initializeDataAndStartFetch() async {
     await _loadDriverId();
@@ -62,25 +70,19 @@ class _LiveBusLocationScreenState extends State<LiveBusLocationScreen> {
       return;
     }
 
-    // Await user location, but allow execution to continue if it fails/is denied
     await _getUserLocation();
 
-    // First, perform the initial data fetch and update UI
     await _fetchLocationData(isInitial: true);
 
-    // After the initial fetch is complete
     if (mounted) {
       setState(() {
         isLoading = false;
-        // Set the flag to show inactive message/dialog if status is false
         _showInactiveMessage = (locationData?['shareStatus'] == false);
       });
 
-      // If active, start periodic fetching
       if (locationData?['shareStatus'] == true) {
         _startPeriodicFetch();
       } else if (_showInactiveMessage) {
-        // If inactive, show the dialog right away after the build frame completes
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _showInactiveDialog();
         });
@@ -113,9 +115,11 @@ class _LiveBusLocationScreenState extends State<LiveBusLocationScreen> {
       if (mounted) {
         setState(() {
           userLocation = latlong.LatLng(position.latitude, position.longitude);
-          // Only attempt to move the map if location is valid
           if (userLocation != null) {
-            _mapController.move(userLocation!, 13.0);
+            // Only move map if user location is the initial center
+            if (driverLocation == null && !_isMapReady) {
+              _mapController.move(userLocation!, 13.0);
+            }
           }
         });
       }
@@ -126,9 +130,8 @@ class _LiveBusLocationScreenState extends State<LiveBusLocationScreen> {
     }
   }
 
-  // Combine original fetchLocationData with a flag for initial load
   Future<void> _fetchLocationData({bool isInitial = false}) async {
-    if (!isInitial) {
+    if (isInitial) {
       // Clear error message only for initial load
       setState(() {
         errorMessage = '';
@@ -156,20 +159,19 @@ class _LiveBusLocationScreenState extends State<LiveBusLocationScreen> {
                 locationData!['longitude'],
               );
               _calculateDistance();
-              // When driver is active, ensure inactive message is hidden and map is centered
               _showInactiveMessage = false;
               if (_isMapReady && driverLocation != null) {
                 WidgetsBinding.instance.addPostFrameCallback((_) {
+                  // Center on driver location on update
                   _mapController.move(
                     driverLocation!,
-                    _mapController.camera.zoom, // keep same zoom
+                    _mapController.camera.zoom,
                     offset: const Offset(0, 0),
                   );
                 });
               }
             } else {
               driverLocation = null;
-              // If status becomes inactive, stop periodic fetch and show dialog
               if (!isInitial) {
                 _timer?.cancel();
                 _showInactiveMessage = true;
@@ -179,13 +181,10 @@ class _LiveBusLocationScreenState extends State<LiveBusLocationScreen> {
           });
         }
       } else {
-        if (mounted) {
-          // Only show error on initial load or if not an expected 200 status during live update
-          if (isInitial) {
-            setState(() {
-              errorMessage = 'Failed to load data: ${response.statusCode}';
-            });
-          }
+        if (mounted && isInitial) {
+          setState(() {
+            errorMessage = 'Failed to load data: ${response.statusCode}';
+          });
         }
       }
     } catch (e) {
@@ -207,7 +206,7 @@ class _LiveBusLocationScreenState extends State<LiveBusLocationScreen> {
       );
       if (mounted) {
         setState(() {
-          distanceInKm = distance / 1000; // Convert meters to kilometers
+          distanceInKm = distance / 1000;
         });
       }
     } else {
@@ -216,22 +215,19 @@ class _LiveBusLocationScreenState extends State<LiveBusLocationScreen> {
   }
 
   void _startPeriodicFetch() {
-    // Stop any existing timer first
     _timer?.cancel();
 
-    // Start a new timer for both fetching data and blinking the indicator
     _timer = Timer.periodic(const Duration(seconds: 2), (timer) async {
-      await _fetchLocationData(); // isInitial: false by default
+      await _fetchLocationData();
       if (mounted) {
         setState(() {
-          isBlinking = !isBlinking; // Toggles the blinking state
+          isBlinking = !isBlinking;
         });
       }
     });
   }
 
   void _showInactiveDialog() {
-    // Only show if the dialog is not already open
     if (!Navigator.of(context).canPop()) return;
 
     showDialog(
@@ -239,18 +235,25 @@ class _LiveBusLocationScreenState extends State<LiveBusLocationScreen> {
       barrierDismissible: false,
       builder:
           (context) => AlertDialog(
-            title: const Text('Location Not Active'),
+            backgroundColor: AppTheme.cardBackground, // Apply dark background
+            title: Text(
+              'Location Not Active',
+              style: TextStyle(color: AppTheme.primaryColor),
+            ),
             content: const Text(
-              'Driver location sharing is currently inactive.',
+              'Driver location sharing is currently inactive. Please check again later.',
+              style: TextStyle(color: Colors.white70),
             ),
             actions: [
               TextButton(
                 onPressed: () {
                   Navigator.pop(context);
-                  // Allow re-fetch attempt on button press
                   _fetchLocationData(isInitial: true);
                 },
-                child: const Text('OK'),
+                child: Text(
+                  'OK',
+                  style: TextStyle(color: AppTheme.accentColor),
+                ),
               ),
             ],
           ),
@@ -263,33 +266,61 @@ class _LiveBusLocationScreenState extends State<LiveBusLocationScreen> {
         context: context,
         builder:
             (context) => AlertDialog(
-              title: const Text('Driver Location Details'),
+              backgroundColor: AppTheme.cardBackground, // Apply dark background
+              title: Text(
+                'Driver Location Details',
+                style: TextStyle(color: AppTheme.primaryColor),
+              ),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Latitude: ${locationData!['latitude']}'),
-                  Text('Longitude: ${locationData!['longitude']}'),
-                  Text('Address: ${locationData!['address'] ?? 'N/A'}'),
+                  _buildDetailText('Latitude: ${locationData!['latitude']}'),
+                  _buildDetailText('Longitude: ${locationData!['longitude']}'),
+                  _buildDetailText(
+                    'Address: ${locationData!['address'] ?? 'N/A'}',
+                  ),
                   if (distanceInKm != null)
-                    Text(
-                      'Distance: ${distanceInKm!.toStringAsFixed(2)} km',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: Text(
+                        'Distance: ${distanceInKm!.toStringAsFixed(2)} km',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: AppTheme.iconColor1, // Highlight distance
+                        ),
+                      ),
                     ),
-                  Text(
+                  _buildDetailText(
                     'Share Status: ${locationData!['shareStatus'] ? 'Active' : 'Inactive'}',
+                    color:
+                        locationData!['shareStatus']
+                            ? AppTheme.iconColor1
+                            : AppTheme.iconColor3,
                   ),
                 ],
               ),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Close'),
+                  child: Text(
+                    'Close',
+                    style: TextStyle(color: AppTheme.accentColor),
+                  ),
                 ),
               ],
             ),
       );
     }
+  }
+
+  // Helper for consistent detail text style
+  Widget _buildDetailText(String text, {Color color = Colors.white70}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Text(text, style: TextStyle(color: color, fontSize: 14)),
+    );
   }
 
   // --- UI Build Methods ---
@@ -304,40 +335,69 @@ class _LiveBusLocationScreenState extends State<LiveBusLocationScreen> {
               onMapReady: () {
                 setState(() {
                   _isMapReady = true;
+                  // If driver location is available, center on it after map is ready
+                  if (driverLocation != null) {
+                    _mapController.move(
+                      driverLocation!,
+                      15.0,
+                    ); // Slightly higher zoom for detail
+                  } else if (userLocation != null) {
+                    _mapController.move(userLocation!, 13.0);
+                  }
                 });
               },
+              // Initial center uses driver, then user, then default (0,0)
               initialCenter:
                   driverLocation ?? userLocation ?? latlong.LatLng(0, 0),
               initialZoom: 13.0,
             ),
             children: [
               TileLayer(
+                // Dark mode tiles might be better for a dark theme, but standard OSM is used here
                 urlTemplate:
                     'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
                 subdomains: const ['a', 'b', 'c'],
               ),
               MarkerLayer(
                 markers: [
+                  // User Location Marker (Blue)
                   if (userLocation != null)
                     Marker(
                       point: userLocation!,
-                      width: 40,
-                      height: 40,
-                      child: const Icon(
-                        Icons.location_on,
-                        color: Colors.blue,
-                        size: 40,
+                      width: 48,
+                      height: 48,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppTheme.primaryColor.withOpacity(0.5),
+                              blurRadius: 10,
+                            ),
+                          ],
+                        ),
+                        child: Icon(
+                          Icons.person_pin_circle,
+                          color: AppTheme.primaryColor,
+                          size: 48,
+                        ),
                       ),
                     ),
+                  // Driver/Bus Location Marker (Accent Color - Green/Red)
                   if (driverLocation != null)
                     Marker(
                       point: driverLocation!,
-                      width: 40,
-                      height: 40,
-                      child: const Icon(
-                        Icons.directions_bus,
-                        color: Colors.red,
-                        size: 40,
+                      width: 48,
+                      height: 48,
+                      child: Icon(
+                        Icons.directions_bus_filled,
+                        color:
+                            locationData!['shareStatus'] == true
+                                ? AppTheme
+                                    .iconColor1 // Green for active bus
+                                : AppTheme
+                                    .iconColor3, // Red for inactive bus (shouldn't be shown if inactive)
+                        size: 48,
                       ),
                     ),
                 ],
@@ -352,28 +412,44 @@ class _LiveBusLocationScreenState extends State<LiveBusLocationScreen> {
 
   Widget _buildDistanceCard() {
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
       child: GestureDetector(
         onTap: _showDetailsDialog,
         child: Card(
-          elevation: 6,
+          elevation: 10,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(15),
           ),
-          color: Colors.purple[100],
+          color: AppTheme.cardBackground, // Dark Card Background
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Icon(Icons.directions, color: Colors.purple, size: 24),
-                const SizedBox(width: 12),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.alt_route,
+                      color: AppTheme.accentColor,
+                      size: 28,
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Distance',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.white70,
+                      ),
+                    ),
+                  ],
+                ),
                 Text(
-                  'Distance: ${distanceInKm?.toStringAsFixed(2) ?? 'N/A'} km',
-                  style: const TextStyle(
-                    fontSize: 18,
+                  '${distanceInKm?.toStringAsFixed(2) ?? 'N/A'} km',
+                  style: TextStyle(
+                    fontSize: 22,
                     fontWeight: FontWeight.bold,
-                    color: Colors.purple,
+                    color: AppTheme.iconColor1, // Green for distance
                   ),
                 ),
               ],
@@ -385,35 +461,57 @@ class _LiveBusLocationScreenState extends State<LiveBusLocationScreen> {
   }
 
   Widget _buildInactiveMessage() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.location_off, color: Colors.grey, size: 80),
-          const SizedBox(height: 20),
-          const Text(
-            'Bus location sharing is inactive.',
-            style: TextStyle(fontSize: 18, color: Colors.grey),
+    return Container(
+      color: AppTheme.backgroundColor,
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.location_off, color: AppTheme.iconColor3, size: 80),
+              const SizedBox(height: 20),
+              const Text(
+                'Bus location sharing is inactive.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 18, color: Colors.white70),
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                'Tap the button below to check the status again.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 14, color: Colors.grey),
+              ),
+              const SizedBox(height: 30),
+              ElevatedButton.icon(
+                onPressed: () {
+                  setState(() {
+                    isLoading = true;
+                    _showInactiveMessage = false;
+                    errorMessage = ''; // Clear previous error if any
+                  });
+                  _initializeDataAndStartFetch();
+                },
+                icon: const Icon(Icons.refresh, color: Colors.black),
+                label: const Text(
+                  'Check Status Again',
+                  style: TextStyle(color: Colors.black),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.accentColor, // Light accent color
+                  foregroundColor: Colors.black,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 20),
-          ElevatedButton.icon(
-            onPressed: () {
-              // Attempt to re-fetch to check status again
-              setState(() {
-                isLoading = true; // Show loading indicator again
-                _showInactiveMessage = false;
-              });
-              _initializeDataAndStartFetch();
-            },
-            icon: const Icon(Icons.refresh),
-            label: const Text('Check Status Again'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.purple,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -422,20 +520,25 @@ class _LiveBusLocationScreenState extends State<LiveBusLocationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Determine the color for the blinking indicator
-    final liveColor =
-        (locationData?['shareStatus'] == true && isBlinking)
-            ? Colors
-                .white // Blink white on purple appbar
-            : Colors.grey;
+    // Green for ACTIVE, Red for INACTIVE/Error
+    final bool isActive = locationData?['shareStatus'] == true;
+    final Color liveColor =
+        isActive
+            ? (isBlinking
+                ? AppTheme.iconColor1
+                : AppTheme
+                    .primaryColor) // Blink between light green and bright blue
+            : AppTheme.iconColor3; // Red for inactive
 
     return Scaffold(
+      backgroundColor: AppTheme.backgroundColor, // Dark Background
       appBar: AppBar(
         title: const Text(
-          'Live Bus Location',
-          style: TextStyle(color: Colors.white),
+          'Live Bus Tracker',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.purple,
+        backgroundColor: AppTheme.cardBackground, // Darker App Bar
+        iconTheme: const IconThemeData(color: Colors.white),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 16.0),
@@ -449,21 +552,24 @@ class _LiveBusLocationScreenState extends State<LiveBusLocationScreen> {
                     color: liveColor,
                     shape: BoxShape.circle,
                     boxShadow:
-                        liveColor == Colors.white
+                        isActive
                             ? [
                               BoxShadow(
-                                color: liveColor.withOpacity(0.5),
-                                blurRadius: 4,
-                                spreadRadius: 2,
+                                color: liveColor.withOpacity(0.6),
+                                blurRadius:
+                                    isBlinking
+                                        ? 8
+                                        : 4, // More subtle blink effect
+                                spreadRadius: isBlinking ? 4 : 2,
                               ),
                             ]
                             : null,
                   ),
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: 8),
                 // 'LIVE' Text
                 Text(
-                  'LIVE',
+                  isActive ? 'ACTIVE' : 'INACTIVE',
                   style: TextStyle(
                     color: liveColor,
                     fontWeight: FontWeight.bold,
@@ -477,25 +583,31 @@ class _LiveBusLocationScreenState extends State<LiveBusLocationScreen> {
       ),
       body:
           isLoading
-              ? const Center(
+              ? Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    CircularProgressIndicator(color: Colors.purple),
-                    SizedBox(height: 16),
+                    CircularProgressIndicator(color: AppTheme.primaryColor),
+                    const SizedBox(height: 16),
                     Text(
                       'Loading Live Bus Location...',
-                      style: TextStyle(fontSize: 16, color: Colors.purple),
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: AppTheme.primaryColor,
+                      ),
                     ),
                   ],
                 ),
               )
               : errorMessage.isNotEmpty
               ? Center(
-                child: Text(
-                  'Error: $errorMessage',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.red, fontSize: 16),
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Text(
+                    'Connection Error: $errorMessage',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: AppTheme.iconColor3, fontSize: 16),
+                  ),
                 ),
               )
               : locationData != null && locationData!['shareStatus'] == true
