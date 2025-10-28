@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart' show debugPrint, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:ui';
-import 'package:campus_bus_management/config/api_config.dart'; // ✅ Import centralized URL
+import 'package:campus_bus_management/config/api_config.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -30,6 +30,15 @@ class _ManageBusDriverDetailsScreenState
   List<Map<String, dynamic>> _driverList = [];
   PlatformFile? _selectedLicenseFile;
   String? _currentLicenseDocument;
+
+  // ────── COLORS (Same as AllocateBusScreen) ──────
+  final Color bgStart = const Color(0xFF0A0E1A);
+  final Color bgMid = const Color(0xFF0F172A);
+  final Color bgEnd = const Color(0xFF1E293B);
+  final Color glassBg = Colors.white.withAlpha(0x14);
+  final Color glassBorder = Colors.white.withAlpha(0x26);
+  final Color textSecondary = Colors.white70;
+  final Color busYellow = const Color(0xFFFBBF24);
 
   @override
   void initState() {
@@ -69,7 +78,7 @@ class _ManageBusDriverDetailsScreenState
     try {
       final response = await http.get(
         Uri.parse('${ApiConfig.baseUrl}/drivers'),
-      ); // ✅ Updated URL
+      );
       if (response.statusCode == 200) {
         setState(() {
           _driverList = List<Map<String, dynamic>>.from(
@@ -126,7 +135,7 @@ class _ManageBusDriverDetailsScreenState
           _editingIndex == null
               ? '${ApiConfig.baseUrl}/drivers'
               : '${ApiConfig.baseUrl}/drivers/$driverId',
-        ); // ✅ Updated URL
+        );
         var request = http.MultipartRequest(
           _editingIndex == null ? 'POST' : 'PUT',
           uri,
@@ -194,87 +203,31 @@ class _ManageBusDriverDetailsScreenState
   }
 
   Future<void> _deleteDriver(int index) async {
-    showDialog(
+    final ok = await showDialog<bool>(
       context: context,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          backgroundColor: Colors.blue.shade800.withValues(alpha: 0.8),
-          title: const Text(
-            'Confirm Deletion',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              shadows: [Shadow(blurRadius: 2, color: Colors.black54)],
-            ),
-          ),
-          content: const Text(
-            'Are you sure you want to delete this driver record?',
-            style: TextStyle(color: Colors.white70, fontSize: 16),
-          ),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: Text(
-                'Cancel',
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.8),
-                  fontSize: 16,
-                ),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                Navigator.of(dialogContext).pop();
-                try {
-                  String driverId = _driverList[index]['_id'];
-                  final response = await http.delete(
-                    Uri.parse(
-                      '${ApiConfig.baseUrl}/drivers/$driverId',
-                    ), // ✅ Updated URL
-                    headers: {"Content-Type": "application/json"},
-                  );
-                  if (response.statusCode != 200) {
-                    throw Exception(
-                      "Failed to delete driver: ${jsonDecode(response.body)['message'] ?? response.body}",
-                    );
-                  }
-                  _showSnackBar(
-                    'Driver deleted successfully!',
-                    isSuccess: true,
-                  );
-                  await _fetchDrivers();
-                } catch (e) {
-                  debugPrint("Error deleting driver: $e");
-                  _showSnackBar(
-                    'Failed to delete driver: ${e.toString().replaceFirst('Exception: ', '')}',
-                  );
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.redAccent,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 10,
-                ),
-              ),
-              child: const Text(
-                'Delete',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
+      builder: (_) => _confirmDialog(),
     );
+    if (ok != true) return;
+
+    try {
+      String driverId = _driverList[index]['_id'];
+      final response = await http.delete(
+        Uri.parse('${ApiConfig.baseUrl}/drivers/$driverId'),
+        headers: {"Content-Type": "application/json"},
+      );
+      if (response.statusCode != 200) {
+        throw Exception(
+          "Failed to delete driver: ${jsonDecode(response.body)['message'] ?? response.body}",
+        );
+      }
+      _showSnackBar('Driver deleted successfully!', isSuccess: true);
+      await _fetchDrivers();
+    } catch (e) {
+      debugPrint("Error deleting driver: $e");
+      _showSnackBar(
+        'Failed to delete driver: ${e.toString().replaceFirst('Exception: ', '')}',
+      );
+    }
   }
 
   void _editDriver(int index) {
@@ -301,9 +254,7 @@ class _ManageBusDriverDetailsScreenState
     _isActive = true;
     _selectedLicenseFile = null;
     _currentLicenseDocument = null;
-    setState(() {
-      _editingIndex = null;
-    });
+    setState(() => _editingIndex = null);
   }
 
   void _showSnackBar(String message, {bool isSuccess = false}) {
@@ -312,6 +263,25 @@ class _ManageBusDriverDetailsScreenState
         content: Text(message),
         backgroundColor: isSuccess ? Colors.green : Colors.red,
         duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  // ────── GLASS CARD & INPUTS ──────
+  Widget _glassCard({required Widget child}) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(24),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: glassBg,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: glassBorder, width: 1.2),
+          ),
+          child: child,
+        ),
       ),
     );
   }
@@ -331,64 +301,48 @@ class _ManageBusDriverDetailsScreenState
         obscureText: obscureText,
         style: const TextStyle(color: Colors.white, fontSize: 16),
         decoration: InputDecoration(
-          prefixIcon: Icon(icon, color: Colors.lightBlueAccent, size: 24),
           labelText: label,
-          labelStyle: TextStyle(
-            color: Colors.white.withValues(alpha: 0.8),
-            fontSize: 16,
-          ),
-          hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
+          labelStyle: TextStyle(color: textSecondary),
+          prefixIcon: Icon(icon, color: busYellow),
           filled: true,
-          fillColor: Colors.white.withValues(alpha: 0.08),
+          fillColor: glassBg,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(15),
-            borderSide: BorderSide(
-              color: Colors.white.withValues(alpha: 0.3),
-              width: 1.5,
-            ),
+            borderSide: BorderSide(color: glassBorder, width: 1.2),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(15),
-            borderSide: BorderSide(
-              color: Colors.white.withValues(alpha: 0.3),
-              width: 1.5,
-            ),
+            borderSide: BorderSide(color: glassBorder, width: 1.2),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(15),
-            borderSide: const BorderSide(
-              color: Colors.lightBlueAccent,
-              width: 2.5,
-            ),
+            borderSide: BorderSide(color: busYellow, width: 2),
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 12,
           ),
         ),
         validator: (value) {
           if (label == 'Password' &&
               _editingIndex != null &&
-              (value == null || value.isEmpty)) {
+              (value == null || value.isEmpty))
             return null;
-          }
-          if (value == null || value.isEmpty) {
-            return 'Please enter $label';
-          }
+          if (value == null || value.isEmpty) return 'Please enter $label';
           if (label == 'Email') {
             final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-            if (!emailRegex.hasMatch(value)) {
+            if (!emailRegex.hasMatch(value))
               return 'Please enter a valid email (e.g., example@domain.com)';
-            }
           }
-          if (label == 'Contact Number' && value.length < 10) {
+          if (label == 'Contact Number' && value.length < 10)
             return 'Contact number must be at least 10 digits';
-          }
           if (label == 'License Number') {
             final licenseRegex = RegExp(r'^[A-Z0-9]{6,15}$');
-            if (!licenseRegex.hasMatch(value)) {
+            if (!licenseRegex.hasMatch(value))
               return 'License number must be 6-15 alphanumeric characters';
-            }
           }
-          if (label == 'Password' && value.length < 6) {
+          if (label == 'Password' && value.length < 6)
             return 'Password must be at least 6 characters long';
-          }
           return null;
         },
       ),
@@ -403,17 +357,13 @@ class _ManageBusDriverDetailsScreenState
         children: [
           Text(
             'License Document (PDF only${_editingIndex == null ? '' : ', Optional'})',
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.8),
-              fontSize: 16,
-            ),
+            style: TextStyle(color: textSecondary, fontSize: 16),
           ),
           const SizedBox(height: 8),
           if (_editingIndex != null && _currentLicenseDocument != null)
             GestureDetector(
               onTap: () async {
-                final pdfUrl =
-                    '${ApiConfig.baseUrl}$_currentLicenseDocument'; // ✅ Updated URL
+                final pdfUrl = '${ApiConfig.baseUrl}$_currentLicenseDocument';
                 if (await canLaunchUrl(Uri.parse(pdfUrl))) {
                   await launchUrl(
                     Uri.parse(pdfUrl),
@@ -426,7 +376,7 @@ class _ManageBusDriverDetailsScreenState
               child: Text(
                 'View Current PDF',
                 style: TextStyle(
-                  color: Colors.lightBlueAccent,
+                  color: busYellow,
                   decoration: TextDecoration.underline,
                   fontSize: 16,
                 ),
@@ -437,18 +387,16 @@ class _ManageBusDriverDetailsScreenState
           Container(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(15),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.3),
-                width: 1.5,
-              ),
+              color: glassBg,
+              border: Border.all(color: glassBorder, width: 1.2),
             ),
             child: ListTile(
-              leading: Icon(Icons.upload_file, color: Colors.lightBlueAccent),
+              leading: Icon(Icons.upload_file, color: busYellow),
               title: Text(
                 _selectedLicenseFile != null
                     ? _selectedLicenseFile!.name
                     : 'Select PDF',
-                style: TextStyle(color: Colors.white70),
+                style: TextStyle(color: textSecondary),
               ),
               onTap: _pickLicensePdf,
             ),
@@ -459,45 +407,22 @@ class _ManageBusDriverDetailsScreenState
   }
 
   Widget _buildStatusToggle() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: ClipRRect(
+    return Container(
+      decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(15),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Colors.white.withValues(alpha: 0.08),
-                  Colors.blue.shade300.withValues(alpha: 0.08),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(15),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.3),
-                width: 1.5,
-              ),
-            ),
-            child: SwitchListTile(
-              title: const Text(
-                'Driver Status: Active',
-                style: TextStyle(color: Colors.white, fontSize: 16),
-              ),
-              value: _isActive,
-              onChanged: (value) => setState(() => _isActive = value),
-              activeColor: Colors.lightBlueAccent,
-              inactiveTrackColor: Colors.grey.shade700.withValues(alpha: 0.5),
-              activeTrackColor: Colors.lightBlueAccent.withValues(alpha: 0.5),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16.0,
-                vertical: 8.0,
-              ),
-            ),
-          ),
+        color: glassBg,
+        border: Border.all(color: glassBorder, width: 1.2),
+      ),
+      child: SwitchListTile(
+        title: const Text(
+          'Driver Status: Active',
+          style: TextStyle(color: Colors.white),
         ),
+        value: _isActive,
+        onChanged: (v) => setState(() => _isActive = v),
+        activeColor: busYellow,
+        inactiveThumbColor: Colors.grey,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16),
       ),
     );
   }
@@ -506,100 +431,35 @@ class _ManageBusDriverDetailsScreenState
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 20),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
           Expanded(
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 5),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(30),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.blue.shade800.withValues(alpha: 0.4),
-                    blurRadius: 20,
-                    spreadRadius: 2,
-                    offset: const Offset(0, 10),
-                  ),
-                ],
+            child: ElevatedButton.icon(
+              onPressed: _addOrUpdateDriver,
+              icon: const Icon(Icons.save),
+              label: Text(
+                _editingIndex == null ? 'Add Driver' : 'Update Driver',
               ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(30),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
-                  child: ElevatedButton(
-                    onPressed: _addOrUpdateDriver,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue.shade600.withValues(
-                        alpha: 0.5,
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 15),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
-                        side: BorderSide(
-                          color: Colors.white.withValues(alpha: 0.3),
-                          width: 1.5,
-                        ),
-                      ),
-                      elevation: 0,
-                    ),
-                    child: Text(
-                      _editingIndex == null ? 'Add Driver' : 'Update Driver',
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        shadows: [Shadow(blurRadius: 5, color: Colors.black54)],
-                      ),
-                    ),
-                  ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: busYellow,
+                foregroundColor: Colors.black87,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
                 ),
               ),
             ),
           ),
+          const SizedBox(width: 12),
           Expanded(
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 5),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(30),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.shade800.withValues(alpha: 0.4),
-                    blurRadius: 20,
-                    spreadRadius: 2,
-                    offset: const Offset(0, 10),
-                  ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(30),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
-                  child: ElevatedButton(
-                    onPressed: _clearForm,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.grey.shade600.withValues(
-                        alpha: 0.5,
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 15),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
-                        side: BorderSide(
-                          color: Colors.white.withValues(alpha: 0.3),
-                          width: 1.5,
-                        ),
-                      ),
-                      elevation: 0,
-                    ),
-                    child: const Text(
-                      'Clear',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        shadows: [Shadow(blurRadius: 5, color: Colors.black54)],
-                      ),
-                    ),
-                  ),
+            child: ElevatedButton.icon(
+              onPressed: _clearForm,
+              icon: const Icon(Icons.clear),
+              label: const Text('Clear'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.grey.shade700,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
                 ),
               ),
             ),
@@ -609,400 +469,358 @@ class _ManageBusDriverDetailsScreenState
     );
   }
 
+  Widget _confirmDialog() {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      backgroundColor: glassBg,
+      title: const Text(
+        'Confirm Deletion',
+        style: TextStyle(color: Colors.white),
+      ),
+      content: const Text(
+        'Are you sure you want to delete this driver record?',
+        style: TextStyle(color: Colors.white70),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Cancel', style: TextStyle(color: Colors.white70)),
+        ),
+        ElevatedButton(
+          onPressed: () => Navigator.pop(context, true),
+          style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+          child: const Text('Delete'),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: const Text(
-          'Manage Driver Details',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
-        ),
-        backgroundColor: Colors.blue.shade800.withValues(alpha: 0.3),
-        centerTitle: true,
+        backgroundColor: Colors.transparent,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
-        flexibleSpace: ClipRect(
+        centerTitle: true,
+        iconTheme: const IconThemeData(color: Colors.white, size: 28),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.person, color: busYellow, size: 28),
+            const SizedBox(width: 8),
+            const Text(
+              'Manage Drivers',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        flexibleSpace: ClipRRect(
           child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-            child: Container(color: Colors.transparent),
+            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+            child: Container(color: Colors.white.withAlpha(0x0D)),
           ),
         ),
       ),
       body: Container(
-        width: double.infinity,
-        height: double.infinity,
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              Colors.blue.shade900,
-              Colors.blue.shade700,
-              Colors.blue.shade500,
-            ],
-            stops: const [0.0, 0.5, 1.0],
+            colors: [bgStart, bgMid, bgEnd],
           ),
         ),
-        child: SingleChildScrollView(
-          padding: EdgeInsets.only(
-            top:
-                AppBar().preferredSize.height +
-                MediaQuery.of(context).padding.top +
-                16,
-            left: 16.0,
-            right: 16.0,
-            bottom: 16.0,
-          ),
-          child: Column(
-            children: [
-              _buildFormCard(),
-              const SizedBox(height: 30),
-              _buildDriverTable(),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFormCard() {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(25),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 20.0, sigmaY: 20.0),
-        child: Container(
-          padding: const EdgeInsets.all(25),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                Colors.blueGrey.shade300.withValues(alpha: 0.15),
-                Colors.blueGrey.shade700.withValues(alpha: 0.15),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(25),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.3),
-              width: 1.5,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.3),
-                blurRadius: 30,
-                spreadRadius: 5,
-                offset: const Offset(10, 10),
-              ),
-              BoxShadow(
-                color: Colors.white.withValues(alpha: 0.15),
-                blurRadius: 15,
-                spreadRadius: 2,
-                offset: const Offset(-8, -8),
-              ),
-            ],
-          ),
-          child: Form(
-            key: _formKey,
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
             child: Column(
               children: [
-                Text(
-                  _editingIndex == null
-                      ? "Add New Driver"
-                      : "Edit Driver Details",
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    shadows: [Shadow(blurRadius: 5, color: Colors.black54)],
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 30),
-                _buildTextField(_nameController, 'Full Name', Icons.person),
-                _buildTextField(
-                  _contactController,
-                  'Contact Number',
-                  Icons.phone,
-                  TextInputType.phone,
-                ),
-                _buildTextField(
-                  _licenseController,
-                  'License Number',
-                  Icons.credit_card,
-                ),
-                _buildTextField(
-                  _emailController,
-                  'Email',
-                  Icons.email,
-                  TextInputType.emailAddress,
-                ),
-                _buildTextField(
-                  _passwordController,
-                  _editingIndex == null ? 'Password' : 'Password (Optional)',
-                  Icons.lock,
-                  TextInputType.text,
-                  true,
-                ),
-                _buildLicenseDocumentField(),
-                _buildStatusToggle(),
-                _buildActionButtons(),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDriverTable() {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(25),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 20.0, sigmaY: 20.0),
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                Colors.blueGrey.shade300.withValues(alpha: 0.15),
-                Colors.blueGrey.shade700.withValues(alpha: 0.15),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(25),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.3),
-              width: 1.5,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.3),
-                blurRadius: 30,
-                spreadRadius: 5,
-                offset: const Offset(10, 10),
-              ),
-              BoxShadow(
-                color: Colors.white.withValues(alpha: 0.15),
-                blurRadius: 15,
-                spreadRadius: 2,
-                offset: const Offset(-8, -8),
-              ),
-            ],
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child:
-                _driverList.isEmpty
-                    ? const Center(
-                      child: Text(
-                        'No driver details available!',
-                        style: TextStyle(fontSize: 18, color: Colors.white70),
-                      ),
-                    )
-                    : SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: DataTable(
-                        headingRowColor:
-                            WidgetStateProperty.resolveWith<Color?>(
-                              (Set<WidgetState> states) =>
-                                  Colors.blue.shade800.withValues(alpha: 0.6),
-                            ),
-                        dataRowColor: WidgetStateProperty.resolveWith<Color?>(
-                          (Set<WidgetState> states) =>
-                              Colors.white.withValues(alpha: 0.05),
+                const SizedBox(height: 20),
+                _glassCard(
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      children: [
+                        Text(
+                          _editingIndex == null
+                              ? "Add New Driver"
+                              : "Edit Driver Details",
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
                         ),
-                        columnSpacing: 30,
-                        dataRowMinHeight: 60,
-                        dataRowMaxHeight: 60,
-                        headingRowHeight: 70,
-                        columns: const [
-                          DataColumn(
-                            label: Text(
-                              'Full Name',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
+                        const SizedBox(height: 24),
+                        _buildTextField(
+                          _nameController,
+                          'Full Name',
+                          Icons.person,
+                        ),
+                        _buildTextField(
+                          _contactController,
+                          'Contact Number',
+                          Icons.phone,
+                          TextInputType.phone,
+                        ),
+                        _buildTextField(
+                          _licenseController,
+                          'License Number',
+                          Icons.credit_card,
+                        ),
+                        _buildTextField(
+                          _emailController,
+                          'Email',
+                          Icons.email,
+                          TextInputType.emailAddress,
+                        ),
+                        _buildTextField(
+                          _passwordController,
+                          _editingIndex == null
+                              ? 'Password'
+                              : 'Password (Optional)',
+                          Icons.lock,
+                          TextInputType.text,
+                          true,
+                        ),
+                        const SizedBox(height: 8),
+                        _buildLicenseDocumentField(),
+                        const SizedBox(height: 8),
+                        _buildStatusToggle(),
+                        _buildActionButtons(),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 32),
+                _glassCard(
+                  child:
+                      _driverList.isEmpty
+                          ? const Center(
+                            child: Text(
+                              'No driver details available!',
+                              style: TextStyle(color: Colors.white70),
                             ),
-                          ),
-                          DataColumn(
-                            label: Text(
-                              'Contact',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
+                          )
+                          : SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: DataTable(
+                              headingRowColor: WidgetStatePropertyAll(
+                                busYellow.withAlpha(0x33),
                               ),
-                            ),
-                          ),
-                          DataColumn(
-                            label: Text(
-                              'License',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
+                              dataRowColor: WidgetStateProperty.resolveWith(
+                                (states) => Colors.white.withAlpha(0x0D),
                               ),
-                            ),
-                          ),
-                          DataColumn(
-                            label: Text(
-                              'Email',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                          ),
-                          DataColumn(
-                            label: Text(
-                              'Status',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                          ),
-                          DataColumn(
-                            label: Text(
-                              'License Document',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                          ),
-                          DataColumn(
-                            label: Text(
-                              'Actions',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                          ),
-                        ],
-                        rows:
-                            _driverList.asMap().entries.map((entry) {
-                              int index = entry.key;
-                              var driver = entry.value;
-                              return DataRow(
-                                cells: [
-                                  DataCell(
-                                    Text(
-                                      driver['name'] ?? 'N/A',
-                                      style: TextStyle(color: Colors.white70),
+                              columnSpacing: 30,
+                              dataRowMinHeight: 60,
+                              dataRowMaxHeight: 60,
+                              headingRowHeight: 70,
+                              columns: const [
+                                DataColumn(
+                                  label: Text(
+                                    'Full Name',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
                                     ),
                                   ),
-                                  DataCell(
-                                    Text(
-                                      driver['contact'] ?? 'N/A',
-                                      style: TextStyle(color: Colors.white70),
+                                ),
+                                DataColumn(
+                                  label: Text(
+                                    'Contact',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
                                     ),
                                   ),
-                                  DataCell(
-                                    Text(
-                                      driver['license'] ?? 'N/A',
-                                      style: TextStyle(color: Colors.white70),
+                                ),
+                                DataColumn(
+                                  label: Text(
+                                    'License',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
                                     ),
                                   ),
-                                  DataCell(
-                                    Text(
-                                      driver['email'] ?? 'N/A',
-                                      style: TextStyle(color: Colors.white70),
+                                ),
+                                DataColumn(
+                                  label: Text(
+                                    'Email',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
                                     ),
                                   ),
-                                  DataCell(
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 10,
-                                        vertical: 5,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: (driver['status'] == 'Active'
-                                                ? Colors.green
-                                                : Colors.red)
-                                            .withValues(alpha: 0.6),
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      child: Text(
-                                        driver['status'] ?? 'N/A',
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
+                                ),
+                                DataColumn(
+                                  label: Text(
+                                    'Status',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
                                     ),
                                   ),
-                                  DataCell(
-                                    driver['licenseDocument'] != null
-                                        ? GestureDetector(
-                                          onTap: () async {
-                                            final pdfUrl =
-                                                '${ApiConfig.baseUrl}${driver['licenseDocument']}'; // ✅ Updated URL
-                                            if (await canLaunchUrl(
-                                              Uri.parse(pdfUrl),
-                                            )) {
-                                              await launchUrl(
-                                                Uri.parse(pdfUrl),
-                                                mode:
-                                                    LaunchMode
-                                                        .externalApplication,
-                                              );
-                                            } else {
-                                              _showSnackBar(
-                                                'Could not launch PDF',
-                                              );
-                                            }
-                                          },
-                                          child: Text(
-                                            'View PDF',
+                                ),
+                                DataColumn(
+                                  label: Text(
+                                    'License Document',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                ),
+                                DataColumn(
+                                  label: Text(
+                                    'Actions',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                              rows:
+                                  _driverList.asMap().entries.map((entry) {
+                                    int index = entry.key;
+                                    var driver = entry.value;
+                                    return DataRow(
+                                      cells: [
+                                        DataCell(
+                                          Text(
+                                            driver['name'] ?? 'N/A',
                                             style: TextStyle(
-                                              color: Colors.lightBlueAccent,
-                                              decoration:
-                                                  TextDecoration.underline,
+                                              color: textSecondary,
                                             ),
                                           ),
-                                        )
-                                        : Text(
-                                          'N/A',
-                                          style: TextStyle(
-                                            color: Colors.white70,
+                                        ),
+                                        DataCell(
+                                          Text(
+                                            driver['contact'] ?? 'N/A',
+                                            style: TextStyle(
+                                              color: textSecondary,
+                                            ),
                                           ),
                                         ),
-                                  ),
-                                  DataCell(
-                                    Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        IconButton(
-                                          icon: const Icon(
-                                            Icons.edit,
-                                            color: Colors.lightBlueAccent,
+                                        DataCell(
+                                          Text(
+                                            driver['license'] ?? 'N/A',
+                                            style: TextStyle(
+                                              color: textSecondary,
+                                            ),
                                           ),
-                                          onPressed: () => _editDriver(index),
                                         ),
-                                        IconButton(
-                                          icon: const Icon(
-                                            Icons.delete,
-                                            color: Colors.redAccent,
+                                        DataCell(
+                                          Text(
+                                            driver['email'] ?? 'N/A',
+                                            style: TextStyle(
+                                              color: textSecondary,
+                                            ),
                                           ),
-                                          onPressed: () => _deleteDriver(index),
+                                        ),
+                                        DataCell(
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 10,
+                                              vertical: 5,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: (driver['status'] ==
+                                                          'Active'
+                                                      ? Colors.green
+                                                      : Colors.red)
+                                                  .withAlpha(0x99),
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
+                                            ),
+                                            child: Text(
+                                              driver['status'] ?? 'N/A',
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        DataCell(
+                                          driver['licenseDocument'] != null
+                                              ? GestureDetector(
+                                                onTap: () async {
+                                                  final pdfUrl =
+                                                      '${ApiConfig.baseUrl}${driver['licenseDocument']}';
+                                                  if (await canLaunchUrl(
+                                                    Uri.parse(pdfUrl),
+                                                  )) {
+                                                    await launchUrl(
+                                                      Uri.parse(pdfUrl),
+                                                      mode:
+                                                          LaunchMode
+                                                              .externalApplication,
+                                                    );
+                                                  } else {
+                                                    _showSnackBar(
+                                                      'Could not launch PDF',
+                                                    );
+                                                  }
+                                                },
+                                                child: Text(
+                                                  'View PDF',
+                                                  style: TextStyle(
+                                                    color: busYellow,
+                                                    decoration:
+                                                        TextDecoration
+                                                            .underline,
+                                                  ),
+                                                ),
+                                              )
+                                              : Text(
+                                                'N/A',
+                                                style: TextStyle(
+                                                  color: textSecondary,
+                                                ),
+                                              ),
+                                        ),
+                                        DataCell(
+                                          Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              IconButton(
+                                                icon: Icon(
+                                                  Icons.edit,
+                                                  color: busYellow,
+                                                ),
+                                                onPressed:
+                                                    () => _editDriver(index),
+                                              ),
+                                              IconButton(
+                                                icon: const Icon(
+                                                  Icons.delete,
+                                                  color: Colors.redAccent,
+                                                ),
+                                                onPressed:
+                                                    () => _deleteDriver(index),
+                                              ),
+                                            ],
+                                          ),
                                         ),
                                       ],
-                                    ),
-                                  ),
-                                ],
-                              );
-                            }).toList(),
-                      ),
-                    ),
+                                    );
+                                  }).toList(),
+                            ),
+                          ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

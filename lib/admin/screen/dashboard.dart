@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'dart:ui'; // Important for BackdropFilter
+import 'dart:ui';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:campus_bus_management/config/api_config.dart';
@@ -22,73 +22,50 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  // Define the required color palette
-  final Color primaryColor = Colors.blue.shade700;
-  final Color secondaryColor = Colors.pinkAccent; // Used for accents
-  final Color primaryTextColor = Colors.white;
-  final Color secondaryTextColor = Colors.white70;
-  final Color logoutColor = Colors.red.shade400;
+  int _selectedIndex = 0;
 
-  // Background for the Liquid Glass effect
-  Widget _buildBackground() {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Colors.blue.shade900,
-            Colors.blue.shade600,
-            Colors.lightBlue.shade300,
-          ],
-        ),
-      ),
-    );
-  }
+  // Colors
+  final Color bgStart = const Color(0xFF0A0E1A);
+  final Color bgMid = const Color(0xFF0F172A);
+  final Color bgEnd = const Color(0xFF1E293B);
+  final Color glassBg = Colors.white.withOpacity(0.08);
+  final Color glassBorder = Colors.white.withOpacity(0.15);
+  final Color textSecondary = Colors.white70;
+  final Color busYellow = const Color(0xFFFBBF24);
 
+  // API Fetchers
   Future<int> fetchTotalStudents() async {
     try {
-      final response = await http.get(Uri.parse('${ApiConfig.baseUrl}/students'));
-      if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
-        return data.length;
-      } else {
-        throw Exception('Failed to load students: ${response.statusCode}');
-      }
+      final response = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}/students'),
+      );
+      if (response.statusCode == 200) return jsonDecode(response.body).length;
     } catch (e) {
-      print('Error fetching students: $e');
-      return 0;
+      debugPrint('Error: $e');
     }
+    return 0;
   }
 
   Future<int> fetchTotalBuses() async {
     try {
       final response = await http.get(Uri.parse('${ApiConfig.baseUrl}/buses'));
-      if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
-        return data.length;
-      } else {
-        throw Exception('Failed to load buses: ${response.statusCode}');
-      }
+      if (response.statusCode == 200) return jsonDecode(response.body).length;
     } catch (e) {
-      print('Error fetching buses: $e');
-      return 0;
+      debugPrint('Error: $e');
     }
+    return 0;
   }
 
   Future<int> fetchTotalDrivers() async {
     try {
-      final response = await http.get(Uri.parse('${ApiConfig.baseUrl}/drivers'));
-      if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
-        return data.length;
-      } else {
-        throw Exception('Failed to load drivers: ${response.statusCode}');
-      }
+      final response = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}/drivers'),
+      );
+      if (response.statusCode == 200) return jsonDecode(response.body).length;
     } catch (e) {
-      print('Error fetching drivers: $e');
-      return 0;
+      debugPrint('Error: $e');
     }
+    return 0;
   }
 
   @override
@@ -96,97 +73,97 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: Text(
-          "Admin Dashboard",
-          style: TextStyle(
-            fontWeight: FontWeight.w700,
-            fontSize: 22,
-            color: primaryTextColor,
-          ),
-        ),
-        backgroundColor: Colors.transparent, // Make App Bar transparent
+        backgroundColor: Colors.transparent,
         elevation: 0,
-        iconTheme: IconThemeData(color: primaryTextColor, size: 28),
-        centerTitle: true,
+        centerTitle: false,
+        iconTheme: const IconThemeData(color: Colors.white, size: 28),
+        title: Row(
+          children: [
+            Icon(Icons.directions_bus, color: busYellow, size: 28),
+            const SizedBox(width: 8),
+            const Text(
+              "CAMPUS BUS",
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+                letterSpacing: 1.2,
+                color: Colors.white,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          IconButton(
+            onPressed:
+                () => Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LoginScreen()),
+                ),
+            icon: const Icon(Icons.logout, color: Colors.white, size: 26),
+            tooltip: "Logout",
+          ),
+        ],
         flexibleSpace: ClipRRect(
           child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-            child: Container(
-              color: primaryColor.withOpacity(0.3), // Semi-transparent blue App Bar
-            ),
+            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+            child: Container(color: Colors.white.withOpacity(0.05)),
           ),
         ),
       ),
-      drawer: _buildDrawer(context),
+      drawer: _buildDrawer(),
       body: Stack(
         children: [
-          _buildBackground(), // Vibrant gradient background
+          _buildBackground(),
           SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16.0),
+            child: Padding(
+              padding: const EdgeInsets.all(20.0),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const SizedBox(height: 10),
-                  // Total Students Card
-                  FutureBuilder<int>(
-                    future: fetchTotalStudents(),
-                    builder: (context, snapshot) {
-                      return _liquidGlassCard(
-                        Icons.school,
-                        Colors.cyan.shade300,
-                        "Total Students",
-                        snapshot.connectionState == ConnectionState.waiting
-                            ? "Loading..."
-                            : snapshot.hasError
-                                ? "Error: ${snapshot.error}"
-                                : snapshot.data.toString(),
-                      );
-                    },
+                  const Text(
+                    "Admin Dashboard",
+                    style: TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
                   ),
-                  // Total Drivers Card - Made tappable
-                  GestureDetector(
+                  const SizedBox(height: 32),
+
+                  // Animated Cards with Click Feedback
+                  _animatedGlassCard(
+                    icon: Icons.directions_bus,
+                    iconColor: Colors.blue.shade400,
+                    title: "Total Buses",
+                    future: fetchTotalBuses(),
+                    onTap: null,
+                  ),
+                  const SizedBox(height: 16),
+
+                  _animatedGlassCard(
+                    icon: Icons.person_outline,
+                    iconColor: Colors.green.shade400,
+                    title: "Total Drivers",
+                    future: fetchTotalDrivers(),
                     onTap: () {
+                      setState(() => _selectedIndex = 1);
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const ShowDriversScreen(),
+                          builder: (_) => const ShowDriversScreen(),
                         ),
                       );
                     },
-                    child: FutureBuilder<int>(
-                      future: fetchTotalDrivers(),
-                      builder: (context, snapshot) {
-                        return _liquidGlassCard(
-                          Icons.group,
-                          Colors.lightGreenAccent.shade400,
-                          "Total Drivers",
-                          snapshot.connectionState == ConnectionState.waiting
-                              ? "Loading..."
-                              : snapshot.hasError
-                                  ? "Error: ${snapshot.error}"
-                                  : snapshot.data.toString(),
-                        );
-                      },
-                    ),
                   ),
-                  // Total Buses Card
-                  FutureBuilder<int>(
-                    future: fetchTotalBuses(),
-                    builder: (context, snapshot) {
-                      return _liquidGlassCard(
-                        Icons.directions_bus_filled,
-                        secondaryColor, // Pink accent
-                        "Total Buses",
-                        snapshot.connectionState == ConnectionState.waiting
-                            ? "Loading..."
-                            : snapshot.hasError
-                                ? "Error: ${snapshot.error}"
-                                : snapshot.data.toString(),
-                      );
-                    },
+                  const SizedBox(height: 16),
+
+                  _animatedGlassCard(
+                    icon: Icons.school,
+                    iconColor: Colors.cyan.shade400,
+                    title: "Total Students",
+                    future: fetchTotalStudents(),
+                    onTap: null,
                   ),
-                  const SizedBox(height: 10),
                 ],
               ),
             ),
@@ -196,120 +173,224 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildDrawer(BuildContext context) {
+  Widget _buildBackground() {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [bgStart, bgMid, bgEnd],
+        ),
+      ),
+    );
+  }
+
+  // Animated Card with Pop + Shadow
+  Widget _animatedGlassCard({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required Future<int> future,
+    VoidCallback? onTap,
+  }) {
+    return StatefulBuilder(
+      builder: (context, setState) {
+        bool isPressed = false;
+        return GestureDetector(
+          onTapDown:
+              onTap != null ? (_) => setState(() => isPressed = true) : null,
+          onTapUp:
+              onTap != null
+                  ? (_) {
+                    setState(() => isPressed = false);
+                    Future.delayed(const Duration(milliseconds: 100), onTap);
+                  }
+                  : null,
+          onTapCancel:
+              onTap != null ? () => setState(() => isPressed = false) : null,
+          child: AnimatedScale(
+            scale: isPressed ? 1.02 : 1.0,
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOutCubic,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              transform:
+                  Matrix4.identity()..translate(0.0, isPressed ? -4 : 0.0),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(24),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                  child: Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: glassBg,
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: glassBorder, width: 1.2),
+                      boxShadow:
+                          isPressed
+                              ? [
+                                BoxShadow(
+                                  color: Colors.white.withOpacity(0.15),
+                                  blurRadius: 20,
+                                  offset: const Offset(0, 8),
+                                ),
+                              ]
+                              : null,
+                    ),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 30,
+                          backgroundColor: iconColor.withOpacity(0.2),
+                          child: Icon(icon, size: 34, color: iconColor),
+                        ),
+                        const SizedBox(width: 20),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                title,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: textSecondary,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              FutureBuilder<int>(
+                                future: future,
+                                builder: (context, snapshot) {
+                                  final value =
+                                      snapshot.connectionState ==
+                                              ConnectionState.waiting
+                                          ? "--"
+                                          : snapshot.hasData
+                                          ? snapshot.data.toString()
+                                          : "0";
+                                  return Text(
+                                    value,
+                                    style: const TextStyle(
+                                      fontSize: 38,
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // Drawer with Click Feedback
+  Widget _buildDrawer() {
     return Drawer(
       child: Stack(
         children: [
-          _buildBackground(), // Background visible through the blur
-          ClipRRect(
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-              child: Container(
-                color: Colors.black.withOpacity(0.25), // Dark blur overlay
-                child: Column(
-                  children: [
-                    // Custom Drawer Header with Glassmorphism effect
-                    Container(
-                      padding: const EdgeInsets.only(top: 60, bottom: 20, left: 16, right: 16),
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: primaryColor.withOpacity(0.4),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Campus Bus Admin',
-                            style: TextStyle(
-                              fontSize: 24,
-                              color: primaryTextColor,
-                              fontWeight: FontWeight.w800,
-                              shadows: [
-                                Shadow(color: Colors.black.withOpacity(0.5), blurRadius: 4)
-                              ]
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Dashboard & Management',
-                            style: TextStyle(
-                              color: secondaryTextColor,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w400,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    
-                    Expanded(
-                      child: ListView(
-                        padding: EdgeInsets.zero,
-                        children: [
-                          _buildDrawerItem(
-                            context, Icons.directions_bus, "Manage Bus Details", 
-                            const ManageBusDetailsScreen(), Colors.cyan.shade300,
-                          ),
-                          _buildDrawerItem(
-                            context, Icons.person, "Manage Driver Details", 
-                            const ManageBusDriverDetailsScreen(), Colors.lightGreenAccent.shade400,
-                          ),
-                          _buildDrawerItem(
-                            context, Icons.school, "Manage Student Details", 
-                            const ManageStudentDetailsScreen(), Colors.amber.shade300,
-                          ),
-                          _buildDrawerItem(
-                            context, Icons.swap_horiz, "Allocate Bus to Student", 
-                            const AllocateBusScreen(), Colors.purple.shade300,
-                          ),
-                          _buildDrawerItem(
-                            context, Icons.payment, "Manage Fees", 
-                            const ManageStudentFeesScreen(), secondaryColor, // Pink accent
-                          ),
-                          _buildDrawerItem(
-                            context, Icons.notifications, "Manage Notifications", 
-                            const NotificationsScreen(userRole: "Admin"), Colors.blue.shade300,
-                          ),
-                          _buildDrawerItem(
-                            context, Icons.assignment, "View Student Attendance", 
-                            const ViewStudentAttendance(), Colors.red.shade300,
-                          ),
-                          _buildDrawerItem(
-                            context, Icons.bar_chart, "Reports", 
-                            const ReportsScreen(), Colors.teal.shade300,
-                          ),
-                        ],
-                      ),
-                    ),
-                    // Logout button at the bottom
-                    Divider(color: secondaryTextColor.withOpacity(0.4), thickness: 1),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-                      child: ListTile(
-                        leading: Icon(Icons.logout, color: logoutColor, size: 26),
-                        title: Text(
-                          "Logout",
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: logoutColor,
-                            fontWeight: FontWeight.w700,
-                          ),
+          _buildBackground(),
+          BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+            child: Container(color: Colors.black.withOpacity(0.35)),
+          ),
+          SafeArea(
+            child: Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.fromLTRB(20, 50, 20, 20),
+                  child: Row(
+                    children: [
+                      Icon(Icons.directions_bus, color: busYellow, size: 36),
+                      const SizedBox(width: 12),
+                      const Text(
+                        "Campus Bus",
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
                         ),
-                        onTap: () {
-                          Navigator.pop(context);
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const LoginScreen(),
-                            ),
-                          );
-                        },
                       ),
-                    ),
-                    const SizedBox(height: 10),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
+                const Divider(color: Colors.white24, height: 1),
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 8,
+                    ),
+                    children: [
+                      _drawerItem(
+                        Icons.directions_bus,
+                        "Buses",
+                        const ManageBusDetailsScreen(),
+                        0,
+                      ),
+                      _drawerItem(
+                        Icons.person,
+                        "Drivers",
+                        const ManageBusDriverDetailsScreen(),
+                        1,
+                      ),
+                      _drawerItem(
+                        Icons.school,
+                        "Students",
+                        const ManageStudentDetailsScreen(),
+                        2,
+                      ),
+                      _drawerItem(
+                        Icons.swap_horiz,
+                        "Allocate Bus",
+                        const AllocateBusScreen(),
+                        3,
+                      ),
+                      _drawerItem(
+                        Icons.payment,
+                        "Fees",
+                        const ManageStudentFeesScreen(),
+                        4,
+                      ),
+                      _drawerItem(
+                        Icons.notifications,
+                        "Notifications",
+                        const NotificationsScreen(userRole: "Admin"),
+                        5,
+                      ),
+                      _drawerItem(
+                        Icons.assignment,
+                        "Attendance",
+                        const ViewStudentAttendance(),
+                        6,
+                      ),
+                      _drawerItem(
+                        Icons.bar_chart,
+                        "Reports",
+                        const ReportsScreen(),
+                        7,
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(color: Colors.white24, height: 1),
+                _drawerItem(
+                  Icons.logout,
+                  "Logout",
+                  const LoginScreen(),
+                  -1,
+                  isLogout: true,
+                ),
+              ],
             ),
           ),
         ],
@@ -317,94 +398,88 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildDrawerItem(
-    BuildContext context,
+  // Drawer Item with Click Feedback + Selection
+  Widget _drawerItem(
     IconData icon,
     String title,
     Widget screen,
-    Color iconColor,
-  ) {
-    return ListTile(
-      leading: Icon(icon, color: iconColor, size: 26),
-      title: Text(
-        title,
-        style: TextStyle(
-          fontSize: 16,
-          color: primaryTextColor,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
-      onTap: () {
-        Navigator.pop(context);
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => screen),
-        );
-      },
-    );
-  }
+    int index, {
+    bool isLogout = false,
+  }) {
+    final bool isSelected = !isLogout && _selectedIndex == index;
+    bool isPressed = false;
 
-  // Liquid Glass Stat Card
-  Widget _liquidGlassCard(IconData icon, Color iconColor, String title, String subtitle) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-          child: Container(
-            padding: const EdgeInsets.all(20),
+    return StatefulBuilder(
+      builder: (context, setState) {
+        return GestureDetector(
+          onTapDown: (_) => setState(() => isPressed = true),
+          onTapUp: (_) {
+            setState(() => isPressed = false);
+            if (isLogout) {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => screen),
+              );
+            } else {
+              this.setState(() => _selectedIndex = index);
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => screen),
+              );
+            }
+          },
+          onTapCancel: () => setState(() => isPressed = false),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: primaryTextColor.withOpacity(0.15), // Semi-transparent glass base
-              borderRadius: BorderRadius.circular(20),
+              color:
+                  isSelected
+                      ? Colors.amber.withOpacity(0.15)
+                      : isPressed
+                      ? Colors.white.withOpacity(0.1)
+                      : Colors.transparent,
+              borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: primaryTextColor.withOpacity(0.2), // Light border for definition
-                width: 1.5,
+                color:
+                    isSelected
+                        ? Colors.amber.withOpacity(0.3)
+                        : Colors.transparent,
+                width: 1,
               ),
             ),
             child: Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: primaryTextColor.withOpacity(0.2),
-                  ),
-                  child: Icon(icon, size: 40, color: iconColor),
+                Icon(
+                  icon,
+                  color:
+                      isLogout
+                          ? const Color.fromARGB(255, 252, 252, 252)
+                          : isSelected
+                          ? Colors.amber
+                          : Colors.white70,
                 ),
-                const SizedBox(width: 20),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                          color: primaryTextColor,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        subtitle,
-                        style: TextStyle(
-                          fontSize: 32,
-                          color: iconColor, // Color accent for the count
-                          fontWeight: FontWeight.w900,
-                          shadows: [
-                            Shadow(color: Colors.black.withOpacity(0.5), blurRadius: 4)
-                          ]
-                        ),
-                      ),
-                    ],
+                const SizedBox(width: 16),
+                Text(
+                  title,
+                  style: TextStyle(
+                    color:
+                        isLogout
+                            ? const Color.fromARGB(255, 254, 253, 253)
+                            : isSelected
+                            ? Colors.amber
+                            : Colors.white,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                    fontSize: 16,
                   ),
                 ),
               ],
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

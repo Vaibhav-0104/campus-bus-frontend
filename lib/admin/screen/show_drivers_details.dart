@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:ui'; // <-- ADDED FOR ImageFilter
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:campus_bus_management/config/api_config.dart';
@@ -14,12 +15,22 @@ class ShowDriversScreen extends StatefulWidget {
 class _ShowDriversScreenState extends State<ShowDriversScreen> {
   Future<List<Driver>>? _driversFuture;
 
+  // ────── NEW COLORS (Same as other screens) ──────
+  final Color bgStart = const Color(0xFF0A0E1A);
+  final Color bgMid = const Color(0xFF0F172A);
+  final Color bgEnd = const Color(0xFF1E293B);
+  final Color glassBg = Colors.white.withAlpha(0x14);
+  final Color glassBorder = Colors.white.withAlpha(0x26);
+  final Color textSecondary = Colors.white70;
+  final Color busYellow = const Color(0xFFFBBF24);
+
   @override
   void initState() {
     super.initState();
     _driversFuture = fetchDrivers();
   }
 
+  // ────── API LOGIC UNCHANGED ──────
   Future<List<Driver>> fetchDrivers() async {
     try {
       final response = await http.get(
@@ -46,40 +57,40 @@ class _ShowDriversScreenState extends State<ShowDriversScreen> {
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: const Text(
-          'Drivers Details',
-          style: TextStyle(
-            fontWeight: FontWeight.w700,
-            fontSize: 22,
-            color: Colors.white,
-          ),
-        ),
         backgroundColor: Colors.transparent,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
-        flexibleSpace: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                Colors.blue.shade900.withOpacity(0.8),
-                Colors.blue.shade700.withOpacity(0.6),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+        centerTitle: true,
+        iconTheme: const IconThemeData(color: Colors.white, size: 28),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.directions_bus, color: busYellow, size: 28),
+            const SizedBox(width: 8),
+            const Text(
+              'Drivers Details',
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 22,
+                color: Colors.white,
+              ),
             ),
+          ],
+        ),
+        flexibleSpace: ClipRRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+            child: Container(color: Colors.white.withAlpha(0x0D)),
           ),
         ),
       ),
       body: Container(
+        width: double.infinity,
+        height: double.infinity,
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Colors.blue.shade900,
-              Colors.blue.shade600,
-              Colors.blue.shade400,
-            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [bgStart, bgMid, bgEnd],
           ),
         ),
         child: SafeArea(
@@ -87,8 +98,8 @@ class _ShowDriversScreenState extends State<ShowDriversScreen> {
             future: _driversFuture,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(
-                  child: CircularProgressIndicator(color: Colors.white),
+                return Center(
+                  child: CircularProgressIndicator(color: busYellow),
                 );
               } else if (snapshot.hasError) {
                 return Center(
@@ -125,7 +136,12 @@ class _ShowDriversScreenState extends State<ShowDriversScreen> {
                 padding: const EdgeInsets.all(15.0),
                 itemCount: drivers.length,
                 itemBuilder: (context, index) {
-                  return DriverDetailCard(driver: drivers[index]);
+                  return DriverDetailCard(
+                    driver: drivers[index],
+                    busYellow: busYellow, // <-- PASSED HERE
+                    glassBg: glassBg,
+                    glassBorder: glassBorder,
+                  );
                 },
               );
             },
@@ -136,6 +152,7 @@ class _ShowDriversScreenState extends State<ShowDriversScreen> {
   }
 }
 
+// ────── MODELS UNCHANGED ──────
 class Driver {
   final String id;
   final String name;
@@ -164,11 +181,9 @@ class Driver {
     );
   }
 
-  // --- MODIFIED METHOD ---
   Future<DriverLocationData> fetchLocationData() async {
     try {
       final response = await http.get(
-        // Assuming the API path is correct, but handling 404 gracefully.
         Uri.parse('${ApiConfig.baseUrl}/driver-locations/status?driverId=$id'),
         headers: {'Content-Type': 'application/json'},
       );
@@ -177,7 +192,6 @@ class Driver {
         final data = jsonDecode(response.body);
         return DriverLocationData.fromJson(data);
       } else if (response.statusCode == 404) {
-        // Handle 404 by returning default location data (not sharing/offline).
         print(
           'Location data not found (404) for driver $id. Returning default offline status.',
         );
@@ -186,11 +200,9 @@ class Driver {
           address: 'Location data unavailable or driver is offline.',
         );
       } else {
-        // Throw exception for other status codes (e.g., 500)
         throw Exception('Failed to load location: ${response.statusCode}');
       }
     } catch (e) {
-      // Catch network errors, format issues, etc., and return default location data.
       print('Error fetching location for driver $id: $e');
       return DriverLocationData(
         shareStatus: false,
@@ -214,8 +226,6 @@ class DriverLocationData {
   });
 
   factory DriverLocationData.fromJson(Map<String, dynamic> json) {
-    // Note: The original code casts latitude and longitude to double,
-    // which may throw if the API returns int. A safer conversion is used here.
     return DriverLocationData(
       shareStatus: json['shareStatus'] ?? false,
       latitude:
@@ -231,123 +241,144 @@ class DriverLocationData {
   }
 }
 
+// ────── UI CARD (Fixed + Color Updated) ──────
 class DriverDetailCard extends StatelessWidget {
   final Driver driver;
+  final Color busYellow;
+  final Color glassBg;
+  final Color glassBorder;
 
-  const DriverDetailCard({super.key, required this.driver});
+  const DriverDetailCard({
+    super.key,
+    required this.driver,
+    required this.busYellow,
+    required this.glassBg,
+    required this.glassBorder,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final statusColor =
-        driver.status == 'Active' ? Colors.green.shade400 : Colors.red.shade400;
+    final Color statusColor =
+        driver.status == 'Active' ? Colors.greenAccent : Colors.redAccent;
 
-    return Card(
-      elevation: 10,
+    return Container(
       margin: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      color: Colors.white.withOpacity(0.95),
-      child: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Text(
-                    driver.name,
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.blue.shade900,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+          child: Container(
+            padding: const EdgeInsets.all(20.0),
+            decoration: BoxDecoration(
+              color: glassBg,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: glassBorder, width: 1.5),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.3),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: statusColor.withOpacity(0.5)),
-                  ),
-                  child: Text(
-                    driver.status,
-                    style: TextStyle(
-                      color: statusColor,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        driver.name,
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: statusColor.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: statusColor.withOpacity(0.5)),
+                      ),
+                      child: Text(
+                        driver.status,
+                        style: TextStyle(
+                          color: statusColor,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const Divider(height: 20, thickness: 1, color: Colors.white24),
+                _buildDetailRow(Icons.email, 'Email:', driver.email),
+                _buildDetailRow(Icons.phone, 'Contact:', driver.contact),
+                _buildDetailRow(Icons.badge, 'License:', driver.license),
+                const SizedBox(height: 15),
+                GestureDetector(
+                  onTap: () async {
+                    final locationData = await driver.fetchLocationData();
+                    if (!context.mounted) return;
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder:
+                            (context) => LiveDriverLocationPage(
+                              driverId: driver.id,
+                              initialLocationData: locationData,
+                            ),
+                      ),
+                    );
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 14,
+                      horizontal: 16,
+                    ),
+                    decoration: BoxDecoration(
+                      color: busYellow,
+                      borderRadius: BorderRadius.circular(15),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.3),
+                          blurRadius: 10,
+                          offset: const Offset(0, 5),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.location_on,
+                          color: Colors.black87,
+                          size: 24,
+                        ),
+                        const SizedBox(width: 10),
+                        const Text(
+                          'View Driver Location',
+                          style: TextStyle(
+                            color: Colors.black87,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
               ],
             ),
-            const Divider(height: 20, thickness: 1, color: Colors.grey),
-            _buildDetailRow(Icons.email, 'Email:', driver.email),
-            _buildDetailRow(Icons.phone, 'Contact:', driver.contact),
-            _buildDetailRow(Icons.badge, 'License:', driver.license),
-            const SizedBox(height: 15),
-            GestureDetector(
-              onTap: () async {
-                final locationData = await driver.fetchLocationData();
-                // Check if the context is still valid before performing navigation
-                if (!context.mounted) return;
-
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder:
-                        (context) => LiveDriverLocationPage(
-                          driverId: driver.id,
-                          initialLocationData: locationData,
-                        ),
-                  ),
-                );
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  vertical: 12,
-                  horizontal: 16,
-                ),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Colors.blue.shade600, Colors.blue.shade400],
-                  ),
-                  borderRadius: BorderRadius.circular(15),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
-                      blurRadius: 8,
-                      offset: const Offset(2, 2),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(
-                      Icons.location_on,
-                      color: Colors.white,
-                      size: 24,
-                    ),
-                    const SizedBox(width: 10),
-                    const Text(
-                      'View Driver Location',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -363,9 +394,9 @@ class DriverDetailCard extends StatelessWidget {
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: Colors.blue.shade100,
+              color: busYellow.withOpacity(0.2),
             ),
-            child: Icon(icon, size: 22, color: Colors.blue.shade700),
+            child: Icon(icon, size: 22, color: busYellow),
           ),
           const SizedBox(width: 12),
           Text(
@@ -373,16 +404,16 @@ class DriverDetailCard extends StatelessWidget {
             style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
-              color: Colors.black87,
+              color: Colors.white70,
             ),
           ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               value,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 16,
-                color: Colors.black.withOpacity(0.7),
+                color: Colors.white,
                 fontWeight: FontWeight.w500,
               ),
               overflow: TextOverflow.ellipsis,

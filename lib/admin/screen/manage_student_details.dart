@@ -1,12 +1,12 @@
 import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:io';
-import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'dart:ui';
-import 'package:campus_bus_management/config/api_config.dart'; // ✅ Import centralized URL
+import 'package:campus_bus_management/config/api_config.dart';
 
 class ManageStudentDetailsScreen extends StatefulWidget {
   const ManageStudentDetailsScreen({super.key});
@@ -34,6 +34,15 @@ class _ManageStudentDetailsScreenState
   String? _editingStudentId;
   List<Map<String, dynamic>> _students = [];
 
+  // ────── COLORS (Same as other screens) ──────
+  final Color bgStart = const Color(0xFF0A0E1A);
+  final Color bgMid = const Color(0xFF0F172A);
+  final Color bgEnd = const Color(0xFF1E293B);
+  final Color glassBg = Colors.white.withAlpha(0x14);
+  final Color glassBorder = Colors.white.withAlpha(0x26);
+  final Color textSecondary = Colors.white70;
+  final Color busYellow = const Color(0xFFFBBF24);
+
   @override
   void initState() {
     super.initState();
@@ -57,7 +66,7 @@ class _ManageStudentDetailsScreenState
     try {
       final response = await http.get(
         Uri.parse('${ApiConfig.baseUrl}/students'),
-      ); // ✅ Updated URL
+      );
       if (response.statusCode == 200) {
         setState(() {
           _students = List<Map<String, dynamic>>.from(
@@ -76,12 +85,8 @@ class _ManageStudentDetailsScreenState
     final source = await _showImageSourceDialog();
     if (source == null) return;
 
-    final ImagePicker picker = ImagePicker();
-    final XFile? pickedFile = await picker.pickImage(
-      source: source,
-      imageQuality: 80,
-    );
-
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: source, imageQuality: 80);
     if (pickedFile != null) {
       if (kIsWeb) {
         final bytes = await pickedFile.readAsBytes();
@@ -102,40 +107,36 @@ class _ManageStudentDetailsScreenState
     return showDialog<ImageSource>(
       context: context,
       builder:
-          (context) => AlertDialog(
+          (_) => AlertDialog(
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20),
             ),
-            backgroundColor: Colors.blue.shade800.withOpacity(0.8),
+            backgroundColor: glassBg,
             title: const Text(
               'Select Image Source',
               style: TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
-                shadows: [Shadow(blurRadius: 2, color: Colors.black54)],
               ),
             ),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 ListTile(
-                  leading: Icon(Icons.camera, color: Colors.lightBlueAccent),
+                  leading: Icon(Icons.camera, color: busYellow),
                   title: const Text(
                     'Camera',
                     style: TextStyle(color: Colors.white),
                   ),
-                  onTap: () => Navigator.of(context).pop(ImageSource.camera),
+                  onTap: () => Navigator.pop(context, ImageSource.camera),
                 ),
                 ListTile(
-                  leading: Icon(
-                    Icons.photo_library,
-                    color: Colors.lightBlueAccent,
-                  ),
+                  leading: Icon(Icons.photo_library, color: busYellow),
                   title: const Text(
                     'Gallery',
                     style: TextStyle(color: Colors.white),
                   ),
-                  onTap: () => Navigator.of(context).pop(ImageSource.gallery),
+                  onTap: () => Navigator.pop(context, ImageSource.gallery),
                 ),
               ],
             ),
@@ -148,10 +149,8 @@ class _ManageStudentDetailsScreenState
 
     final uri =
         _editingStudentId == null
-            ? Uri.parse('${ApiConfig.baseUrl}/students') // ✅ Updated URL
-            : Uri.parse(
-              '${ApiConfig.baseUrl}/students/$_editingStudentId',
-            ); // ✅ Updated URL
+            ? Uri.parse('${ApiConfig.baseUrl}/students')
+            : Uri.parse('${ApiConfig.baseUrl}/students/$_editingStudentId');
 
     final request = http.MultipartRequest(
       _editingStudentId == null ? 'POST' : 'PUT',
@@ -172,17 +171,18 @@ class _ManageStudentDetailsScreenState
       );
     }
 
-    request.fields['name'] = _nameController.text.trim();
-    request.fields['envNumber'] = _envNumberController.text.trim();
-    request.fields['email'] = _emailController.text.trim();
-    if (_editingStudentId == null ||
-        _passwordController.text.trim().isNotEmpty) {
-      request.fields['password'] = _passwordController.text.trim();
-    }
-    request.fields['department'] = _departmentController.text.trim();
-    request.fields['mobile'] = _mobileController.text.trim();
-    request.fields['parentEmail'] = _parentEmailController.text.trim();
-    request.fields['parentContact'] = _parentContactController.text.trim();
+    request.fields.addAll({
+      'name': _nameController.text.trim(),
+      'envNumber': _envNumberController.text.trim(),
+      'email': _emailController.text.trim(),
+      if (_editingStudentId == null ||
+          _passwordController.text.trim().isNotEmpty)
+        'password': _passwordController.text.trim(),
+      'department': _departmentController.text.trim(),
+      'mobile': _mobileController.text.trim(),
+      'parentEmail': _parentEmailController.text.trim(),
+      'parentContact': _parentContactController.text.trim(),
+    });
 
     try {
       final response = await request.send();
@@ -195,10 +195,10 @@ class _ManageStudentDetailsScreenState
         _clearForm();
         _fetchStudents();
       } else {
-        _showSnackBar('Failed to save student: $responseBody');
+        _showSnackBar('Failed to save: $responseBody');
       }
     } catch (e) {
-      _showSnackBar('Error saving student: $e');
+      _showSnackBar('Error: $e');
     }
   }
 
@@ -245,258 +245,72 @@ class _ManageStudentDetailsScreenState
   }
 
   Future<void> _deleteStudent(String id) async {
-    showDialog(
+    final confirm = await showDialog<bool>(
       context: context,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          backgroundColor: Colors.blue.shade800.withOpacity(0.8),
-          title: const Text(
-            'Confirm Deletion',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              shadows: [Shadow(blurRadius: 2, color: Colors.black54)],
+      builder:
+          (_) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
             ),
-          ),
-          content: const Text(
-            'Are you sure you want to delete this student record?',
-            style: TextStyle(color: Colors.white70, fontSize: 16),
-          ),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: Text(
-                'Cancel',
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.8),
-                  fontSize: 16,
+            backgroundColor: glassBg,
+            title: const Text(
+              'Confirm Deletion',
+              style: TextStyle(color: Colors.white),
+            ),
+            content: const Text(
+              'Are you sure you want to delete this student?',
+              style: TextStyle(color: Colors.white70),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text(
+                  'Cancel',
+                  style: TextStyle(color: Colors.white70),
                 ),
               ),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                Navigator.of(dialogContext).pop();
-                try {
-                  final response = await http.delete(
-                    Uri.parse(
-                      '${ApiConfig.baseUrl}/students/$id',
-                    ), // ✅ Updated URL
-                  );
-                  if (response.statusCode == 200) {
-                    _showSnackBar(
-                      'Student deleted successfully!',
-                      isSuccess: true,
-                    );
-                    _fetchStudents();
-                  } else {
-                    _showSnackBar(
-                      'Failed to delete student: ${response.statusCode}',
-                    );
-                  }
-                } catch (e) {
-                  _showSnackBar('Error deleting student: $e');
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.redAccent,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(15),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.redAccent,
                 ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 10,
-                ),
+                child: const Text('Delete'),
               ),
-              child: const Text(
-                'Delete',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        title: const Text(
-          'Manage Student Details',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
-        ),
-        backgroundColor: Colors.blue.shade800.withOpacity(0.3),
-        centerTitle: true,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
-        flexibleSpace: ClipRect(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-            child: Container(color: Colors.transparent),
-          ),
-        ),
-      ),
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Colors.blue.shade900,
-              Colors.blue.shade700,
-              Colors.blue.shade500,
-            ],
-            stops: const [0.0, 0.5, 1.0],
-          ),
-        ),
-        child: SingleChildScrollView(
-          padding: EdgeInsets.only(
-            top:
-                MediaQuery.of(context).padding.top +
-                AppBar().preferredSize.height +
-                16,
-            left: 16,
-            right: 16,
-            bottom: 16,
-          ),
-          child: Column(
-            children: [
-              _buildFormCard(),
-              const SizedBox(height: 30),
-              _buildStudentTable(),
             ],
           ),
-        ),
-      ),
     );
+
+    if (confirm != true) return;
+
+    try {
+      final response = await http.delete(
+        Uri.parse('${ApiConfig.baseUrl}/students/$id'),
+      );
+      if (response.statusCode == 200) {
+        _showSnackBar('Student deleted successfully!', isSuccess: true);
+        _fetchStudents();
+      } else {
+        _showSnackBar('Failed to delete: ${response.statusCode}');
+      }
+    } catch (e) {
+      _showSnackBar('Error: $e');
+    }
   }
 
-  Widget _buildFormCard() {
+  // ────── GLASS CARD & INPUTS ──────
+  Widget _glassCard({required Widget child}) {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(25),
+      borderRadius: BorderRadius.circular(24),
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 20.0, sigmaY: 20.0),
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
         child: Container(
-          padding: const EdgeInsets.all(25),
+          padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                Colors.blueGrey.shade300.withOpacity(0.15),
-                Colors.blueGrey.shade700.withOpacity(0.15),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(25),
-            border: Border.all(color: Colors.white.withOpacity(0.3)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.3),
-                blurRadius: 30,
-                spreadRadius: 5,
-                offset: const Offset(10, 10),
-              ),
-              BoxShadow(
-                color: Colors.white.withOpacity(0.15),
-                blurRadius: 15,
-                spreadRadius: 2,
-                offset: const Offset(-8, -8),
-              ),
-            ],
+            color: glassBg,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: glassBorder, width: 1.2),
           ),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  _editingStudentId == null
-                      ? 'Add New Student'
-                      : 'Edit Student Details',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    shadows: [Shadow(blurRadius: 5, color: Colors.black54)],
-                  ),
-                ),
-                const SizedBox(height: 20),
-                _buildTextField(_nameController, 'Full Name', Icons.person),
-                _buildTextField(
-                  _envNumberController,
-                  'Enrollment Number',
-                  Icons.badge,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter enrollment number';
-                    }
-                    return null;
-                  },
-                ),
-                _buildTextField(
-                  _emailController,
-                  'Email',
-                  Icons.email,
-                  validator: _emailValidator,
-                ),
-                _buildTextField(
-                  _passwordController,
-                  _editingStudentId == null
-                      ? 'Password'
-                      : 'Password (Optional)',
-                  Icons.lock,
-                  obscureText: true,
-                  validator: (value) {
-                    if (_editingStudentId == null &&
-                        (value == null || value.isEmpty)) {
-                      return 'Please enter a password';
-                    }
-                    if (value != null && value.isNotEmpty && value.length < 6) {
-                      return 'Password must be at least 6 characters';
-                    }
-                    return null;
-                  },
-                ),
-                _buildTextField(
-                  _departmentController,
-                  'Department',
-                  Icons.school,
-                ),
-                _buildTextField(
-                  _mobileController,
-                  'Mobile Number',
-                  Icons.phone,
-                  validator: _phoneValidator,
-                ),
-                _buildTextField(
-                  _parentEmailController,
-                  'Parent Email',
-                  Icons.email,
-                  validator: _emailValidator,
-                ),
-                _buildTextField(
-                  _parentContactController,
-                  'Parent Contact',
-                  Icons.phone,
-                  validator: _phoneValidator,
-                ),
-                _buildImagePickerField(),
-                const SizedBox(height: 20),
-                _buildActionButtons(),
-              ],
-            ),
-          ),
+          child: child,
         ),
       ),
     );
@@ -516,40 +330,30 @@ class _ManageStudentDetailsScreenState
         obscureText: obscureText,
         style: const TextStyle(color: Colors.white, fontSize: 16),
         decoration: InputDecoration(
-          prefixIcon: Icon(icon, color: Colors.lightBlueAccent, size: 24),
           labelText: label,
-          labelStyle: TextStyle(
-            color: Colors.white.withOpacity(0.8),
-            fontSize: 16,
-          ),
-          hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
+          labelStyle: TextStyle(color: textSecondary),
+          prefixIcon: Icon(icon, color: busYellow),
           filled: true,
-          fillColor: Colors.white.withOpacity(0.08),
+          fillColor: glassBg,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(15),
-            borderSide: BorderSide(
-              color: Colors.white.withOpacity(0.3),
-              width: 1.5,
-            ),
+            borderSide: BorderSide(color: glassBorder, width: 1.2),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(15),
-            borderSide: BorderSide(
-              color: Colors.white.withOpacity(0.3),
-              width: 1.5,
-            ),
+            borderSide: BorderSide(color: glassBorder, width: 1.2),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(15),
-            borderSide: const BorderSide(
-              color: Colors.lightBlueAccent,
-              width: 2.5,
-            ),
+            borderSide: BorderSide(color: busYellow, width: 2),
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 12,
           ),
         ),
         validator:
-            validator ??
-            (value) => value!.isEmpty ? 'Please enter $label' : null,
+            validator ?? (v) => v!.isEmpty ? 'Please enter $label' : null,
       ),
     );
   }
@@ -560,17 +364,17 @@ class _ManageStudentDetailsScreenState
       children: [
         Text(
           'Student Image${_editingStudentId == null ? '' : ' (Optional)'}',
-          style: TextStyle(fontSize: 16, color: Colors.white.withOpacity(0.8)),
+          style: TextStyle(color: textSecondary, fontSize: 16),
         ),
         const SizedBox(height: 8),
         GestureDetector(
           onTap: _pickImage,
           child: Container(
-            height: 100,
+            height: 120,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.1),
+              color: glassBg,
               borderRadius: BorderRadius.circular(15),
-              border: Border.all(color: Colors.white.withOpacity(0.2)),
+              border: Border.all(color: glassBorder, width: 1.2),
             ),
             child: Center(
               child:
@@ -578,16 +382,10 @@ class _ManageStudentDetailsScreenState
                       ? Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(
-                            Icons.upload,
-                            color: Colors.lightBlueAccent,
-                            size: 40,
-                          ),
+                          Icon(Icons.upload, color: busYellow, size: 40),
                           Text(
                             'Upload Image',
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.7),
-                            ),
+                            style: TextStyle(color: textSecondary),
                           ),
                         ],
                       )
@@ -614,354 +412,385 @@ class _ManageStudentDetailsScreenState
         const SizedBox(height: 8),
         Text(
           'Please upload a clear face image for recognition',
-          style: TextStyle(fontSize: 12, color: Colors.white.withOpacity(0.7)),
+          style: TextStyle(fontSize: 12, color: textSecondary),
         ),
       ],
     );
   }
 
   Widget _buildActionButtons() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: [
-        Expanded(
-          child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 5),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(30),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.blue.shade800.withOpacity(0.4),
-                  blurRadius: 20,
-                  spreadRadius: 2,
-                  offset: const Offset(0, 10),
-                ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(30),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
-                child: ElevatedButton(
-                  onPressed: _saveStudent,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue.shade600.withOpacity(0.5),
-                    padding: const EdgeInsets.symmetric(vertical: 15),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
-                      side: BorderSide(
-                        color: Colors.white.withOpacity(0.3),
-                        width: 1.5,
-                      ),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: Text(
-                    _editingStudentId == null
-                        ? 'Add Student'
-                        : 'Update Student',
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      shadows: [Shadow(blurRadius: 5, color: Colors.black54)],
-                    ),
-                  ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Row(
+        children: [
+          Expanded(
+            child: ElevatedButton.icon(
+              onPressed: _saveStudent,
+              icon: const Icon(Icons.save),
+              label: Text(
+                _editingStudentId == null ? 'Add Student' : 'Update Student',
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: busYellow,
+                foregroundColor: Colors.black87,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
                 ),
               ),
             ),
           ),
-        ),
-        Expanded(
-          child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 5),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(30),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.shade800.withOpacity(0.4),
-                  blurRadius: 20,
-                  spreadRadius: 2,
-                  offset: const Offset(0, 10),
-                ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(30),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
-                child: ElevatedButton(
-                  onPressed: _clearForm,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.grey.shade600.withOpacity(0.5),
-                    padding: const EdgeInsets.symmetric(vertical: 15),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
-                      side: BorderSide(
-                        color: Colors.white.withOpacity(0.3),
-                        width: 1.5,
-                      ),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: const Text(
-                    'Clear',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      shadows: [Shadow(blurRadius: 5, color: Colors.black54)],
-                    ),
-                  ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: ElevatedButton.icon(
+              onPressed: _clearForm,
+              icon: const Icon(Icons.clear),
+              label: const Text('Clear'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.grey.shade700,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
                 ),
               ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
-  Widget _buildStudentTable() {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(25),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 20.0, sigmaY: 20.0),
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                Colors.blueGrey.shade300.withOpacity(0.15),
-                Colors.blueGrey.shade700.withOpacity(0.15),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: true,
+        iconTheme: const IconThemeData(color: Colors.white, size: 28),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.school, color: busYellow, size: 28),
+            const SizedBox(width: 8),
+            const Text(
+              'Manage Students',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-            borderRadius: BorderRadius.circular(25),
-            border: Border.all(color: Colors.white.withOpacity(0.3)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.3),
-                blurRadius: 30,
-                spreadRadius: 5,
-                offset: const Offset(10, 10),
-              ),
-              BoxShadow(
-                color: Colors.white.withOpacity(0.15),
-                blurRadius: 15,
-                spreadRadius: 2,
-                offset: const Offset(-8, -8),
-              ),
-            ],
+          ],
+        ),
+        flexibleSpace: ClipRRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+            child: Container(color: Colors.white.withAlpha(0x0D)),
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child:
-                _students.isEmpty
-                    ? const Center(
-                      child: Text(
-                        'No student details available!',
-                        style: TextStyle(fontSize: 18, color: Colors.white70),
-                      ),
-                    )
-                    : SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: DataTable(
-                        headingRowColor:
-                            MaterialStateProperty.resolveWith<Color?>(
-                              (Set<MaterialState> states) =>
-                                  Colors.blue.shade800.withOpacity(0.6),
-                            ),
-                        dataRowColor: MaterialStateProperty.resolveWith<Color?>(
-                          (Set<MaterialState> states) =>
-                              Colors.white.withOpacity(0.05),
+        ),
+      ),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [bgStart, bgMid, bgEnd],
+          ),
+        ),
+        child: SafeArea(
+          child: SingleChildScrollView(
+            // Fixed: Was SingleChildBulkScrollView
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                const SizedBox(height: 20),
+                _glassCard(
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          _editingStudentId == null
+                              ? 'Add New Student'
+                              : 'Edit Student Details',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
                         ),
-                        columnSpacing: 25,
-                        dataRowHeight: 60,
-                        headingRowHeight: 70,
-                        columns: const [
-                          DataColumn(
-                            label: Text(
-                              'Name',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 15,
-                              ),
+                        const SizedBox(height: 24),
+                        _buildTextField(
+                          _nameController,
+                          'Full Name',
+                          Icons.person,
+                        ),
+                        _buildTextField(
+                          _envNumberController,
+                          'Enrollment Number',
+                          Icons.badge,
+                          validator: (v) => v!.isEmpty ? 'Required' : null,
+                        ),
+                        _buildTextField(
+                          _emailController,
+                          'Email',
+                          Icons.email,
+                          validator: _emailValidator,
+                        ),
+                        _buildTextField(
+                          _passwordController,
+                          _editingStudentId == null
+                              ? 'Password'
+                              : 'Password (Optional)',
+                          Icons.lock,
+                          obscureText: true,
+                          validator: (v) {
+                            if (_editingStudentId == null &&
+                                (v == null || v.isEmpty))
+                              return 'Required';
+                            if (v != null && v.isNotEmpty && v.length < 6)
+                              return 'Min 6 chars';
+                            return null;
+                          },
+                        ),
+                        _buildTextField(
+                          _departmentController,
+                          'Department',
+                          Icons.school,
+                        ),
+                        _buildTextField(
+                          _mobileController,
+                          'Mobile Number',
+                          Icons.phone,
+                          validator: _phoneValidator,
+                        ),
+                        _buildTextField(
+                          _parentEmailController,
+                          'Parent Email',
+                          Icons.email,
+                          validator: _emailValidator,
+                        ),
+                        _buildTextField(
+                          _parentContactController,
+                          'Parent Contact',
+                          Icons.phone,
+                          validator: _phoneValidator,
+                        ),
+                        const SizedBox(height: 8),
+                        _buildImagePickerField(),
+                        _buildActionButtons(),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 32),
+                _glassCard(
+                  child:
+                      _students.isEmpty
+                          ? const Center(
+                            child: Text(
+                              'No students available!',
+                              style: TextStyle(color: Colors.white70),
                             ),
-                          ),
-                          DataColumn(
-                            label: Text(
-                              'Env Number',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 15,
+                          )
+                          : SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: DataTable(
+                              headingRowColor: WidgetStatePropertyAll(
+                                busYellow.withAlpha(0x33),
                               ),
-                            ),
-                          ),
-                          DataColumn(
-                            label: Text(
-                              'Email',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 15,
+                              dataRowColor: WidgetStatePropertyAll(
+                                Colors.white.withAlpha(0x0D),
                               ),
-                            ),
-                          ),
-                          DataColumn(
-                            label: Text(
-                              'Department',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 15,
-                              ),
-                            ),
-                          ),
-                          DataColumn(
-                            label: Text(
-                              'Mobile',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 15,
-                              ),
-                            ),
-                          ),
-                          DataColumn(
-                            label: Text(
-                              'Parent Email',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 15,
-                              ),
-                            ),
-                          ),
-                          DataColumn(
-                            label: Text(
-                              'Parent Contact',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 15,
-                              ),
-                            ),
-                          ),
-                          DataColumn(
-                            label: Text(
-                              'Actions',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 15,
-                              ),
-                            ),
-                          ),
-                        ],
-                        rows:
-                            _students.map((student) {
-                              return DataRow(
-                                cells: [
-                                  DataCell(
-                                    Text(
-                                      student['name'] ?? '',
-                                      style: TextStyle(color: Colors.white70),
+                              columnSpacing: 25,
+                              dataRowMinHeight: 60,
+                              dataRowMaxHeight: 60,
+                              headingRowHeight: 70,
+                              columns: const [
+                                DataColumn(
+                                  label: Text(
+                                    'Name',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
                                     ),
                                   ),
-                                  DataCell(
-                                    Text(
-                                      student['envNumber'] ?? '',
-                                      style: TextStyle(color: Colors.white70),
+                                ),
+                                DataColumn(
+                                  label: Text(
+                                    'Env No.',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
                                     ),
                                   ),
-                                  DataCell(
-                                    Text(
-                                      student['email'] ?? '',
-                                      style: TextStyle(color: Colors.white70),
+                                ),
+                                DataColumn(
+                                  label: Text(
+                                    'Email',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
                                     ),
                                   ),
-                                  DataCell(
-                                    Text(
-                                      student['department'] ?? '',
-                                      style: TextStyle(color: Colors.white70),
+                                ),
+                                DataColumn(
+                                  label: Text(
+                                    'Dept',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
                                     ),
                                   ),
-                                  DataCell(
-                                    Text(
-                                      student['mobile'] ?? '',
-                                      style: TextStyle(color: Colors.white70),
+                                ),
+                                DataColumn(
+                                  label: Text(
+                                    'Mobile',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
                                     ),
                                   ),
-                                  DataCell(
-                                    Text(
-                                      student['parentEmail'] ?? '',
-                                      style: TextStyle(color: Colors.white70),
+                                ),
+                                DataColumn(
+                                  label: Text(
+                                    'Parent Email',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
                                     ),
                                   ),
-                                  DataCell(
-                                    Text(
-                                      student['parentContact'] ?? '',
-                                      style: TextStyle(color: Colors.white70),
+                                ),
+                                DataColumn(
+                                  label: Text(
+                                    'Parent Contact',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
                                     ),
                                   ),
-                                  DataCell(
-                                    Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        IconButton(
-                                          icon: const Icon(
-                                            Icons.edit,
-                                            color: Colors.lightBlueAccent,
+                                ),
+                                DataColumn(
+                                  label: Text(
+                                    'Actions',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                              rows:
+                                  _students.map((s) {
+                                    return DataRow(
+                                      cells: [
+                                        DataCell(
+                                          Text(
+                                            s['name'] ?? '',
+                                            style: TextStyle(
+                                              color: textSecondary,
+                                            ),
                                           ),
-                                          onPressed:
-                                              () => _editStudent(student),
                                         ),
-                                        IconButton(
-                                          icon: const Icon(
-                                            Icons.delete,
-                                            color: Colors.redAccent,
+                                        DataCell(
+                                          Text(
+                                            s['envNumber'] ?? '',
+                                            style: TextStyle(
+                                              color: textSecondary,
+                                            ),
                                           ),
-                                          onPressed:
-                                              () => _deleteStudent(
-                                                student['_id'],
+                                        ),
+                                        DataCell(
+                                          Text(
+                                            s['email'] ?? '',
+                                            style: TextStyle(
+                                              color: textSecondary,
+                                            ),
+                                          ),
+                                        ),
+                                        DataCell(
+                                          Text(
+                                            s['department'] ?? '',
+                                            style: TextStyle(
+                                              color: textSecondary,
+                                            ),
+                                          ),
+                                        ),
+                                        DataCell(
+                                          Text(
+                                            s['mobile'] ?? '',
+                                            style: TextStyle(
+                                              color: textSecondary,
+                                            ),
+                                          ),
+                                        ),
+                                        DataCell(
+                                          Text(
+                                            s['parentEmail'] ?? '',
+                                            style: TextStyle(
+                                              color: textSecondary,
+                                            ),
+                                          ),
+                                        ),
+                                        DataCell(
+                                          Text(
+                                            s['parentContact'] ?? '',
+                                            style: TextStyle(
+                                              color: textSecondary,
+                                            ),
+                                          ),
+                                        ),
+                                        DataCell(
+                                          Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              IconButton(
+                                                icon: Icon(
+                                                  Icons.edit,
+                                                  color: busYellow,
+                                                ),
+                                                onPressed:
+                                                    () => _editStudent(s),
                                               ),
+                                              IconButton(
+                                                icon: const Icon(
+                                                  Icons.delete,
+                                                  color: Colors.redAccent,
+                                                ),
+                                                onPressed:
+                                                    () => _deleteStudent(
+                                                      s['_id'],
+                                                    ),
+                                              ),
+                                            ],
+                                          ),
                                         ),
                                       ],
-                                    ),
-                                  ),
-                                ],
-                              );
-                            }).toList(),
-                      ),
-                    ),
+                                    );
+                                  }).toList(),
+                            ),
+                          ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  String? _emailValidator(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Please enter email';
-    }
-    final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+');
-    if (!emailRegex.hasMatch(value)) {
-      return 'Please enter a valid email';
-    }
+  String? _emailValidator(String? v) {
+    if (v == null || v.isEmpty) return 'Required';
+    if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(v)) return 'Invalid email';
     return null;
   }
 
-  String? _phoneValidator(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Please enter phone number';
-    }
-    final phoneRegex = RegExp(r'^\d{10}$');
-    if (!phoneRegex.hasMatch(value)) {
-      return 'Please enter a valid 10-digit phone number';
-    }
+  String? _phoneValidator(String? v) {
+    if (v == null || v.isEmpty) return 'Required';
+    if (!RegExp(r'^\d{10}$').hasMatch(v)) return '10 digits only';
     return null;
   }
 }

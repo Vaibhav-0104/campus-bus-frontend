@@ -25,6 +25,15 @@ class ManageStudentFeesScreenState extends State<ManageStudentFeesScreen> {
   bool isLoadingEnvNumbers = false;
   final logger = Logger();
 
+  // ────── NEW COLORS (Same as other screens) ──────
+  final Color bgStart = const Color(0xFF0A0E1A);
+  final Color bgMid = const Color(0xFF0F172A);
+  final Color bgEnd = const Color(0xFF1E293B);
+  final Color glassBg = Colors.white.withAlpha(0x14);
+  final Color glassBorder = Colors.white.withAlpha(0x26);
+  final Color textSecondary = Colors.white70;
+  final Color busYellow = const Color(0xFFFBBF24);
+
   @override
   void initState() {
     super.initState();
@@ -38,6 +47,7 @@ class ManageStudentFeesScreenState extends State<ManageStudentFeesScreen> {
     super.dispose();
   }
 
+  // ────── API LOGIC UNCHANGED ──────
   Future<void> _fetchDepartments() async {
     try {
       setState(() {
@@ -97,9 +107,9 @@ class ManageStudentFeesScreenState extends State<ManageStudentFeesScreen> {
       if (mounted) {
         if (response.statusCode == 200) {
           final data = jsonDecode(response.body);
-          final List<dynamic> fetchedEnvNumbers = data['envNumbers'] ?? [];
+          final List<dynamic> fetchedEnvNums = data['envNumbers'] ?? [];
           setState(() {
-            envNumbers = fetchedEnvNumbers.cast<String>();
+            envNumbers = fetchedEnvNums.cast<String>();
             selectedEnvNumber = envNumbers.isNotEmpty ? envNumbers[0] : null;
             isLoadingEnvNumbers = false;
           });
@@ -252,23 +262,34 @@ class ManageStudentFeesScreenState extends State<ManageStudentFeesScreen> {
     }
   }
 
+  // ────── NEW GLASS CARD UI ──────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: const Text(
-          "Manage Fees",
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
-        ),
-        backgroundColor: Colors.blue.shade800.withOpacity(0.3),
-        centerTitle: true,
+        backgroundColor: Colors.transparent,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
-        flexibleSpace: ClipRect(
+        centerTitle: true,
+        iconTheme: const IconThemeData(color: Colors.white, size: 28),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.payments, color: busYellow, size: 28),
+            const SizedBox(width: 8),
+            const Text(
+              "Manage Fees",
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+          ],
+        ),
+        flexibleSpace: ClipRRect(
           child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-            child: Container(color: Colors.transparent),
+            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+            child: Container(color: Colors.white.withAlpha(0x0D)),
           ),
         ),
       ),
@@ -279,417 +300,164 @@ class ManageStudentFeesScreenState extends State<ManageStudentFeesScreen> {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              Colors.blue.shade900,
-              Colors.blue.shade700,
-              Colors.blue.shade500,
-            ],
-            stops: const [0.0, 0.5, 1.0],
+            colors: [bgStart, bgMid, bgEnd],
           ),
         ),
         child: SingleChildScrollView(
           padding: EdgeInsets.only(
-            top:
-                MediaQuery.of(context).padding.top +
-                AppBar().preferredSize.height +
-                16,
+            top: kToolbarHeight + MediaQuery.of(context).padding.top + 20,
             left: 16,
             right: 16,
-            bottom: 16,
+            bottom: 20,
           ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(25),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 20.0, sigmaY: 20.0),
-              child: Container(
-                padding: const EdgeInsets.all(25),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      Colors.blueGrey.shade300.withOpacity(0.15),
-                      Colors.blueGrey.shade700.withOpacity(0.15),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(25),
-                  border: Border.all(color: Colors.white.withOpacity(0.3)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.3),
-                      blurRadius: 30,
-                      spreadRadius: 5,
-                      offset: const Offset(10, 10),
-                    ),
-                    BoxShadow(
-                      color: Colors.white.withOpacity(0.15),
-                      blurRadius: 15,
-                      spreadRadius: 2,
-                      offset: const Offset(-8, -8),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      "Manage Student Fees",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        shadows: [Shadow(blurRadius: 5, color: Colors.black54)],
-                      ),
-                    ),
-                    const SizedBox(height: 30),
-                    _buildDepartmentDropdown(),
-                    const SizedBox(height: 20),
-                    _buildEnvNumberDropdown(),
-                    const SizedBox(height: 20),
-                    _buildDurationDropdown(),
-                    const SizedBox(height: 20),
-                    _buildTextField(
-                      feeController,
-                      "Fee Amount",
-                      Icons.attach_money,
-                      keyboardType: TextInputType.number,
-                    ),
-                    const SizedBox(height: 20),
-                    _buildTextField(
-                      routeController,
-                      "Route",
-                      Icons.directions_bus,
-                      readOnly: true,
-                    ),
-                    const SizedBox(height: 30),
-                    _buildActionButton(),
-                  ],
+          child: _glassCard(),
+        ),
+      ),
+    );
+  }
+
+  Widget _glassCard() {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(28),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+        child: Container(
+          padding: const EdgeInsets.all(28),
+          decoration: BoxDecoration(
+            color: glassBg,
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(color: glassBorder, width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.3),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                "Manage Student Fees",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
                 ),
               ),
-            ),
+              const SizedBox(height: 30),
+              _buildDepartmentDropdown(),
+              const SizedBox(height: 20),
+              _buildEnvNumberDropdown(),
+              const SizedBox(height: 20),
+              _buildDurationDropdown(),
+              const SizedBox(height: 20),
+              _buildTextField(
+                feeController,
+                "Fee Amount",
+                Icons.attach_money,
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 20),
+              _buildTextField(
+                routeController,
+                "Route",
+                Icons.directions_bus,
+                readOnly: true,
+              ),
+              const SizedBox(height: 30),
+              _buildActionButton(),
+            ],
           ),
         ),
       ),
     );
   }
 
+  // ────── UI WIDGETS (Only Color/Style Changed) ──────
   Widget _buildDepartmentDropdown() {
-    return Theme(
-      data: Theme.of(context).copyWith(
-        popupMenuTheme: PopupMenuThemeData(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
-          ),
-          color: Colors.blue.shade900,
-          elevation: 0,
-          textStyle: const TextStyle(color: Colors.white, fontSize: 18),
-        ),
+    return DropdownButtonFormField<String>(
+      value: selectedDepartment,
+      onChanged:
+          isLoadingDepartments
+              ? null
+              : (value) {
+                setState(() {
+                  selectedDepartment = value;
+                  selectedEnvNumber = null;
+                  selectedDuration = null;
+                  envNumbers = [];
+                  routeController.text = '';
+                });
+                if (value != null) _fetchEnvNumbers(value);
+              },
+      items:
+          departments
+              .map((d) => DropdownMenuItem(value: d, child: Text(d)))
+              .toList(),
+      decoration: _inputDecoration(
+        "Department",
+        Icons.school,
+        isLoadingDepartments,
       ),
-      child: DropdownButtonFormField<String>(
-        value: selectedDepartment,
-        onChanged:
-            isLoadingDepartments
-                ? null
-                : (value) {
-                  setState(() {
-                    selectedDepartment = value;
-                    selectedEnvNumber = null;
-                    selectedDuration = null;
-                    envNumbers = [];
-                    routeController.text = '';
-                  });
-                  if (value != null) {
-                    _fetchEnvNumbers(value);
-                  }
-                },
-        items:
-            departments.map((department) {
-              return DropdownMenuItem<String>(
-                value: department,
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Colors.blueGrey.shade300.withOpacity(0.15),
-                        Colors.blueGrey.shade700.withOpacity(0.15),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                  ),
-                  child: Text(
-                    department,
-                    style: const TextStyle(color: Colors.white, fontSize: 18),
-                  ),
-                ),
-              );
-            }).toList(),
-        style: const TextStyle(color: Colors.white, fontSize: 18),
-        decoration: InputDecoration(
-          prefixIcon:
-              isLoadingDepartments
-                  ? const SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        Colors.lightBlueAccent,
-                      ),
-                    ),
-                  )
-                  : const Icon(
-                    Icons.school,
-                    color: Colors.lightBlueAccent,
-                    size: 28,
-                  ),
-          labelText: "Department",
-          labelStyle: TextStyle(
-            color: Colors.white.withOpacity(0.8),
-            fontSize: 18,
-          ),
-          hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
-          filled: true,
-          fillColor: Colors.white.withOpacity(0.08),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(15),
-            borderSide: BorderSide(
-              color: Colors.white.withOpacity(0.4),
-              width: 1.5,
-            ),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(15),
-            borderSide: BorderSide(
-              color: Colors.white.withOpacity(0.4),
-              width: 1.5,
-            ),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(15),
-            borderSide: const BorderSide(
-              color: Colors.lightBlueAccent,
-              width: 2.5,
-            ),
-          ),
-        ),
-        dropdownColor: Colors.blue.shade900,
-        menuMaxHeight: 300,
-        validator:
-            (value) => value == null ? 'Please select a department' : null,
-        onTap: () {
-          FocusScope.of(context).requestFocus(FocusNode());
-        },
-        icon: const Icon(Icons.arrow_drop_down, color: Colors.lightBlueAccent),
-        itemHeight: 48,
-      ),
+      dropdownColor: bgMid,
+      style: const TextStyle(color: Colors.white, fontSize: 18),
+      icon: Icon(Icons.arrow_drop_down, color: busYellow),
+      validator: (v) => v == null ? 'Please select a department' : null,
     );
   }
 
   Widget _buildEnvNumberDropdown() {
-    return Theme(
-      data: Theme.of(context).copyWith(
-        popupMenuTheme: PopupMenuThemeData(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
-          ),
-          color: Colors.blue.shade900,
-          elevation: 0,
-          textStyle: const TextStyle(color: Colors.white, fontSize: 18),
-        ),
+    return DropdownButtonFormField<String>(
+      value: selectedEnvNumber,
+      onChanged:
+          isLoadingEnvNumbers
+              ? null
+              : (value) {
+                setState(() => selectedEnvNumber = value);
+                if (value != null)
+                  _fetchRoute(value);
+                else
+                  routeController.text = '';
+              },
+      items:
+          envNumbers
+              .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+              .toList(),
+      decoration: _inputDecoration(
+        "Enrollment Number",
+        Icons.person_outline,
+        isLoadingEnvNumbers,
       ),
-      child: DropdownButtonFormField<String>(
-        value: selectedEnvNumber,
-        onChanged:
-            isLoadingEnvNumbers
-                ? null
-                : (value) {
-                  setState(() {
-                    selectedEnvNumber = value;
-                  });
-                  if (value != null) {
-                    _fetchRoute(value);
-                  } else {
-                    setState(() {
-                      routeController.text = '';
-                    });
-                  }
-                },
-        items:
-            envNumbers.map((envNumber) {
-              return DropdownMenuItem<String>(
-                value: envNumber,
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Colors.blueGrey.shade300.withOpacity(0.15),
-                        Colors.blueGrey.shade700.withOpacity(0.15),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                  ),
-                  child: Text(
-                    envNumber,
-                    style: const TextStyle(color: Colors.white, fontSize: 18),
-                  ),
-                ),
-              );
-            }).toList(),
-        style: const TextStyle(color: Colors.white, fontSize: 18),
-        decoration: InputDecoration(
-          prefixIcon:
-              isLoadingEnvNumbers
-                  ? const SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        Colors.lightBlueAccent,
-                      ),
-                    ),
-                  )
-                  : const Icon(
-                    Icons.person_outline,
-                    color: Colors.lightBlueAccent,
-                    size: 28,
-                  ),
-          labelText: "Enrollment Number",
-          labelStyle: TextStyle(
-            color: Colors.white.withOpacity(0.8),
-            fontSize: 18,
-          ),
-          hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
-          filled: true,
-          fillColor: Colors.white.withOpacity(0.08),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(15),
-            borderSide: BorderSide(
-              color: Colors.white.withOpacity(0.4),
-              width: 1.5,
-            ),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(15),
-            borderSide: BorderSide(
-              color: Colors.white.withOpacity(0.4),
-              width: 1.5,
-            ),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(15),
-            borderSide: const BorderSide(
-              color: Colors.lightBlueAccent,
-              width: 2.5,
-            ),
-          ),
-        ),
-        dropdownColor: Colors.blue.shade900,
-        menuMaxHeight: 300,
-        validator:
-            (value) =>
-                value == null ? 'Please select an enrollment number' : null,
-        onTap: () {
-          FocusScope.of(context).requestFocus(FocusNode());
-        },
-        icon: const Icon(Icons.arrow_drop_down, color: Colors.lightBlueAccent),
-        itemHeight: 48,
-      ),
+      dropdownColor: bgMid,
+      style: const TextStyle(color: Colors.white, fontSize: 18),
+      icon: Icon(Icons.arrow_drop_down, color: busYellow),
+      validator: (v) => v == null ? 'Please select an enrollment number' : null,
     );
   }
 
   Widget _buildDurationDropdown() {
-    return Theme(
-      data: Theme.of(context).copyWith(
-        popupMenuTheme: PopupMenuThemeData(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
-          ),
-          color: Colors.blue.shade900,
-          elevation: 0,
-          textStyle: const TextStyle(color: Colors.white, fontSize: 18),
-        ),
-      ),
-      child: DropdownButtonFormField<String>(
-        value: selectedDuration,
-        onChanged: (value) {
-          setState(() {
-            selectedDuration = value;
-          });
-        },
-        items:
-            durations.map((duration) {
-              return DropdownMenuItem<String>(
-                value: duration,
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Colors.blueGrey.shade300.withOpacity(0.15),
-                        Colors.blueGrey.shade700.withOpacity(0.15),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                  ),
+    return DropdownButtonFormField<String>(
+      value: selectedDuration,
+      onChanged: (value) => setState(() => selectedDuration = value),
+      items:
+          durations
+              .map(
+                (d) => DropdownMenuItem(
+                  value: d,
                   child: Text(
-                    duration
-                        .replaceAll('month', ' Month')
-                        .replaceAll('year', ' Year'),
-                    style: const TextStyle(color: Colors.white, fontSize: 18),
+                    d.replaceAll('month', ' Month').replaceAll('year', ' Year'),
                   ),
                 ),
-              );
-            }).toList(),
-        style: const TextStyle(color: Colors.white, fontSize: 18),
-        decoration: InputDecoration(
-          prefixIcon: const Icon(
-            Icons.calendar_today,
-            color: Colors.lightBlueAccent,
-            size: 28,
-          ),
-          labelText: "Fee Duration",
-          labelStyle: TextStyle(
-            color: Colors.white.withOpacity(0.8),
-            fontSize: 18,
-          ),
-          hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
-          filled: true,
-          fillColor: Colors.white.withOpacity(0.08),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(15),
-            borderSide: BorderSide(
-              color: Colors.white.withOpacity(0.4),
-              width: 1.5,
-            ),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(15),
-            borderSide: BorderSide(
-              color: Colors.white.withOpacity(0.4),
-              width: 1.5,
-            ),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(15),
-            borderSide: const BorderSide(
-              color: Colors.lightBlueAccent,
-              width: 2.5,
-            ),
-          ),
-        ),
-        dropdownColor: Colors.blue.shade900,
-        menuMaxHeight: 300,
-        validator: (value) => value == null ? 'Please select a duration' : null,
-        onTap: () {
-          FocusScope.of(context).requestFocus(FocusNode());
-        },
-        icon: const Icon(Icons.arrow_drop_down, color: Colors.lightBlueAccent),
-        itemHeight: 48,
-      ),
+              )
+              .toList(),
+      decoration: _inputDecoration("Fee Duration", Icons.calendar_today, false),
+      dropdownColor: bgMid,
+      style: const TextStyle(color: Colors.white, fontSize: 18),
+      icon: Icon(Icons.arrow_drop_down, color: busYellow),
+      validator: (v) => v == null ? 'Please select a duration' : null,
     );
   }
 
@@ -705,44 +473,48 @@ class ManageStudentFeesScreenState extends State<ManageStudentFeesScreen> {
       keyboardType: keyboardType,
       readOnly: readOnly,
       style: const TextStyle(color: Colors.white, fontSize: 18),
-      decoration: InputDecoration(
-        prefixIcon: Icon(icon, color: Colors.lightBlueAccent, size: 28),
-        labelText: label,
-        labelStyle: TextStyle(
-          color: Colors.white.withOpacity(0.8),
-          fontSize: 18,
-        ),
-        hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
-        filled: true,
-        fillColor: Colors.white.withOpacity(0.08),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(15),
-          borderSide: BorderSide(
-            color: Colors.white.withOpacity(0.4),
-            width: 1.5,
-          ),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(15),
-          borderSide: BorderSide(
-            color: Colors.white.withOpacity(0.4),
-            width: 1.5,
-          ),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(15),
-          borderSide: const BorderSide(
-            color: Colors.lightBlueAccent,
-            width: 2.5,
-          ),
-        ),
+      decoration: _inputDecoration(
+        label,
+        icon,
+        false,
+      ).copyWith(filled: true, fillColor: glassBg),
+      validator: (v) => v!.isEmpty ? 'Please enter $label' : null,
+    );
+  }
+
+  InputDecoration _inputDecoration(
+    String label,
+    IconData icon,
+    bool isLoading,
+  ) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: TextStyle(color: textSecondary, fontSize: 18),
+      prefixIcon:
+          isLoading
+              ? SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: busYellow,
+                ),
+              )
+              : Icon(icon, color: busYellow, size: 28),
+      filled: true,
+      fillColor: glassBg,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(15),
+        borderSide: BorderSide(color: glassBorder, width: 1.5),
       ),
-      validator: (value) {
-        if (value == null || value.isEmpty) {
-          return 'Please enter $label';
-        }
-        return null;
-      },
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(15),
+        borderSide: BorderSide(color: glassBorder, width: 1.5),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(15),
+        borderSide: BorderSide(color: busYellow, width: 2.5),
+      ),
     );
   }
 
@@ -752,41 +524,26 @@ class ManageStudentFeesScreenState extends State<ManageStudentFeesScreen> {
         borderRadius: BorderRadius.circular(30),
         boxShadow: [
           BoxShadow(
-            color: Colors.blue.shade800.withOpacity(0.4),
+            color: busYellow.withOpacity(0.4),
             blurRadius: 20,
-            spreadRadius: 2,
             offset: const Offset(0, 10),
           ),
         ],
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(30),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
-          child: ElevatedButton(
-            onPressed: _setFees,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue.shade600.withOpacity(0.5),
-              padding: const EdgeInsets.symmetric(vertical: 18),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(30),
-                side: BorderSide(
-                  color: Colors.white.withOpacity(0.3),
-                  width: 1.5,
-                ),
-              ),
-              elevation: 0,
-            ),
-            child: const Text(
-              "Set Fees",
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-                shadows: [Shadow(blurRadius: 5, color: Colors.black54)],
-              ),
-            ),
+      child: ElevatedButton(
+        onPressed: _setFees,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: busYellow,
+          foregroundColor: Colors.black87,
+          padding: const EdgeInsets.symmetric(vertical: 18),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(30),
           ),
+          elevation: 0,
+        ),
+        child: const Text(
+          "Set Fees",
+          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
         ),
       ),
     );

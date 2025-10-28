@@ -5,7 +5,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:fluttertoast/fluttertoast.dart';
-import 'package:campus_bus_management/config/api_config.dart'; // ✅ Import centralized URL
+import 'package:campus_bus_management/config/api_config.dart';
 
 class Fee {
   final String envNumber;
@@ -63,6 +63,17 @@ class _ReportsScreenState extends State<ReportsScreen> {
   String? _errorMessage;
   final TextEditingController _searchController = TextEditingController();
 
+  // ────── NEW COLORS (Same as other screens) ──────
+  final Color bgStart = const Color(0xFF0A0E1A);
+  final Color bgMid = const Color(0xFF0F172A);
+  final Color bgEnd = const Color(0xFF1E293B);
+  final Color glassBg = Colors.white.withAlpha(0x14);
+  final Color glassBorder = Colors.white.withAlpha(0x26);
+  final Color textSecondary = Colors.white70;
+  final Color busYellow = const Color(0xFFFBBF24);
+  final Color paidColor = Colors.greenAccent;
+  final Color unpaidColor = Colors.redAccent;
+
   @override
   void initState() {
     super.initState();
@@ -77,6 +88,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
     super.dispose();
   }
 
+  // ────── LOGIC UNCHANGED (API, SEARCH, FILTER) ──────
   void _onSearchChanged() {
     _filterFeeHistory(_searchController.text);
   }
@@ -108,7 +120,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
     try {
       final response = await http.get(
-        Uri.parse('${ApiConfig.baseUrl}/fees/all'), // ✅ Updated URL
+        Uri.parse('${ApiConfig.baseUrl}/fees/all'),
       );
 
       if (response.statusCode == 200) {
@@ -125,7 +137,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
             msg: "No fee records found in the database.",
             toastLength: Toast.LENGTH_LONG,
             gravity: ToastGravity.BOTTOM,
-            backgroundColor: Colors.blueAccent,
+            backgroundColor: Colors.orange,
             textColor: Colors.white,
             fontSize: 16.0,
           );
@@ -177,6 +189,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
     }
   }
 
+  // ────── UI BUILD (Only Color/Style Changed) ──────
   @override
   Widget build(BuildContext context) {
     final double appBarHeight = AppBar().preferredSize.height;
@@ -186,18 +199,28 @@ class _ReportsScreenState extends State<ReportsScreen> {
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: const Text(
-          "Fees History",
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
-        ),
-        backgroundColor: Colors.blue.shade800.withOpacity(0.3),
-        centerTitle: true,
+        backgroundColor: Colors.transparent,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
-        flexibleSpace: ClipRect(
+        centerTitle: true,
+        iconTheme: const IconThemeData(color: Colors.white, size: 28),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.history, color: busYellow, size: 28),
+            const SizedBox(width: 8),
+            const Text(
+              "Fees History",
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+          ],
+        ),
+        flexibleSpace: ClipRRect(
           child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-            child: Container(color: Colors.transparent),
+            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+            child: Container(color: Colors.white.withAlpha(0x0D)),
           ),
         ),
       ),
@@ -208,12 +231,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              Colors.blue.shade900,
-              Colors.blue.shade700,
-              Colors.blue.shade500,
-            ],
-            stops: const [0.0, 0.5, 1.0],
+            colors: [bgStart, bgMid, bgEnd],
           ),
         ),
         child: SingleChildScrollView(
@@ -228,37 +246,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
             children: [
               _buildSectionTitle("Fee History"),
               const SizedBox(height: 10),
-              _buildLiquidGlassCard(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 10,
-                ),
-                child: TextField(
-                  controller: _searchController,
-                  style: const TextStyle(color: Colors.white, fontSize: 16),
-                  decoration: InputDecoration(
-                    hintText: "Search by student name...",
-                    hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
-                    prefixIcon: const Icon(Icons.search, color: Colors.white70),
-                    suffixIcon:
-                        _searchController.text.isNotEmpty
-                            ? IconButton(
-                              icon: Icon(
-                                Icons.clear,
-                                color: Colors.white.withOpacity(0.8),
-                              ),
-                              onPressed: () {
-                                _searchController.clear();
-                                _filterFeeHistory('');
-                              },
-                            )
-                            : null,
-                    border: InputBorder.none,
-                    focusedBorder: InputBorder.none,
-                    enabledBorder: InputBorder.none,
-                  ),
-                ),
-              ),
+              _buildSearchBar(),
               const SizedBox(height: 20),
               _buildFeeHistoryContent(),
             ],
@@ -274,7 +262,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       child: Text(
         title,
         style: TextStyle(
-          fontSize: 24,
+          fontSize: 26,
           fontWeight: FontWeight.bold,
           color: Colors.white,
           shadows: [Shadow(blurRadius: 5, color: Colors.black54)],
@@ -283,10 +271,38 @@ class _ReportsScreenState extends State<ReportsScreen> {
     );
   }
 
-  Widget _buildLiquidGlassCard({
-    required Widget child,
-    EdgeInsetsGeometry? padding,
-  }) {
+  Widget _buildSearchBar() {
+    return _buildGlassCard(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      child: TextField(
+        controller: _searchController,
+        style: const TextStyle(color: Colors.white, fontSize: 16),
+        decoration: InputDecoration(
+          hintText: "Search by student name...",
+          hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
+          prefixIcon: Icon(Icons.search, color: busYellow),
+          suffixIcon:
+              _searchController.text.isNotEmpty
+                  ? IconButton(
+                    icon: Icon(
+                      Icons.clear,
+                      color: Colors.white.withOpacity(0.8),
+                    ),
+                    onPressed: () {
+                      _searchController.clear();
+                      _filterFeeHistory('');
+                    },
+                  )
+                  : null,
+          border: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          enabledBorder: InputBorder.none,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGlassCard({required Widget child, EdgeInsetsGeometry? padding}) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(25),
       child: BackdropFilter(
@@ -294,16 +310,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
         child: Container(
           padding: padding ?? const EdgeInsets.all(25),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                Colors.blueGrey.shade300.withOpacity(0.15),
-                Colors.blueGrey.shade700.withOpacity(0.15),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+            color: glassBg,
             borderRadius: BorderRadius.circular(25),
-            border: Border.all(color: Colors.white.withOpacity(0.3)),
+            border: Border.all(color: glassBorder, width: 1.5),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.3),
@@ -327,14 +336,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   Widget _buildFeeHistoryContent() {
     if (_isLoading) {
-      return const Center(
+      return Center(
         child: Padding(
-          padding: EdgeInsets.all(20.0),
-          child: CircularProgressIndicator(color: Colors.white),
+          padding: const EdgeInsets.all(20.0),
+          child: CircularProgressIndicator(color: busYellow),
         ),
       );
     } else if (_errorMessage != null) {
-      return _buildLiquidGlassCard(
+      return _buildGlassCard(
         padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
         child: Center(
           child: Text(
@@ -345,14 +354,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
         ),
       );
     } else if (_filteredFeeHistory.isEmpty) {
-      return _buildLiquidGlassCard(
+      return _buildGlassCard(
         padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
         child: Center(
           child: Text(
             _searchController.text.isEmpty
                 ? 'No fee records found in the database.'
                 : 'No student found matching "${_searchController.text}".',
-            style: TextStyle(color: Colors.white70, fontSize: 18),
+            style: TextStyle(color: textSecondary, fontSize: 18),
             textAlign: TextAlign.center,
           ),
         ),
@@ -373,14 +382,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 
   Widget _buildFeeHistoryCard(Fee fee) {
-    return _buildLiquidGlassCard(
+    return _buildGlassCard(
       padding: const EdgeInsets.all(20),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(
-            fee.isPaid ? Icons.check_circle_outline : Icons.pending_actions,
-            color: fee.isPaid ? Colors.lightGreenAccent : Colors.orangeAccent,
+            fee.isPaid ? Icons.check_circle : Icons.pending_actions,
+            color: fee.isPaid ? paidColor : unpaidColor,
             size: 38,
           ),
           const SizedBox(width: 20),
@@ -400,25 +409,22 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 const SizedBox(height: 5),
                 Text(
                   "Enrollment: ${fee.envNumber}",
-                  style: TextStyle(fontSize: 16, color: Colors.white70),
+                  style: TextStyle(fontSize: 16, color: textSecondary),
                 ),
                 Text(
                   "Route: ${fee.route}",
-                  style: TextStyle(fontSize: 16, color: Colors.white70),
+                  style: TextStyle(fontSize: 16, color: textSecondary),
                 ),
                 Text(
                   "Amount: ₹${fee.feeAmount.toStringAsFixed(2)}",
-                  style: TextStyle(fontSize: 16, color: Colors.white70),
+                  style: TextStyle(fontSize: 16, color: textSecondary),
                 ),
                 const SizedBox(height: 8),
                 Row(
                   children: [
                     Icon(
                       fee.isPaid ? Icons.check_circle : Icons.warning_rounded,
-                      color:
-                          fee.isPaid
-                              ? Colors.lightGreenAccent
-                              : Colors.redAccent,
+                      color: fee.isPaid ? paidColor : unpaidColor,
                       size: 20,
                     ),
                     const SizedBox(width: 8),
@@ -427,10 +433,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color:
-                            fee.isPaid
-                                ? Colors.lightGreenAccent
-                                : Colors.redAccent,
+                        color: fee.isPaid ? paidColor : unpaidColor,
                         shadows: [Shadow(blurRadius: 2, color: Colors.black54)],
                       ),
                     ),
@@ -439,15 +442,15 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 if (fee.isPaid && fee.paymentDate != null) ...[
                   const SizedBox(height: 5),
                   Text(
-                    "Paid On: ${DateFormat('dd MMM BCE').format(fee.paymentDate!)}",
-                    style: TextStyle(fontSize: 16, color: Colors.white70),
+                    "Paid On: ${DateFormat('dd MMM yyyy').format(fee.paymentDate!)}",
+                    style: TextStyle(fontSize: 16, color: textSecondary),
                   ),
                 ],
                 if (fee.isPaid && fee.transactionId != null) ...[
                   const SizedBox(height: 5),
                   Text(
                     "Txn ID: ${fee.transactionId}",
-                    style: TextStyle(fontSize: 16, color: Colors.white70),
+                    style: TextStyle(fontSize: 16, color: textSecondary),
                   ),
                 ],
               ],

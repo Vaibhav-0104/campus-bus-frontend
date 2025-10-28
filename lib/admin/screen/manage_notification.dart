@@ -8,7 +8,6 @@ import 'package:campus_bus_management/config/api_config.dart';
 
 class NotificationsScreen extends StatefulWidget {
   final String userRole;
-
   const NotificationsScreen({super.key, required this.userRole});
 
   @override
@@ -30,6 +29,15 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   List<String> _selectedRecipients = [];
   bool _isLoading = false;
 
+  // ────── COLORS (Same as other screens) ──────
+  final Color bgStart = const Color(0xFF0A0E1A);
+  final Color bgMid = const Color(0xFF0F172A);
+  final Color bgEnd = const Color(0xFF1E293B);
+  final Color glassBg = Colors.white.withAlpha(0x14);
+  final Color glassBorder = Colors.white.withAlpha(0x26);
+  final Color textSecondary = Colors.white70;
+  final Color busYellow = const Color(0xFFFBBF24);
+
   @override
   void initState() {
     super.initState();
@@ -43,15 +51,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Future<void> fetchNotifications() async {
-    setState(() {
-      _isLoading = true;
-    });
-
+    setState(() => _isLoading = true);
     try {
       final response = await http.get(
         Uri.parse("${ApiConfig.baseUrl}/notifications/all"),
       );
-
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data is List) {
@@ -66,9 +70,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         throw Exception("Failed to load notifications: ${response.statusCode}");
       }
     } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Error loading notifications: $e")),
       );
@@ -111,7 +113,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              "Failed to send notification: ${response.statusCode}. ${jsonDecode(response.body)['message'] ?? ''}",
+              "Failed to send: ${jsonDecode(response.body)['message'] ?? ''}",
             ),
           ),
         );
@@ -119,344 +121,24 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     } catch (e) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text("Error sending notification: $e")));
+      ).showSnackBar(SnackBar(content: Text("Error: $e")));
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final double appBarHeight = AppBar().preferredSize.height;
-    final double tabBarHeight = kTextTabBarHeight;
-    final double statusBarHeight = MediaQuery.of(context).padding.top;
-    final double totalAppBarAndTabBarHeight =
-        appBarHeight + tabBarHeight + statusBarHeight;
-
-    return DefaultTabController(
-      length: 2,
-      child: Scaffold(
-        extendBodyBehindAppBar: true,
-        appBar: AppBar(
-          title: const Text(
-            "Notifications",
-            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
-          ),
-          backgroundColor: Colors.blue.shade800.withOpacity(0.3),
-          centerTitle: true,
-          elevation: 0,
-          iconTheme: const IconThemeData(color: Colors.white),
-          flexibleSpace: ClipRect(
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-              child: Container(color: Colors.transparent),
-            ),
-          ),
-          bottom: TabBar(
-            labelColor: Colors.white,
-            unselectedLabelColor: Colors.white70,
-            indicatorColor: Colors.lightBlueAccent,
-            indicatorWeight: 4,
-            labelStyle: const TextStyle(fontWeight: FontWeight.bold),
-            tabs: const [
-              Tab(text: "View Notifications", icon: Icon(Icons.list_alt)),
-              Tab(text: "Send Notification", icon: Icon(Icons.send)),
-            ],
-          ),
-        ),
-        body: Container(
-          width: double.infinity,
-          height: double.infinity,
+  // ────── GLASS CARD ──────
+  Widget _glassCard({required Widget child}) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(24),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: Container(
+          padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Colors.blue.shade900,
-                Colors.blue.shade700,
-                Colors.blue.shade500,
-              ],
-              stops: const [0.0, 0.5, 1.0],
-            ),
+            color: glassBg,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: glassBorder, width: 1.2),
           ),
-          child: TabBarView(
-            children: [
-              _isLoading
-                  ? const Center(
-                    child: CircularProgressIndicator(color: Colors.white),
-                  )
-                  : notifications.isEmpty
-                  ? Center(
-                    child: Text(
-                      "No notifications available.",
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.8),
-                        fontSize: 18,
-                      ),
-                    ),
-                  )
-                  : ListView.builder(
-                    padding: EdgeInsets.only(
-                      top: 200,
-                      left: 16.0,
-                      right: 16.0,
-                      bottom: 16.0,
-                    ),
-                    itemCount: notifications.length,
-                    itemBuilder: (context, index) {
-                      final notification = notifications[index];
-                      DateTime? notificationDate;
-                      if (notification['date'] is String) {
-                        try {
-                          notificationDate = DateFormat(
-                            'yyyy-MM-dd HH:mm',
-                          ).parse(notification['date']);
-                        } catch (e1) {
-                          try {
-                            notificationDate = DateFormat(
-                              'MMM dd, yyyy',
-                            ).parse(notification['date']);
-                          } catch (e2) {
-                            debugPrint(
-                              'Error parsing date with all formats: ${notification['date']} - $e2',
-                            );
-                            notificationDate =
-                                DateTime.tryParse(notification['date']) ??
-                                DateTime.now();
-                          }
-                        }
-                      } else {
-                        notificationDate = DateTime.now();
-                      }
-
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8.0),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(20),
-                          child: BackdropFilter(
-                            filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: [
-                                    Colors.blueGrey.shade300.withOpacity(0.15),
-                                    Colors.blueGrey.shade700.withOpacity(0.15),
-                                  ],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                ),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                  color: Colors.white.withOpacity(0.2),
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.2),
-                                    blurRadius: 25,
-                                    spreadRadius: 3,
-                                    offset: const Offset(8, 8),
-                                  ),
-                                  BoxShadow(
-                                    color: Colors.white.withOpacity(0.1),
-                                    blurRadius: 10,
-                                    spreadRadius: 1,
-                                    offset: const Offset(-5, -5),
-                                  ),
-                                ],
-                              ),
-                              child: ListTile(
-                                title: Text(
-                                  notification['type'] ?? 'Unknown',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 18,
-                                  ),
-                                ),
-                                subtitle: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      notification['message'] ?? 'No message',
-                                      style: const TextStyle(
-                                        color: Colors.white70,
-                                        fontSize: 15,
-                                      ),
-                                    ),
-                                    if (notification['recipients'] != null &&
-                                        notification['recipients'].isNotEmpty)
-                                      Text(
-                                        'To: ${notification['recipients'].join(', ')}',
-                                        style: const TextStyle(
-                                          color: Colors.white60,
-                                          fontSize: 13,
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                                trailing: Text(
-                                  DateFormat(
-                                    'MMM dd, hh:mm a',
-                                  ).format(notificationDate),
-                                  style: const TextStyle(
-                                    color: Colors.white54,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-              SingleChildScrollView(
-                padding: EdgeInsets.only(
-                  top: 200,
-                  left: 16.0,
-                  right: 16.0,
-                  bottom: 16.0,
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(25),
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 20.0, sigmaY: 20.0),
-                    child: Container(
-                      padding: const EdgeInsets.all(25),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            Colors.blueGrey.shade300.withOpacity(0.15),
-                            Colors.blueGrey.shade700.withOpacity(0.15),
-                          ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(25),
-                        border: Border.all(
-                          color: Colors.white.withOpacity(0.3),
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.3),
-                            blurRadius: 30,
-                            spreadRadius: 5,
-                            offset: const Offset(10, 10),
-                          ),
-                          BoxShadow(
-                            color: Colors.white.withOpacity(0.15),
-                            blurRadius: 15,
-                            spreadRadius: 2,
-                            offset: const Offset(-8, -8),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Text(
-                            "Create New Notification",
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                              shadows: [
-                                Shadow(blurRadius: 5, color: Colors.black54),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 30),
-                          _buildDropdownFormField(
-                            value: _selectedNotificationType,
-                            hint: "Select Notification Type",
-                            items: _notificationTypes,
-                            onChanged:
-                                (value) => setState(
-                                  () => _selectedNotificationType = value,
-                                ),
-                            icon: Icons.category,
-                          ),
-                          const SizedBox(height: 20),
-                          _buildMessageTextField(),
-                          const SizedBox(height: 20),
-                          Text(
-                            "Select Recipients:",
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.8),
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          Wrap(
-                            spacing: 10,
-                            runSpacing: 10,
-                            children:
-                                _recipients
-                                    .map(
-                                      (recipient) => FilterChip(
-                                        label: Text(
-                                          recipient,
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                        selected: _selectedRecipients.contains(
-                                          recipient,
-                                        ),
-                                        onSelected:
-                                            (isSelected) => setState(() {
-                                              if (isSelected) {
-                                                _selectedRecipients.add(
-                                                  recipient,
-                                                );
-                                              } else {
-                                                _selectedRecipients.remove(
-                                                  recipient,
-                                                );
-                                              }
-                                            }),
-                                        backgroundColor: Colors.blue.shade700
-                                            .withOpacity(0.6),
-                                        selectedColor: Colors.lightBlueAccent
-                                            .withOpacity(0.8),
-                                        checkmarkColor: Colors.white,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            20,
-                                          ),
-                                          side: BorderSide(
-                                            color:
-                                                _selectedRecipients.contains(
-                                                      recipient,
-                                                    )
-                                                    ? Colors.white.withOpacity(
-                                                      0.6,
-                                                    )
-                                                    : Colors.white.withOpacity(
-                                                      0.2,
-                                                    ),
-                                            width: 1.5,
-                                          ),
-                                        ),
-                                        elevation: 5,
-                                        shadowColor: Colors.black.withOpacity(
-                                          0.3,
-                                        ),
-                                      ),
-                                    )
-                                    .toList(),
-                          ),
-                          const SizedBox(height: 30),
-                          _buildSendButton(),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
+          child: child,
         ),
       ),
     );
@@ -472,31 +154,25 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(15),
-        color: Colors.white.withOpacity(0.08),
-        border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
+        color: glassBg,
+        border: Border.all(color: glassBorder, width: 1.2),
       ),
       child: DropdownButtonFormField<String>(
         value: value,
-        hint: Text(
-          hint,
-          style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 16),
-        ),
-        style: const TextStyle(color: Colors.white, fontSize: 16),
+        hint: Text(hint, style: TextStyle(color: textSecondary)),
+        style: const TextStyle(color: Colors.white),
         icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
+        dropdownColor: bgMid,
         decoration: InputDecoration(
-          prefixIcon: Icon(icon, color: Colors.lightBlueAccent, size: 24),
+          prefixIcon: Icon(icon, color: busYellow),
           labelText: hint,
-          labelStyle: TextStyle(
-            color: Colors.white.withOpacity(0.8),
-            fontSize: 16,
-          ),
+          labelStyle: TextStyle(color: textSecondary),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 16,
             vertical: 12,
           ),
         ),
-        dropdownColor: Colors.blue.shade800.withOpacity(0.7),
         items:
             items
                 .map((item) => DropdownMenuItem(value: item, child: Text(item)))
@@ -513,77 +189,258 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       style: const TextStyle(color: Colors.white, fontSize: 16),
       decoration: InputDecoration(
         labelText: "Message",
-        labelStyle: TextStyle(
-          color: Colors.white.withOpacity(0.8),
-          fontSize: 16,
-        ),
-        hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
+        labelStyle: TextStyle(color: textSecondary),
         filled: true,
-        fillColor: Colors.white.withOpacity(0.08),
+        fillColor: glassBg,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(15),
-          borderSide: BorderSide(
-            color: Colors.white.withOpacity(0.3),
-            width: 1.5,
-          ),
+          borderSide: BorderSide(color: glassBorder, width: 1.2),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(15),
-          borderSide: BorderSide(
-            color: Colors.white.withOpacity(0.3),
-            width: 1.5,
-          ),
+          borderSide: BorderSide(color: glassBorder, width: 1.2),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(15),
-          borderSide: const BorderSide(
-            color: Colors.lightBlueAccent,
-            width: 2.5,
-          ),
+          borderSide: BorderSide(color: busYellow, width: 2),
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 12,
         ),
       ),
     );
   }
 
   Widget _buildSendButton() {
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(30),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.blue.shade800.withOpacity(0.4),
-            blurRadius: 20,
-            spreadRadius: 2,
-            offset: const Offset(0, 10),
-          ),
-        ],
+    return ElevatedButton.icon(
+      onPressed: _sendNotification,
+      icon: const Icon(Icons.send),
+      label: const Text(
+        "Send Notification",
+        style: TextStyle(fontWeight: FontWeight.bold),
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(30),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
-          child: ElevatedButton(
-            onPressed: _sendNotification,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue.shade600.withOpacity(0.5),
-              padding: const EdgeInsets.symmetric(vertical: 18),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(30),
-                side: BorderSide(
-                  color: Colors.white.withOpacity(0.3),
-                  width: 1.5,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: busYellow,
+        foregroundColor: Colors.black87,
+        padding: const EdgeInsets.symmetric(vertical: 18),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        extendBodyBehindAppBar: true,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          centerTitle: true,
+          iconTheme: const IconThemeData(color: Colors.white, size: 28),
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.notifications, color: busYellow, size: 28),
+              const SizedBox(width: 8),
+              const Text(
+                'Notifications',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-              elevation: 0,
+            ],
+          ),
+          flexibleSpace: ClipRRect(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+              child: Container(color: Colors.white.withAlpha(0x0D)),
             ),
-            child: const Text(
-              "Send Notification",
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-                shadows: [Shadow(blurRadius: 5, color: Colors.black54)],
-              ),
+          ),
+          bottom: TabBar(
+            labelColor: busYellow,
+            unselectedLabelColor: Colors.white70,
+            indicatorColor: busYellow,
+            indicatorWeight: 3,
+            tabs: const [
+              Tab(text: "View", icon: Icon(Icons.list_alt)),
+              Tab(text: "Send", icon: Icon(Icons.send)),
+            ],
+          ),
+        ),
+        body: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [bgStart, bgMid, bgEnd],
+            ),
+          ),
+          child: SafeArea(
+            child: TabBarView(
+              children: [
+                // ────── VIEW NOTIFICATIONS ──────
+                _isLoading
+                    ? Center(child: CircularProgressIndicator(color: busYellow))
+                    : notifications.isEmpty
+                    ? Center(
+                      child: Text(
+                        "No notifications available.",
+                        style: TextStyle(color: textSecondary, fontSize: 18),
+                      ),
+                    )
+                    : ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: notifications.length,
+                      itemBuilder: (context, index) {
+                        final notification = notifications[index];
+                        DateTime? notificationDate;
+                        try {
+                          notificationDate = DateFormat(
+                            'yyyy-MM-dd HH:mm',
+                          ).parse(notification['date']);
+                        } catch (_) {
+                          try {
+                            notificationDate = DateFormat(
+                              'MMM dd, yyyy',
+                            ).parse(notification['date']);
+                          } catch (_) {
+                            notificationDate =
+                                DateTime.tryParse(notification['date']) ??
+                                DateTime.now();
+                          }
+                        }
+
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          child: _glassCard(
+                            child: ListTile(
+                              title: Text(
+                                notification['type'] ?? 'Unknown',
+                                style: TextStyle(
+                                  color: busYellow,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 18,
+                                ),
+                              ),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    notification['message'] ?? 'No message',
+                                    style: TextStyle(color: textSecondary),
+                                  ),
+                                  if (notification['recipients'] != null &&
+                                      notification['recipients'].isNotEmpty)
+                                    Text(
+                                      'To: ${notification['recipients'].join(', ')}',
+                                      style: TextStyle(
+                                        color: Colors.white60,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                              trailing: Text(
+                                DateFormat(
+                                  'MMM dd, hh:mm a',
+                                ).format(notificationDate),
+                                style: TextStyle(
+                                  color: Colors.white54,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+
+                // ────── SEND NOTIFICATION ──────
+                SingleChildScrollView(
+                  padding: const EdgeInsets.all(16),
+                  child: _glassCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const Text(
+                          "Create New Notification",
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        _buildDropdownFormField(
+                          value: _selectedNotificationType,
+                          hint: "Select Notification Type",
+                          items: _notificationTypes,
+                          onChanged:
+                              (v) =>
+                                  setState(() => _selectedNotificationType = v),
+                          icon: Icons.category,
+                        ),
+                        const SizedBox(height: 16),
+                        _buildMessageTextField(),
+                        const SizedBox(height: 16),
+                        Text(
+                          "Select Recipients:",
+                          style: TextStyle(
+                            color: textSecondary,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Wrap(
+                          spacing: 10,
+                          runSpacing: 10,
+                          children:
+                              _recipients.map((r) {
+                                final selected = _selectedRecipients.contains(
+                                  r,
+                                );
+                                return FilterChip(
+                                  label: Text(
+                                    r,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  selected: selected,
+                                  onSelected: (bool s) {
+                                    setState(() {
+                                      s
+                                          ? _selectedRecipients.add(r)
+                                          : _selectedRecipients.remove(r);
+                                    });
+                                  },
+                                  backgroundColor: Colors.grey.shade800
+                                      .withOpacity(0.6),
+                                  selectedColor: busYellow.withOpacity(0.8),
+                                  checkmarkColor: Colors.black,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(20),
+                                    side: BorderSide(
+                                      color: selected ? busYellow : glassBorder,
+                                      width: 1.5,
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                        ),
+                        const SizedBox(height: 24),
+                        _buildSendButton(),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),

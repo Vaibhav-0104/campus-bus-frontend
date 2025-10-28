@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -6,7 +7,8 @@ import 'package:geolocator/geolocator.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:campus_bus_management/config/api_config.dart';
-import 'package:campus_bus_management/admin/screen/show_drivers_details.dart' show DriverLocationData;
+import 'package:campus_bus_management/admin/screen/show_drivers_details.dart'
+    show DriverLocationData;
 
 class LiveDriverLocationPage extends StatefulWidget {
   final String driverId;
@@ -23,6 +25,15 @@ class LiveDriverLocationPage extends StatefulWidget {
 }
 
 class _LiveDriverLocationPageState extends State<LiveDriverLocationPage> {
+  // ────── COLORS (Same as AllocateBusScreen) ──────
+  final Color bgStart = const Color(0xFF0A0E1A);
+  final Color bgMid = const Color(0xFF0F172A);
+  final Color bgEnd = const Color(0xFF1E293B);
+  final Color glassBg = Colors.white.withAlpha(0x14);
+  final Color glassBorder = Colors.white.withAlpha(0x26);
+  final Color textSecondary = Colors.white70;
+  final Color busYellow = const Color(0xFFFBBF24);
+
   late Timer _timer;
   DriverLocationData? _locationData;
   LatLng? _deviceLocation;
@@ -109,9 +120,6 @@ class _LiveDriverLocationPageState extends State<LiveDriverLocationPage> {
             _locationData = newLocationData;
             _isLive = newLocationData.shareStatus;
           });
-          // Print admin and driver locations on update
-          debugPrint('Admin Location: Lat=${_deviceLocation?.latitude}, Lon=${_deviceLocation?.longitude}');
-          debugPrint('Driver Location: Lat=${_locationData?.latitude}, Lon=${_locationData?.longitude}');
         }
       } catch (e) {
         debugPrint('Error updating location: $e');
@@ -133,38 +141,84 @@ class _LiveDriverLocationPageState extends State<LiveDriverLocationPage> {
     return 0.0;
   }
 
+  // ────── GLASS CARD (Same as AllocateBusScreen) ──────
+  Widget _glassCard({required Widget child}) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: glassBg,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: glassBorder, width: 1.5),
+          ),
+          child: child,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_locationData?.shareStatus == false) {
       return Scaffold(
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Text(
-                'Location Not Active',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.redAccent,
-                ),
+        extendBodyBehindAppBar: true,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
+        body: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [bgStart, bgMid, bgEnd],
+            ),
+          ),
+          child: Center(
+            child: _glassCard(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.location_off,
+                    size: 60,
+                    color: Colors.redAccent,
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Location Not Active',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: busYellow,
+                      foregroundColor: Colors.black87,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                    ),
+                    child: const Text('Back', style: TextStyle(fontSize: 18)),
+                  ),
+                ],
               ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue.shade600,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-                child: const Text(
-                  'Back',
-                  style: TextStyle(fontSize: 18, color: Colors.white),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       );
@@ -173,23 +227,27 @@ class _LiveDriverLocationPageState extends State<LiveDriverLocationPage> {
     final distance = _calculateDistance();
 
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
+        backgroundColor: const Color.fromARGB(255, 34, 34, 34),
+        elevation: 0,
+        centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
         title: const Text(
           'Driver Location',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20),
+          style: TextStyle(
+            color: Color.fromARGB(255, 255, 255, 255),
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+          ),
         ),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        flexibleSpace: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                const Color.fromARGB(255, 97, 104, 114).withAlpha(204),
-                Colors.blue.shade700.withAlpha(153),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+        flexibleSpace: ClipRRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+            child: Container(color: Colors.white.withAlpha(0x0D)),
           ),
         ),
         actions: [
@@ -200,7 +258,7 @@ class _LiveDriverLocationPageState extends State<LiveDriverLocationPage> {
                 Text(
                   'LIVE',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: busYellow,
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
                   ),
@@ -215,7 +273,7 @@ class _LiveDriverLocationPageState extends State<LiveDriverLocationPage> {
                     decoration: BoxDecoration(
                       color: Colors.green,
                       shape: BoxShape.circle,
-                      border: Border.all(color: Colors.grey, width: 2),
+                      border: Border.all(color: Colors.white, width: 2),
                     ),
                   ),
                 ),
@@ -224,155 +282,149 @@ class _LiveDriverLocationPageState extends State<LiveDriverLocationPage> {
           ),
         ],
       ),
-      body: _locationData?.shareStatus == true &&
-              (_locationData?.latitude == null ||
-                  _locationData?.longitude == null ||
-                  _deviceLocation == null)
-          ? Center(
-              child: Card(
-                elevation: 8,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                color: Colors.white.withOpacity(0.9),
-                child: Padding(
-                  padding: const EdgeInsets.all(20.0),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const CircularProgressIndicator(color: Colors.blue),
-                      const SizedBox(height: 15),
-                      const Text(
-                        'Fetching a Driver Location',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.black87,
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [bgStart, bgMid, bgEnd],
+          ),
+        ),
+        child:
+            _locationData?.shareStatus == true &&
+                    (_locationData?.latitude == null ||
+                        _locationData?.longitude == null ||
+                        _deviceLocation == null)
+                ? Center(
+                  child: _glassCard(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CircularProgressIndicator(color: busYellow),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Fetching Driver Location...',
+                          style: TextStyle(fontSize: 18, color: Colors.white70),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ),
-            )
-          : Column(
-              children: [
-                Expanded(
-                  child: _locationData?.latitude != null &&
-                          _locationData?.longitude != null &&
-                          _deviceLocation != null
-                      ? FlutterMap(
-                          options: MapOptions(
-                            initialCenter: LatLng(
-                              _locationData!.latitude!,
-                              _locationData!.longitude!,
-                            ),
-                            initialZoom: 13.0,
-                            minZoom: 10.0,
-                            maxZoom: 18.0,
-                          ),
-                          children: [
-                            TileLayer(
-                              urlTemplate:
-                                  'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                              subdomains: const ['a', 'b', 'c'],
-                            ),
-                            MarkerLayer(
-                              markers: [
-                                Marker(
-                                  point: _deviceLocation!,
-                                  child: const Icon(
-                                    Icons.home,
-                                    color: Colors.blue,
-                                    size: 40,
-                                  ),
-                                ),
-                                Marker(
-                                  point: LatLng(
+                )
+                : Column(
+                  children: [
+                    Expanded(
+                      child:
+                          _locationData?.latitude != null &&
+                                  _locationData?.longitude != null &&
+                                  _deviceLocation != null
+                              ? FlutterMap(
+                                options: MapOptions(
+                                  initialCenter: LatLng(
                                     _locationData!.latitude!,
                                     _locationData!.longitude!,
                                   ),
-                                  child: const Icon(
-                                    Icons.directions_bus,
-                                    color: Colors.red,
-                                    size: 40,
+                                  initialZoom: 13.0,
+                                  minZoom: 10.0,
+                                  maxZoom: 18.0,
+                                ),
+                                children: [
+                                  TileLayer(
+                                    urlTemplate:
+                                        'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                                    subdomains: const ['a', 'b', 'c'],
+                                  ),
+                                  MarkerLayer(
+                                    markers: [
+                                      Marker(
+                                        point: _deviceLocation!,
+                                        child: const Icon(
+                                          Icons.home,
+                                          color: Colors.blue,
+                                          size: 40,
+                                        ),
+                                      ),
+                                      Marker(
+                                        point: LatLng(
+                                          _locationData!.latitude!,
+                                          _locationData!.longitude!,
+                                        ),
+                                        child: const Icon(
+                                          Icons.directions_bus,
+                                          color: Colors.red,
+                                          size: 40,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              )
+                              : const Center(
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                ),
+                              ),
+                    ),
+                    // ────── BOTTOM INFO CARD (GLASS STYLE) ──────
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      child: _glassCard(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.directions_bus,
+                                  color: Colors.red,
+                                  size: 24,
+                                ),
+                                const SizedBox(width: 8),
+                                const Text(
+                                  ': ',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                Expanded(
+                                  child: Text(
+                                    _locationData?.address ?? 'N/A',
+                                    style: const TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 16,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.directions,
+                                  color: busYellow,
+                                  size: 24,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Distance: ${distance.toStringAsFixed(2)} km',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w500,
                                   ),
                                 ),
                               ],
                             ),
                           ],
-                        )
-                      : const Center(
-                          child: CircularProgressIndicator(color: Colors.white),
                         ),
-                ),
-                Container(
-                  padding: const EdgeInsets.all(16.0),
-                  color: Colors.white.withAlpha(242),
-                  child: Card(
-                    elevation: 6,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    color: const Color.fromARGB(255, 240, 248, 255), // Light cyan background
-                    child: Padding(
-                      padding: const EdgeInsets.all(12.0),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                          
-                            children: [
-                              const Icon(
-                                Icons.directions_bus,
-                                color: Colors.red,
-                                size: 24,
-                              ),
-                              const SizedBox(width: 5),
-                              const Text(
-                                ': ',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.black87,
-                                ),
-                              ),
-                              Expanded(
-                                child: Text(
-                                  _locationData?.address ?? 'N/A',
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w500,
-                                    color: Colors.teal,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 10),
-                          Row(
-                            children: [
-                              const Icon(Icons.directions, color: Colors.blue, size: 24),
-                              const SizedBox(width: 10),
-                              Text(
-                                'Remaining Distance: ${distance.toStringAsFixed(2)} km',
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.black87,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
                       ),
                     ),
-                  ),
+                  ],
                 ),
-              ],
-            ),
+      ),
     );
   }
 }
