@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'dart:ui'; // Required for ImageFilter for blur effects
-import 'package:url_launcher/url_launcher.dart'; // Import for launching URLs (calls and emails)
+import 'dart:ui';
+import 'package:url_launcher/url_launcher.dart';
 
 class HelpSupportScreen extends StatefulWidget {
   const HelpSupportScreen({super.key});
@@ -9,216 +9,293 @@ class HelpSupportScreen extends StatefulWidget {
   State<HelpSupportScreen> createState() => _HelpSupportScreenState();
 }
 
-class _HelpSupportScreenState extends State<HelpSupportScreen> {
-  // Admin contact details
+class _HelpSupportScreenState extends State<HelpSupportScreen>
+    with TickerProviderStateMixin {
   final String adminContactNumber = '+918320810061';
   final String adminEmail = 'admin@gmail.com';
 
-  // Function to launch the phone dialer
-  Future<void> _launchPhoneDialer(String phoneNumber) async {
-    final Uri launchUri = Uri(
-      scheme: 'tel',
-      path: phoneNumber,
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseController = AnimationController(
+      duration: const Duration(milliseconds: 1500),
+      vsync: this,
     );
-    if (!await launchUrl(launchUri)) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Could not launch phone dialer."),
-            backgroundColor: Colors.red,
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
+    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.15).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+    _pulseController.repeat(reverse: true);
+  }
+
+  Future<void> _launchPhoneDialer(String phoneNumber) async {
+    final Uri uri = Uri(scheme: 'tel', path: phoneNumber);
+    if (!await launchUrl(uri)) {
+      _showSnackBar("Could not launch phone dialer.");
     }
   }
 
-  // Function to launch the email client
   Future<void> _launchEmailClient(String emailAddress) async {
-    final Uri launchUri = Uri(
-      scheme: 'mailto',
-      path: emailAddress,
-    );
-    if (!await launchUrl(launchUri)) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Could not launch email client."),
-            backgroundColor: Colors.red,
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
+    final Uri uri = Uri(scheme: 'mailto', path: emailAddress);
+    if (!await launchUrl(uri)) {
+      _showSnackBar("Could not launch email client.");
+    }
+  }
+
+  void _showSnackBar(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: Colors.redAccent),
+      );
     }
   }
 
   @override
+  void dispose() {
+    _pulseController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    // Calculate the height remaining after AppBar and top safe area padding
-    final double remainingScreenHeight = MediaQuery.of(context).size.height -
-        AppBar().preferredSize.height -
-        MediaQuery.of(context).padding.top;
+    final double topPadding =
+        kToolbarHeight + MediaQuery.of(context).padding.top + 20;
 
     return Scaffold(
-      extendBodyBehindAppBar: true, // Extend body behind app bar for full gradient
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: const Text(
           "Help & Support",
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+            fontSize: 20,
+          ),
         ),
-        backgroundColor: Colors.deepPurple.shade700.withOpacity(0.3), // Liquid glass app bar
-        iconTheme: const IconThemeData(color: Colors.white),
-        elevation: 0, // Remove shadow for flat look
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white, size: 28),
+          onPressed: () => Navigator.pop(context),
+        ),
         flexibleSpace: ClipRect(
           child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
             child: Container(
-              color: Colors.transparent,
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFF87CEEB), Color(0xFF4682B4)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
             ),
           ),
         ),
       ),
       body: Container(
-        decoration: BoxDecoration(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              Colors.deepPurple.shade900,
-              Colors.deepPurple.shade700,
-              Colors.deepPurple.shade500
-            ],
-            stops: const [0.0, 0.5, 1.0],
+            colors: [Color(0xFF87CEEB), Color(0xFF4682B4), Color(0xFF1E90FF)],
+            stops: [0.0, 0.6, 1.0],
           ),
         ),
-        child: SingleChildScrollView( // Use SingleChildScrollView to prevent overflow on smaller screens
+        child: SingleChildScrollView(
           padding: EdgeInsets.only(
-            top: AppBar().preferredSize.height + MediaQuery.of(context).padding.top + 20,
-            left: 20.0,
-            right: 20.0,
-            bottom: 20.0,
+            top: topPadding,
+            left: 20,
+            right: 20,
+            bottom: 40,
           ),
-          // Use ConstrainedBox to ensure the content takes at least the remaining height
-          // This makes the scrollable area fill the screen, thus showing the full gradient.
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              minHeight: remainingScreenHeight - 40, // Subtract total vertical padding of SingleChildScrollView
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  "Contact Admin",
-                  style: TextStyle(
-                    fontSize: 24, // Larger title
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white.withOpacity(0.95), // White text with slight transparency
-                    shadows: [Shadow(blurRadius: 5, color: Colors.black54)], // Text shadow for depth
-                  ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Title
+              Text(
+                "Contact Admin",
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  shadows: [Shadow(color: Colors.cyan, blurRadius: 15)],
                 ),
-                const SizedBox(height: 20),
-                ClipRRect( // ClipRRect for the liquid glass effect
-                  borderRadius: BorderRadius.circular(20), // Increased rounded corners
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 15.0, sigmaY: 15.0), // Stronger blur effect
-                    child: Container(
-                      padding: const EdgeInsets.all(25), // Increased padding
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            Colors.white.withOpacity(0.15), // Slightly more opaque
-                            Colors.blue.shade200.withOpacity(0.15) // Slightly more opaque
-                          ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.white.withOpacity(0.25)), // More prominent border
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.25), // Darker shadow for depth
-                            blurRadius: 25, // Increased blur radius
-                            spreadRadius: 3, // Increased spread radius
-                            offset: const Offset(8, 8), // More pronounced offset
-                          ),
-                          BoxShadow( // Inner light shadow for a subtle glow
-                            color: Colors.white.withOpacity(0.15), // Brighter inner glow
-                            blurRadius: 10,
-                            spreadRadius: 1,
-                            offset: const Offset(-5, -5), // Top-left inner glow
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded( // Use Expanded to ensure text wraps and doesn't cause overflow
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  "Admin Name: Uka Tarsadia University",
-                                  style: TextStyle(
-                                    fontSize: 18, // Larger font size
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white.withOpacity(0.9),
-                                    shadows: [Shadow(blurRadius: 3, color: Colors.black54)],
-                                  ),
-                                ),
-                                const SizedBox(height: 10), // Increased spacing
-                                Text(
-                                  "Contact: $adminContactNumber",
-                                  style: TextStyle(
-                                    fontSize: 16, // Consistent font size
-                                    color: Colors.lightBlueAccent.shade100, // Vibrant color
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                                const SizedBox(height: 6), // Increased spacing
-                                Text(
-                                  "Email: $adminEmail",
-                                  style: TextStyle(
-                                    fontSize: 16, // Consistent font size
-                                    color: Colors.lightBlueAccent.shade100, // Vibrant color
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
+              ),
+              const SizedBox(height: 25),
+
+              // Glass Card
+              AnimatedBuilder(
+                animation: _pulseAnimation,
+                builder: (context, child) {
+                  return Transform.scale(
+                    scale: 1.0 + (_pulseAnimation.value - 1.0) * 0.02,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(28),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+                        child: Container(
+                          padding: const EdgeInsets.all(28),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(28),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.35),
+                              width: 2,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.2),
+                                blurRadius: 40,
+                                offset: Offset(0, 20),
+                              ),
+                              BoxShadow(
+                                color: Colors.cyan.withOpacity(0.4),
+                                blurRadius: 25,
+                                offset: Offset(0, -12),
+                              ),
+                            ],
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                Colors.white.withOpacity(0.15),
+                                Colors.transparent,
                               ],
                             ),
                           ),
-                          Row( // Wrap buttons in a Row
+                          child: Row(
                             children: [
-                              IconButton(
-                                icon: Icon(
-                                  Icons.call,
-                                  color: Colors.greenAccent.shade100, // Brighter green icon
-                                  size: 32, // Larger icon
-                                  shadows: [Shadow(blurRadius: 8, color: Colors.black45)],
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      "Admin Name",
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        color: Colors.white70,
+                                      ),
+                                    ),
+                                    Text(
+                                      "Uka Tarsadia University",
+                                      style: TextStyle(
+                                        fontSize: 22,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    _buildContactRow(
+                                      Icons.phone,
+                                      adminContactNumber,
+                                      Colors.greenAccent,
+                                    ),
+                                    const SizedBox(height: 12),
+                                    _buildContactRow(
+                                      Icons.email,
+                                      adminEmail,
+                                      Colors.cyanAccent,
+                                    ),
+                                  ],
                                 ),
-                                onPressed: () => _launchPhoneDialer(adminContactNumber), // Call function on press
                               ),
-                              const SizedBox(width: 10), // Spacing between icons
-                              IconButton(
-                                icon: Icon(
-                                  Icons.email,
-                                  color: Colors.orangeAccent.shade100, // Orange icon for email
-                                  size: 32, // Larger icon
-                                  shadows: [Shadow(blurRadius: 8, color: Colors.black45)],
-                                ),
-                                onPressed: () => _launchEmailClient(adminEmail), // Email function on press
+                              Column(
+                                children: [
+                                  _buildActionButton(
+                                    icon: Icons.call,
+                                    color: Colors.greenAccent,
+                                    onTap:
+                                        () => _launchPhoneDialer(
+                                          adminContactNumber,
+                                        ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  _buildActionButton(
+                                    icon: Icons.email,
+                                    color: Colors.cyanAccent,
+                                    onTap: () => _launchEmailClient(adminEmail),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
-                        ],
+                        ),
                       ),
                     ),
+                  );
+                },
+              ),
+
+              const SizedBox(height: 40),
+
+              Center(
+                child: Text(
+                  "We’re here to help 24/7",
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.white70,
+                    fontStyle: FontStyle.italic,
+                    shadows: [Shadow(color: Colors.black26, blurRadius: 8)],
                   ),
                 ),
-              ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContactRow(IconData icon, String text, Color color) {
+    return Row(
+      children: [
+        Icon(icon, size: 22, color: color),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(
+              fontSize: 17,
+              color: color,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ),
+      ],
+    );
+  }
+
+  Widget _buildActionButton({
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: LinearGradient(
+            colors: [color.withOpacity(0.3), color.withOpacity(0.1)],
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: color.withOpacity(0.6),
+              blurRadius: 20,
+              spreadRadius: 2,
+            ),
+          ],
+          border: Border.all(color: Colors.white.withOpacity(0.4), width: 1.5),
+        ),
+        child: Icon(icon, size: 32, color: Colors.white),
       ),
     );
   }

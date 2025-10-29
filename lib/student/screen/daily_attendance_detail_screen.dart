@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'dart:ui'; // Required for ImageFilter for blur effects
-import 'package:intl/intl.dart'; // For date formatting and month names
-import 'package:campus_bus_management/config/api_config.dart'; // ✅ Import centralized URL
+import 'dart:ui';
+import 'package:intl/intl.dart';
+import 'package:campus_bus_management/config/api_config.dart';
 
 class DailyAttendanceDetailScreen extends StatefulWidget {
   final String envNumber;
@@ -26,8 +26,7 @@ class DailyAttendanceDetailScreen extends StatefulWidget {
 
 class _DailyAttendanceDetailScreenState
     extends State<DailyAttendanceDetailScreen> {
-  Map<int, String> dailyAttendanceStatus =
-      {}; // Day number -> status ("Present", "Absent", "Holiday", "No Data")
+  Map<int, String> dailyAttendanceStatus = {};
   bool isLoading = true;
   String errorMessage = '';
 
@@ -47,7 +46,6 @@ class _DailyAttendanceDetailScreenState
       final firstDayOfMonth = DateTime(widget.year, widget.month, 1);
       final lastDayOfMonth = DateTime(widget.year, widget.month + 1, 0);
 
-      // Fetch detailed attendance for the selected month
       final response = await http
           .post(
             Uri.parse('${ApiConfig.baseUrl}/students/attendance/by-date'),
@@ -65,22 +63,23 @@ class _DailyAttendanceDetailScreenState
         final List<dynamic> records = data['dailyRecords'] ?? [];
 
         final Map<int, String> tempDailyStatus = {};
-        // Initialize all days of the month (excluding Sundays) as "No Data" or "Holiday"
         for (int day = 1; day <= lastDayOfMonth.day; day++) {
           final currentDayDate = DateTime(widget.year, widget.month, day);
+          // Check if it's a Sunday
           if (currentDayDate.weekday == DateTime.sunday) {
-            tempDailyStatus[day] = 'Holiday'; // Mark Sundays as holidays
+            tempDailyStatus[day] = 'Holiday';
           } else {
-            tempDailyStatus[day] =
-                'No Data'; // Default for working days without record
+            tempDailyStatus[day] = 'No Data';
           }
         }
 
-        // Populate with actual attendance data
         for (var record in records) {
           try {
             final recordDate = DateTime.parse(record['date']);
-            tempDailyStatus[recordDate.day] = record['status'];
+            // Only update the status if the current status is not 'Holiday' (Sunday)
+            if (tempDailyStatus[recordDate.day] != 'Holiday') {
+              tempDailyStatus[recordDate.day] = record['status'];
+            }
           } catch (e) {
             print('Error parsing record date: ${record['date']} - $e');
           }
@@ -91,20 +90,14 @@ class _DailyAttendanceDetailScreenState
           isLoading = false;
         });
       } else {
-        print(
-          'API Error for daily attendance: Status=${response.statusCode}, Body=${response.body}',
-        );
         setState(() {
-          errorMessage =
-              'Failed to load daily attendance: ${response.statusCode} - ${response.body}';
+          errorMessage = 'Failed to load: ${response.statusCode}';
           isLoading = false;
         });
       }
     } catch (e) {
-      print('Error fetching daily attendance: $e');
       setState(() {
-        errorMessage =
-            'Failed to load daily attendance data. Check network or API.';
+        errorMessage = 'Network error. Please try again.';
         isLoading = false;
       });
     }
@@ -116,162 +109,188 @@ class _DailyAttendanceDetailScreenState
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: Text(
-          "${widget.monthName} ${widget.year} Attendance",
+          "${widget.monthName} ${widget.year}",
           style: const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
+            fontSize: 20,
           ),
         ),
-        backgroundColor: Colors.deepPurple.shade700.withOpacity(0.4),
-        iconTheme: const IconThemeData(color: Colors.white),
+        backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
-        flexibleSpace: ClipRect(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-            child: Container(color: Colors.transparent),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFF87CEEB), Color(0xFF4682B4)],
+            ),
           ),
         ),
       ),
       body: Container(
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              Colors.deepPurple.shade900,
-              Colors.deepPurple.shade700,
-              Colors.deepPurple.shade500,
-            ],
-            stops: const [0.0, 0.5, 1.0],
+            colors: [Color(0xFF87CEEB), Color(0xFF4682B4), Color(0xFF1E90FF)],
+            stops: [0.0, 0.6, 1.0],
           ),
         ),
-        child:
-            isLoading
-                ? const Center(
-                  child: CircularProgressIndicator(color: Colors.white),
-                )
-                : errorMessage.isNotEmpty
-                ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Text(
-                      errorMessage,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 18,
-                        color: Colors.redAccent.shade100,
-                      ),
-                    ),
-                  ),
-                )
-                : GridView.builder(
-                  padding: EdgeInsets.only(
-                    top:
-                        AppBar().preferredSize.height +
-                        MediaQuery.of(context).padding.top +
-                        16,
-                    left: 16.0,
-                    right: 16.0,
-                    bottom: 16.0,
-                  ),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 5, // 5 columns for dates
-                    crossAxisSpacing: 10,
-                    mainAxisSpacing: 10,
-                    childAspectRatio: 0.8, // Adjust as needed
-                  ),
-                  itemCount:
-                      DateTime(
-                        widget.year,
-                        widget.month + 1,
-                        0,
-                      ).day, // Total days in the month
-                  itemBuilder: (context, index) {
-                    final day = index + 1; // Day number (1-indexed)
-                    final status =
-                        dailyAttendanceStatus[day] ??
-                        'No Data'; // Default to 'No Data' if not found
-                    return _buildDailyAttendanceCard(day, status);
-                  },
-                ),
+        child: Column(
+          children: [
+            // Adds space for the AppBar and status bar
+            const SizedBox(height: kToolbarHeight + 60),
+            Expanded(
+              child:
+                  isLoading
+                      ? const Center(
+                        child: CircularProgressIndicator(color: Colors.white),
+                      )
+                      : errorMessage.isNotEmpty
+                      ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Text(
+                            errorMessage,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              color: Colors.redAccent,
+                            ),
+                          ),
+                        ),
+                      )
+                      : _buildAttendanceGrid(),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildDailyAttendanceCard(int day, String status) {
-    IconData icon;
-    Color iconColor;
-    Color cardColor;
-    String statusText = status;
+  // --- FIX APPLIED HERE ---
+  Widget _buildAttendanceGrid() {
+    final daysInMonth = DateTime(widget.year, widget.month + 1, 0).day;
+
+    return GridView.builder(
+      padding: const EdgeInsets.all(16),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 5,
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 10,
+        // *** FIX: Increased aspect ratio for more vertical space
+        childAspectRatio: 0.95,
+      ),
+      itemCount: daysInMonth,
+      itemBuilder: (context, index) {
+        final day = index + 1;
+        final status = dailyAttendanceStatus[day] ?? 'No Data';
+        return _glassAttendanceCard(day, status);
+      },
+    );
+  }
+
+  // --- FIX APPLIED HERE ---
+  Widget _glassAttendanceCard(int day, String status) {
+    late final Color primaryColor;
+    late final Color lightColor;
+    late final String displayText;
 
     switch (status) {
       case 'Present':
-        icon = Icons.check_circle_outline;
-        iconColor = Colors.greenAccent;
-        cardColor = Colors.green.shade700.withOpacity(0.2);
+        primaryColor = Colors.green.shade600;
+        lightColor = Colors.green.shade300;
+        displayText = 'P';
         break;
       case 'Absent':
-        icon = Icons.cancel_outlined;
-        iconColor = Colors.redAccent;
-        cardColor = Colors.red.shade700.withOpacity(0.2);
+        primaryColor = Colors.red.shade600;
+        lightColor = Colors.red.shade300;
+        displayText = 'A';
         break;
       case 'Holiday':
-        icon = Icons.beach_access;
-        iconColor = Colors.lightBlueAccent;
-        cardColor = Colors.blueGrey.shade700.withOpacity(0.2);
-        statusText = 'Holiday';
+        primaryColor = Colors.blue.shade600;
+        lightColor = Colors.cyan.shade300;
+        displayText = 'H';
         break;
       case 'No Data':
       default:
-        icon = Icons.help_outline;
-        iconColor = Colors.grey;
-        cardColor = Colors.blueGrey.shade900.withOpacity(0.2);
-        statusText = 'N/A';
+        primaryColor = Colors.red.shade600;
+        lightColor = Colors.red.shade300;
+        displayText = 'A';
         break;
     }
 
     return ClipRRect(
-      borderRadius: BorderRadius.circular(15),
+      borderRadius: BorderRadius.circular(20),
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
         child: Container(
+          // *** FIX: Reduced vertical padding slightly
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
           decoration: BoxDecoration(
-            color: cardColor,
-            borderRadius: BorderRadius.circular(15),
-            border: Border.all(color: Colors.white.withOpacity(0.1)),
+            gradient: LinearGradient(
+              colors: [
+                primaryColor.withOpacity(0.4),
+                primaryColor.withOpacity(0.15),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.3),
+              width: 1.2,
+            ),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.1),
-                blurRadius: 10,
-                spreadRadius: 1,
-                offset: const Offset(4, 4),
+                blurRadius: 12,
+                offset: const Offset(3, 3),
+              ),
+              BoxShadow(
+                color: Colors.white.withOpacity(0.2),
+                blurRadius: 8,
+                offset: const Offset(-2, -2),
               ),
             ],
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
+              // Day Number (Top)
               Text(
                 day.toString(),
-                style: TextStyle(
-                  fontSize: 24,
+                style: const TextStyle(
+                  // *** FIX: Reduced font size from 24 to 20
+                  fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: Colors.white.withOpacity(0.9),
-                  shadows: [Shadow(blurRadius: 5, color: Colors.black54)],
+                  color: Colors.white,
+                  height: 1.0,
                 ),
+                textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 8),
-              Icon(
-                icon,
-                size: 36,
-                color: iconColor,
-                shadows: [Shadow(blurRadius: 8, color: Colors.black45)],
-              ),
-              const SizedBox(height: 5),
+              // *** FIX: Reduced vertical space
+              const SizedBox(height: 4),
+
+              // Status Text (Center - Replaces Icon)
               Text(
-                statusText,
-                style: TextStyle(fontSize: 14, color: Colors.white70),
+                displayText,
+                style: TextStyle(
+                  // *** FIX: Reduced font size from 18 to 16
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: lightColor,
+                  letterSpacing: 1.0,
+                ),
+                textAlign: TextAlign.center,
               ),
             ],
           ),

@@ -15,12 +15,16 @@ class FeesPaymentScreen extends StatefulWidget {
   State<FeesPaymentScreen> createState() => _FeesPaymentScreenState();
 }
 
-class _FeesPaymentScreenState extends State<FeesPaymentScreen> {
+class _FeesPaymentScreenState extends State<FeesPaymentScreen>
+    with TickerProviderStateMixin {
   late Razorpay _razorpay;
   String? orderId;
   String? duration;
   bool isLoading = true;
   String? errorMessage;
+
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnimation;
 
   @override
   void initState() {
@@ -29,6 +33,17 @@ class _FeesPaymentScreenState extends State<FeesPaymentScreen> {
     _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
     _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
     _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
+
+    // Pulse animation for button
+    _pulseController = AnimationController(
+      duration: const Duration(milliseconds: 1500),
+      vsync: this,
+    );
+    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.08).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+    _pulseController.repeat(reverse: true);
+
     _fetchFeeDetails();
   }
 
@@ -59,12 +74,10 @@ class _FeesPaymentScreenState extends State<FeesPaymentScreen> {
         }
       }
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          errorMessage = "Error fetching fee details: $e";
-          isLoading = false;
-        });
-      }
+      setState(() {
+        errorMessage = "Network error: $e";
+        isLoading = false;
+      });
     }
   }
 
@@ -72,9 +85,8 @@ class _FeesPaymentScreenState extends State<FeesPaymentScreen> {
     if (duration == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("No fee duration set for this enrollment!"),
+          content: Text("No fee duration set!"),
           backgroundColor: Colors.redAccent,
-          duration: Duration(seconds: 3),
         ),
       );
       return;
@@ -82,120 +94,129 @@ class _FeesPaymentScreenState extends State<FeesPaymentScreen> {
 
     showDialog(
       context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          backgroundColor: Colors.white.withOpacity(0.95),
-          title: Text(
-            "Confirm Payment",
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Colors.deepPurple,
-              fontWeight: FontWeight.bold,
-              fontSize: 20,
+      builder:
+          (_) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(28),
             ),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.warning_amber_rounded,
-                color: Colors.orange.shade700,
-                size: 48,
+            backgroundColor: Colors.white.withOpacity(0.97),
+            elevation: 20,
+            title: const Text(
+              "Confirm Payment",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Color(0xFF00D4FF),
+                fontWeight: FontWeight.bold,
+                fontSize: 22,
+                shadows: [Shadow(color: Colors.cyan, blurRadius: 10)],
               ),
-              SizedBox(height: 15),
-              Text(
-                "You are about to pay the bus fees for:",
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 17, color: Colors.black87),
-              ),
-              SizedBox(height: 8),
-              Text(
-                widget.envNumber,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.deepPurple.shade700,
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      colors: [Colors.cyan.shade400, Colors.blue.shade600],
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.cyan.withOpacity(0.6),
+                        blurRadius: 20,
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.payment,
+                    size: 50,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  "Paying for:",
+                  style: TextStyle(fontSize: 16, color: Colors.grey.shade700),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  widget.envNumber,
+                  style: const TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF00D4FF),
+                    letterSpacing: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.cyan.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.cyan.shade300),
+                  ),
+                  child: Text(
+                    "${duration!.replaceAll('month', ' Month').replaceAll('year', ' Year')}",
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF0066CC),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  "Proceed with secure payment?",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 16, color: Colors.black87),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text(
+                  "Cancel",
+                  style: TextStyle(
+                    color: Colors.red,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
-              SizedBox(height: 8),
-              Text(
-                "Duration: ${duration!.replaceAll('month', ' Month').replaceAll('year', ' Year')}",
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.deepPurple.shade600,
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _startPayment();
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.cyan.shade600,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  elevation: 8,
                 ),
-              ),
-              SizedBox(height: 20),
-              Text(
-                "Do you want to proceed with the payment?",
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 17, color: Colors.black87),
+                child: const Text(
+                  "Pay Now",
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
               ),
             ],
           ),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: Text(
-                "Cancel",
-                style: TextStyle(
-                  color: Colors.red.shade700,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _startPayment();
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green.shade600,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                elevation: 5,
-              ),
-              child: Text(
-                "Pay",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
     );
   }
 
   void _startPayment() async {
-    if (duration == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("No fee duration set for this enrollment!"),
-          backgroundColor: Colors.redAccent,
-          duration: Duration(seconds: 3),
-        ),
-      );
-      return;
-    }
+    if (duration == null) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text("Initiating payment, please wait..."),
-        duration: Duration(seconds: 2),
+        content: Text("Starting secure payment..."),
+        backgroundColor: Colors.blue,
       ),
     );
 
@@ -208,57 +229,42 @@ class _FeesPaymentScreenState extends State<FeesPaymentScreen> {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        setState(() {
-          orderId = data['orderId'];
-        });
+        setState(() => orderId = data['orderId']);
 
         var options = {
           'key': 'rzp_test_clLO3OkPO7TcaC',
           'amount': data['amount'],
           'currency': data['currency'],
-          'name': 'Campus Bus Management',
-          'description':
-              'Bus Route Payment for ${widget.envNumber} ($duration)',
+          'name': 'Campus Bus',
+          'description': 'Fee for $duration',
           'order_id': data['orderId'],
           'prefill': {
             'contact': '8320810061',
             'email': 'vaibhavsonar012@gmail.com',
           },
-          'theme': {'color': '#6200EE'},
+          'theme': {'color': '#00D4FF'},
         };
 
         _razorpay.open(options);
       } else {
-        final errorData = jsonDecode(response.body);
-        String errorMessage =
-            errorData['error'] ??
-            'Failed to create payment order! Status: ${response.statusCode}';
-        if (errorData['error'] ==
-            "Fee for this enrollment number and duration is already paid.") {
-          errorMessage =
-              "Fee for envNumber ${widget.envNumber} ($duration) is already paid.";
-        }
+        final err = jsonDecode(response.body);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(errorMessage),
-            backgroundColor: Colors.redAccent,
-            duration: const Duration(seconds: 4),
+            content: Text(err['error'] ?? "Payment failed"),
+            backgroundColor: Colors.red,
           ),
         );
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Error starting payment: $e"),
-          backgroundColor: Colors.redAccent,
-        ),
+        SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
       );
     }
   }
 
   void _handlePaymentSuccess(PaymentSuccessResponse response) async {
     try {
-      final verifyResponse = await http.post(
+      final verify = await http.post(
         Uri.parse("${ApiConfig.baseUrl}/fees/verify"),
         body: jsonEncode({
           "envNumber": widget.envNumber,
@@ -270,73 +276,37 @@ class _FeesPaymentScreenState extends State<FeesPaymentScreen> {
         headers: {"Content-Type": "application/json"},
       );
 
-      if (verifyResponse.statusCode == 200) {
-        print("Payment Successful! Payment ID: ${response.paymentId}");
+      if (verify.statusCode == 200) {
         Fluttertoast.showToast(
-          msg: "✅ Payment Successful and Verified!",
-          toastLength: Toast.LENGTH_LONG,
-          gravity: ToastGravity.BOTTOM,
+          msg: "Payment Successful!",
           backgroundColor: Colors.green,
           textColor: Colors.white,
-          fontSize: 16.0,
-        );
-      } else {
-        print(
-          "Payment Successful but Verification Failed! Status: ${verifyResponse.statusCode}",
-        );
-        Fluttertoast.showToast(
-          msg:
-              "⚠️ Payment Successful, but verification failed! Please contact support.",
-          toastLength: Toast.LENGTH_LONG,
-          gravity: ToastGravity.BOTTOM,
-          backgroundColor: Colors.orange,
-          textColor: Colors.white,
-          fontSize: 16.0,
+          fontSize: 16,
         );
       }
     } catch (e) {
-      print("Error verifying payment: $e");
       Fluttertoast.showToast(
-        msg:
-            "⚠️ Payment Successful, but an error occurred during verification! Please contact support.",
-        toastLength: Toast.LENGTH_LONG,
-        gravity: ToastGravity.BOTTOM,
+        msg: "Verification failed. Contact support.",
         backgroundColor: Colors.orange,
-        textColor: Colors.white,
-        fontSize: 16.0,
       );
     }
   }
 
   void _handlePaymentError(PaymentFailureResponse response) {
-    print(
-      "Payment Failed: Code: ${response.code}, Message: ${response.message}",
-    );
     Fluttertoast.showToast(
-      msg: "❌ Payment Failed: ${response.message ?? 'Unknown Error'}",
-      toastLength: Toast.LENGTH_LONG,
-      gravity: ToastGravity.BOTTOM,
+      msg: "Payment Failed: ${response.message}",
       backgroundColor: Colors.red,
-      textColor: Colors.white,
-      fontSize: 16.0,
     );
   }
 
   void _handleExternalWallet(ExternalWalletResponse response) {
-    print("External Wallet Selected: ${response.walletName}");
-    Fluttertoast.showToast(
-      msg: "External Wallet Selected: ${response.walletName}",
-      toastLength: Toast.LENGTH_SHORT,
-      gravity: ToastGravity.BOTTOM,
-      backgroundColor: Colors.blueAccent,
-      textColor: Colors.white,
-      fontSize: 14.0,
-    );
+    Fluttertoast.showToast(msg: "Wallet: ${response.walletName}");
   }
 
   @override
   void dispose() {
     _razorpay.clear();
+    _pulseController.dispose();
     super.dispose();
   }
 
@@ -347,224 +317,207 @@ class _FeesPaymentScreenState extends State<FeesPaymentScreen> {
       appBar: AppBar(
         title: const Text(
           "Pay Bus Fees",
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.white, // PURE WHITE TITLE
+          ),
         ),
-        backgroundColor: Colors.deepPurple.shade700.withOpacity(0.4),
-        iconTheme: const IconThemeData(color: Colors.white),
+        backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(
+            Icons.arrow_back,
+            color: Colors.white, // PURE WHITE BACK ARROW
+            size: 28,
+          ),
+          onPressed: () => Navigator.pop(context),
+        ),
         flexibleSpace: ClipRect(
           child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-            child: Container(color: Colors.transparent),
-          ),
-        ),
-      ),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Colors.deepPurple.shade900,
-              Colors.deepPurple.shade600,
-              Colors.deepPurple.shade400,
-            ],
-            stops: [0.1, 0.5, 0.9],
-          ),
-        ),
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(30),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 25.0, sigmaY: 25.0),
-                child: Container(
-                  padding: const EdgeInsets.all(30.0),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(30),
-                    border: Border.all(color: Colors.white.withOpacity(0.15)),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.3),
-                        blurRadius: 40,
-                        spreadRadius: 5,
-                        offset: Offset(0, 20),
-                      ),
-                      BoxShadow(
-                        color: Colors.white.withOpacity(0.1),
-                        blurRadius: 10,
-                        spreadRadius: 2,
-                        offset: Offset(0, -5),
-                      ),
-                    ],
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        Colors.white.withOpacity(0.05),
-                        Colors.white.withOpacity(0.01),
-                      ],
-                    ),
-                  ),
-                  child:
-                      isLoading
-                          ? const Center(
-                            child: CircularProgressIndicator(
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                Colors.lightBlueAccent,
-                              ),
-                            ),
-                          )
-                          : errorMessage != null
-                          ? Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                errorMessage!,
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  color: Colors.redAccent,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              SizedBox(height: 20),
-                              ElevatedButton(
-                                onPressed: _fetchFeeDetails,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.blue.shade600,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                                child: Text(
-                                  "Retry",
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          )
-                          : Column(
-                            mainAxisSize: MainAxisSize.min,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Text(
-                                "Outstanding Bus Fees for Enrollment:",
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white.withOpacity(0.95),
-                                  shadows: [
-                                    Shadow(
-                                      blurRadius: 10.0,
-                                      color: Colors.black.withOpacity(0.5),
-                                      offset: Offset(2.0, 2.0),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              SizedBox(height: 15),
-                              Text(
-                                widget.envNumber,
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 30,
-                                  fontWeight: FontWeight.w900,
-                                  color: Colors.amberAccent.shade200,
-                                  letterSpacing: 2.0,
-                                  shadows: [
-                                    Shadow(
-                                      blurRadius: 12.0,
-                                      color: Colors.black.withOpacity(0.7),
-                                      offset: Offset(3.0, 3.0),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              SizedBox(height: 20),
-                              Text(
-                                "Duration: ${duration!.replaceAll('month', ' Month').replaceAll('year', ' Year')}",
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.white.withOpacity(0.9),
-                                  shadows: [
-                                    Shadow(
-                                      blurRadius: 5.0,
-                                      color: Colors.black.withOpacity(0.3),
-                                      offset: Offset(1.0, 1.0),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              SizedBox(height: 60),
-                              ElevatedButton.icon(
-                                onPressed: _showPaymentConfirmationDialog,
-                                icon: Icon(
-                                  Icons.account_balance_wallet,
-                                  color: Colors.white,
-                                  size: 30,
-                                ),
-                                label: const Text(
-                                  "Pay Now with Razorpay",
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 20,
-                                  ),
-                                ),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.green.shade600,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 30,
-                                    vertical: 20,
-                                  ),
-                                  textStyle: const TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  elevation: 15,
-                                  shadowColor: Colors.green.shade400,
-                                  splashFactory: InkRipple.splashFactory,
-                                ),
-                              ),
-                              SizedBox(height: 40),
-                              Text(
-                                "Your payments are securely processed by Razorpay.",
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.white.withOpacity(0.8),
-                                  fontStyle: FontStyle.italic,
-                                  shadows: [
-                                    Shadow(
-                                      blurRadius: 5.0,
-                                      color: Colors.black.withOpacity(0.2),
-                                      offset: Offset(1.0, 1.0),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            child: Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFF87CEEB), Color(0xFF4682B4)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
               ),
             ),
           ),
         ),
       ),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF87CEEB), Color(0xFF4682B4), Color(0xFF1E90FF)],
+            stops: [0.0, 0.6, 1.0],
+          ),
+        ),
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: AnimatedBuilder(
+              animation: _pulseAnimation,
+              builder: (context, child) {
+                return Transform.scale(
+                  scale: _pulseAnimation.value,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(36),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+                      child: Container(
+                        padding: const EdgeInsets.all(32),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(36),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.3),
+                            width: 2,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.2),
+                              blurRadius: 40,
+                              offset: const Offset(0, 20),
+                            ),
+                            BoxShadow(
+                              color: Colors.cyan.withOpacity(0.3),
+                              blurRadius: 20,
+                              offset: const Offset(0, -10),
+                            ),
+                          ],
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              Colors.white.withOpacity(0.1),
+                              Colors.transparent,
+                            ],
+                          ),
+                        ),
+                        child:
+                            isLoading
+                                ? const Center(
+                                  child: CircularProgressIndicator(
+                                    color: Colors.cyan,
+                                  ),
+                                )
+                                : errorMessage != null
+                                ? _buildErrorState()
+                                : _buildSuccessState(),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(Icons.error, size: 60, color: Colors.redAccent),
+        const SizedBox(height: 16),
+        Text(
+          errorMessage!,
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 18, color: Colors.white),
+        ),
+        const SizedBox(height: 20),
+        ElevatedButton.icon(
+          onPressed: _fetchFeeDetails,
+          icon: const Icon(Icons.refresh),
+          label: const Text("Retry"),
+          style: ElevatedButton.styleFrom(backgroundColor: Colors.cyan),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSuccessState() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Text(
+          "Pay Bus Fees",
+          style: TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+            shadows: [Shadow(color: Colors.cyan, blurRadius: 15)],
+          ),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.cyan.withOpacity(0.2),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.cyan, width: 1.5),
+          ),
+          child: Text(
+            widget.envNumber,
+            style: const TextStyle(
+              fontSize: 32,
+              fontWeight: FontWeight.w900,
+              color: Colors.white,
+              letterSpacing: 2,
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Text(
+          "${duration!.replaceAll('month', ' Month').replaceAll('year', ' Year')}",
+          style: const TextStyle(
+            fontSize: 20,
+            color: Colors.cyanAccent,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 40),
+        ElevatedButton.icon(
+          onPressed: _showPaymentConfirmationDialog,
+          icon: const Icon(Icons.payment, size: 32),
+          label: const Text(
+            "Pay with Razorpay",
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.cyan.shade600,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            elevation: 20,
+            shadowColor: Colors.cyan.withOpacity(0.8),
+          ),
+        ),
+        const SizedBox(height: 30),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.lock, color: Colors.cyan.shade300, size: 18),
+            const SizedBox(width: 8),
+            const Text(
+              "Secured by Razorpay",
+              style: TextStyle(
+                color: Colors.white70,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

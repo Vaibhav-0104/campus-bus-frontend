@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'dart:ui'; // Required for ImageFilter for blur effects
-import 'package:intl/intl.dart'; // For date formatting and month names
-import 'package:campus_bus_management/student/screen/daily_attendance_detail_screen.dart'; // New import
-import 'package:campus_bus_management/config/api_config.dart'; // ✅ Import centralized URL
+import 'dart:ui';
+import 'package:intl/intl.dart';
+import 'package:campus_bus_management/student/screen/daily_attendance_detail_screen.dart';
+import 'package:campus_bus_management/config/api_config.dart';
 
 class MonthlyAttendanceScreen extends StatefulWidget {
   final String envNumber;
@@ -17,22 +17,32 @@ class MonthlyAttendanceScreen extends StatefulWidget {
       _MonthlyAttendanceScreenState();
 }
 
-class _MonthlyAttendanceScreenState extends State<MonthlyAttendanceScreen> {
-  Map<String, String> monthlyAttendance = {}; // Stores month name -> percentage
-  Map<String, int> monthlyPresentDays = {}; // Stores month name -> present days
-  Map<String, int> monthlyTotalPossibleDays =
-      {}; // Stores month name -> total possible days (excluding Sundays)
+class _MonthlyAttendanceScreenState extends State<MonthlyAttendanceScreen>
+    with TickerProviderStateMixin {
+  Map<String, String> monthlyAttendance = {};
+  Map<String, int> monthlyPresentDays = {};
+  Map<String, int> monthlyTotalPossibleDays = {};
 
   bool isLoading = true;
   String errorMessage = '';
 
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnimation;
+
   @override
   void initState() {
     super.initState();
+    _pulseController = AnimationController(
+      duration: const Duration(milliseconds: 1500),
+      vsync: this,
+    );
+    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.03).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+    _pulseController.repeat(reverse: true);
     _fetchMonthlyAttendance();
   }
 
-  // Helper to calculate total possible days in a month, excluding Sundays
   int _getTotalPossibleDaysInMonth(int year, int month) {
     int totalDays = 0;
     final firstDayOfMonth = DateTime(year, month, 1);
@@ -40,8 +50,8 @@ class _MonthlyAttendanceScreenState extends State<MonthlyAttendanceScreen> {
 
     for (
       var d = firstDayOfMonth;
-      d.isBefore(lastDayOfMonth.add(Duration(days: 1)));
-      d = d.add(Duration(days: 1))
+      d.isBefore(lastDayOfMonth.add(const Duration(days: 1)));
+      d = d.add(const Duration(days: 1))
     ) {
       if (d.weekday != DateTime.sunday) {
         totalDays++;
@@ -65,11 +75,7 @@ class _MonthlyAttendanceScreenState extends State<MonthlyAttendanceScreen> {
 
       for (int i = 1; i <= 12; i++) {
         final firstDayOfMonth = DateTime(currentYear, i, 1);
-        final lastDayOfMonth = DateTime(
-          currentYear,
-          i + 1,
-          0,
-        ); // Last day of current month
+        final lastDayOfMonth = DateTime(currentYear, i + 1, 0);
         final monthName = DateFormat('MMMM').format(firstDayOfMonth);
 
         final totalPossibleDaysInMonth = _getTotalPossibleDaysInMonth(
@@ -107,7 +113,6 @@ class _MonthlyAttendanceScreenState extends State<MonthlyAttendanceScreen> {
             currentMonthPresentDays = data['presentDays'] as int;
           }
 
-          // Calculate percentage based on total possible days excluding Sundays
           final calculatedPercentage =
               totalPossibleDaysInMonth > 0
                   ? (currentMonthPresentDays / totalPossibleDaysInMonth) * 100
@@ -118,9 +123,6 @@ class _MonthlyAttendanceScreenState extends State<MonthlyAttendanceScreen> {
           tempMonthlyPresentDays[monthName] = currentMonthPresentDays;
           tempMonthlyTotalPossibleDays[monthName] = totalPossibleDaysInMonth;
         } else {
-          print(
-            'API Error for $monthName: Status=${response.statusCode}, Body=${response.body}',
-          );
           tempMonthlyData[monthName] = 'Error';
           tempMonthlyPresentDays[monthName] = 0;
           tempMonthlyTotalPossibleDays[monthName] = totalPossibleDaysInMonth;
@@ -134,7 +136,6 @@ class _MonthlyAttendanceScreenState extends State<MonthlyAttendanceScreen> {
         isLoading = false;
       });
     } catch (e) {
-      print('Error fetching monthly attendance: $e');
       setState(() {
         errorMessage =
             'Failed to load attendance data. Please check your network or try again later.';
@@ -144,53 +145,72 @@ class _MonthlyAttendanceScreenState extends State<MonthlyAttendanceScreen> {
   }
 
   @override
+  void dispose() {
+    _pulseController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: const Text(
           "Monthly Attendance",
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+          ),
         ),
-        backgroundColor: Colors.deepPurple.shade700.withOpacity(0.4),
-        iconTheme: const IconThemeData(color: Colors.white),
+        backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white, size: 28),
+          onPressed: () => Navigator.pop(context),
+        ),
         flexibleSpace: ClipRect(
           child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-            child: Container(color: Colors.transparent),
+            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+            child: Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFF87CEEB), Color(0xFF4682B4)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+            ),
           ),
         ),
       ),
       body: Container(
-        decoration: BoxDecoration(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              Colors.deepPurple.shade900,
-              Colors.deepPurple.shade700,
-              Colors.deepPurple.shade500,
-            ],
-            stops: const [0.0, 0.5, 1.0],
+            colors: [Color(0xFF87CEEB), Color(0xFF4682B4), Color(0xFF1E90FF)],
+            stops: [0.0, 0.6, 1.0],
           ),
         ),
         child:
             isLoading
                 ? const Center(
-                  child: CircularProgressIndicator(color: Colors.white),
+                  child: CircularProgressIndicator(color: Colors.cyan),
                 )
                 : errorMessage.isNotEmpty
                 ? Center(
                   child: Padding(
-                    padding: const EdgeInsets.all(16.0),
+                    padding: const EdgeInsets.all(20),
                     child: Text(
                       errorMessage,
                       textAlign: TextAlign.center,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 18,
-                        color: Colors.redAccent.shade100,
+                        color: Colors.redAccent,
                       ),
                     ),
                   ),
@@ -198,38 +218,49 @@ class _MonthlyAttendanceScreenState extends State<MonthlyAttendanceScreen> {
                 : ListView.builder(
                   padding: EdgeInsets.only(
                     top:
-                        AppBar().preferredSize.height +
+                        kToolbarHeight +
                         MediaQuery.of(context).padding.top +
                         16,
+                    left: 16,
+                    right: 16,
+                    bottom: 20,
                   ),
                   itemCount: monthlyAttendance.length,
                   itemBuilder: (context, index) {
                     final monthName = monthlyAttendance.keys.elementAt(index);
-                    final percentage = monthlyAttendance[monthName];
+                    final percentage = monthlyAttendance[monthName]!;
                     final presentDays = monthlyPresentDays[monthName] ?? 0;
                     final totalPossibleDays =
                         monthlyTotalPossibleDays[monthName] ?? 0;
-                    final monthNumber = index + 1; // 1-indexed month number
+                    final monthNumber = index + 1;
                     final currentYear = DateTime.now().year;
 
-                    return _buildMonthlyAttendanceCard(
-                      monthName: monthName,
-                      percentage: percentage!,
-                      presentDays: presentDays,
-                      totalPossibleDays: totalPossibleDays,
-                      gradientColors: _getGradientColorsForMonth(index),
-                      iconColor: _getIconColorForMonth(index),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder:
-                                (context) => DailyAttendanceDetailScreen(
-                                  envNumber: widget.envNumber,
-                                  month: monthNumber,
-                                  year: currentYear,
-                                  monthName: monthName,
+                    return AnimatedBuilder(
+                      animation: _pulseAnimation,
+                      builder: (context, child) {
+                        return Transform.scale(
+                          scale: 1.0 + (_pulseAnimation.value - 1.0) * 0.01,
+                          child: _buildMonthlyAttendanceCard(
+                            monthName: monthName,
+                            percentage: percentage,
+                            presentDays: presentDays,
+                            totalPossibleDays: totalPossibleDays,
+                            gradientColors: _getGradientColorsForMonth(index),
+                            iconColor: _getIconColorForMonth(index),
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder:
+                                      (context) => DailyAttendanceDetailScreen(
+                                        envNumber: widget.envNumber,
+                                        month: monthNumber,
+                                        year: currentYear,
+                                        monthName: monthName,
+                                      ),
                                 ),
+                              );
+                            },
                           ),
                         );
                       },
@@ -240,41 +271,40 @@ class _MonthlyAttendanceScreenState extends State<MonthlyAttendanceScreen> {
     );
   }
 
-  // Helper to get different gradient colors for each card
   List<Color> _getGradientColorsForMonth(int index) {
-    final List<List<Color>> predefinedGradients = [
-      [Colors.blue.shade300, Colors.cyan.shade600],
-      [Colors.green.shade300, Colors.teal.shade600],
-      [Colors.orange.shade300, Colors.red.shade600],
-      [Colors.purple.shade300, Colors.pink.shade600],
-      [Colors.indigo.shade300, Colors.blue.shade600],
-      [Colors.yellow.shade300, Colors.amber.shade600],
-      [Colors.lightGreen.shade300, Colors.lime.shade600],
-      [Colors.deepOrange.shade300, Colors.brown.shade600],
-      [Colors.blueGrey.shade300, Colors.grey.shade600],
-      [Colors.cyanAccent.shade100, Colors.lightBlue.shade600],
-      [Colors.amber.shade300, Colors.deepOrange.shade600],
+    final List<List<Color>> gradients = [
+      [Colors.cyan.shade400, Colors.blue.shade600],
+      [Colors.green.shade400, Colors.teal.shade600],
+      [Colors.orange.shade400, Colors.red.shade600],
+      [Colors.purple.shade400, Colors.pink.shade600],
+      [Colors.indigo.shade400, Colors.blue.shade700],
+      [Colors.amber.shade400, Colors.orange.shade600],
+      [Colors.lightGreen.shade400, Colors.lime.shade700],
+      [Colors.deepOrange.shade400, Colors.red.shade700],
+      [Colors.blueGrey.shade400, Colors.grey.shade700],
+      [Colors.cyanAccent.shade400, Colors.lightBlue.shade600],
+      [Colors.amber.shade400, Colors.deepOrange.shade600],
+      [Colors.teal.shade400, Colors.cyan.shade600],
     ];
-    return predefinedGradients[index % predefinedGradients.length];
+    return gradients[index % gradients.length];
   }
 
-  // Helper to get different icon colors for each card
   Color _getIconColorForMonth(int index) {
-    final List<Color> predefinedIconColors = [
-      Colors.lightBlueAccent.shade100,
-      Colors.greenAccent.shade100,
-      Colors.orangeAccent.shade100,
-      Colors.purpleAccent.shade100,
-      Colors.blueAccent.shade100,
-      Colors.yellowAccent.shade100,
-      Colors.limeAccent.shade100,
-      Colors.deepOrangeAccent.shade100,
-      Colors.pinkAccent.shade100,
-      Colors.blueGrey.shade100,
-      Colors.cyanAccent.shade100,
-      Colors.amberAccent.shade100,
+    final List<Color> colors = [
+      Colors.cyanAccent,
+      Colors.greenAccent,
+      Colors.orangeAccent,
+      Colors.purpleAccent,
+      Colors.blueAccent,
+      Colors.amberAccent,
+      Colors.limeAccent,
+      Colors.redAccent,
+      Colors.pinkAccent,
+      Colors.cyan,
+      Colors.orange,
+      Colors.tealAccent,
     ];
-    return predefinedIconColors[index % predefinedIconColors.length];
+    return colors[index % colors.length];
   }
 
   Widget _buildMonthlyAttendanceCard({
@@ -286,73 +316,46 @@ class _MonthlyAttendanceScreenState extends State<MonthlyAttendanceScreen> {
     required Color iconColor,
     VoidCallback? onTap,
   }) {
-    // Determine icon based on percentage or status - REMOVED
-    // IconData cardIcon;
-    // if (percentage == 'No Data' || percentage == 'Error') {
-    //   cardIcon = Icons.info_outline;
-    // } else {
-    //   double value = double.tryParse(percentage.replaceAll('%', '')) ?? 0.0;
-    //   if (value >= 75) {
-    //     cardIcon = Icons.check_circle_outline;
-    //   } else if (value >= 50) {
-    //     cardIcon = Icons.warning_amber_outlined;
-    //   } else {
-    //     cardIcon = Icons.cancel_outlined;
-    //   }
-    // }
-
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+        margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(28),
           child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 15.0, sigmaY: 15.0),
+            filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
             child: Container(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(22),
               decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(28),
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.35),
+                  width: 1.8,
+                ),
                 gradient: LinearGradient(
-                  colors:
-                      gradientColors
-                          .map((color) => color.withOpacity(0.15))
-                          .toList(),
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
+                  colors: [
+                    gradientColors[0].withOpacity(0.25),
+                    gradientColors[1].withOpacity(0.15),
+                  ],
                 ),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.white.withOpacity(0.2)),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withOpacity(0.2),
-                    blurRadius: 25,
-                    spreadRadius: 3,
-                    offset: const Offset(8, 8),
+                    blurRadius: 30,
+                    offset: const Offset(0, 15),
                   ),
                   BoxShadow(
-                    color: Colors.white.withOpacity(0.1),
-                    blurRadius: 10,
-                    spreadRadius: 1,
-                    offset: Offset(-5, -5),
+                    color: Colors.cyan.withOpacity(0.3),
+                    blurRadius: 20,
+                    offset: const Offset(0, -10),
                   ),
                 ],
               ),
               child: Row(
                 children: [
-                  // Removed the leading icon here
-                  // Icon(
-                  //   cardIcon,
-                  //   size: 48,
-                  //   color: iconColor,
-                  //   shadows: [
-                  //     Shadow(
-                  //       blurRadius: 12.0,
-                  //       color: Colors.black.withOpacity(0.6),
-                  //       offset: Offset(3.0, 3.0),
-                  //     ),
-                  //   ],
-                  // ),
-                  // const SizedBox(width: 20), // Removed this spacing as well
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -360,35 +363,51 @@ class _MonthlyAttendanceScreenState extends State<MonthlyAttendanceScreen> {
                         Text(
                           monthName,
                           style: const TextStyle(
-                            fontSize: 22,
+                            fontSize: 24,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
                             shadows: [
-                              Shadow(
-                                blurRadius: 6.0,
-                                color: Colors.black45,
-                                offset: Offset(1.5, 1.5),
-                              ),
+                              Shadow(color: Colors.cyan, blurRadius: 12),
                             ],
                           ),
                         ),
-                        const SizedBox(height: 5),
+                        const SizedBox(height: 8),
                         Text(
-                          'Present: $presentDays / $totalPossibleDays days ($percentage)',
+                          'Present: $presentDays / $totalPossibleDays days',
                           style: const TextStyle(
-                            fontSize: 18,
+                            fontSize: 17,
                             color: Colors.white70,
-                            fontWeight: FontWeight.w500,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          percentage,
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: _getPercentageColor(percentage),
+                            shadows: [
+                              Shadow(color: Colors.black26, blurRadius: 8),
+                            ],
                           ),
                         ),
                       ],
                     ),
                   ),
-                  const Icon(
-                    Icons.arrow_forward_ios,
-                    color: Colors.white54,
-                    size: 20,
-                  ), // Arrow icon for navigation
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.white.withOpacity(0.2),
+                      border: Border.all(color: Colors.white.withOpacity(0.4)),
+                    ),
+                    child: const Icon(
+                      Icons.arrow_forward_ios,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -396,5 +415,12 @@ class _MonthlyAttendanceScreenState extends State<MonthlyAttendanceScreen> {
         ),
       ),
     );
+  }
+
+  Color _getPercentageColor(String percentage) {
+    final value = double.tryParse(percentage.replaceAll('%', '')) ?? 0;
+    if (value >= 80) return Colors.greenAccent;
+    if (value >= 60) return Colors.yellowAccent;
+    return Colors.redAccent;
   }
 }

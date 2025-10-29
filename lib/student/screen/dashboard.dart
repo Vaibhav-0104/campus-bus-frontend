@@ -2,15 +2,14 @@ import 'package:campus_bus_management/student/screen/preview_fees.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'dart:ui'; // Required for ImageFilter for blur effects
-import 'package:intl/intl.dart'; // For date formatting and month names
+import 'dart:ui';
+import 'package:intl/intl.dart';
 import 'package:campus_bus_management/login.dart';
 import 'package:campus_bus_management/student/screen/help.dart';
-import 'package:campus_bus_management/student/screen/fees_screen.dart'; // Ensure this is the correct path to FeesPaymentScreen
-import 'package:campus_bus_management/driver/screen/attendance_screen.dart';
+import 'package:campus_bus_management/student/screen/fees_screen.dart';
 import 'package:campus_bus_management/student/screen/notifications_screen.dart';
-import 'package:campus_bus_management/student/screen/monthly_attendance_screen.dart'; // New import for the monthly attendance screen
-import 'package:campus_bus_management/config/api_config.dart'; // ✅ Import centralized URL
+import 'package:campus_bus_management/student/screen/monthly_attendance_screen.dart';
+import 'package:campus_bus_management/config/api_config.dart';
 
 class StudentDashboardScreen extends StatefulWidget {
   final String studentName;
@@ -32,7 +31,6 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
   String totalFees = "Loading...";
   String attendance = "Loading...";
   String notifications = "Loading...";
-  String currentMonthName = DateFormat('MMMM').format(DateTime.now());
 
   @override
   void initState() {
@@ -40,260 +38,140 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     fetchDashboardData();
   }
 
-  // Helper to calculate total possible days in a month, excluding Sundays
   int _getTotalPossibleDaysInMonth(int year, int month) {
     int totalDays = 0;
     final firstDayOfMonth = DateTime(year, month, 1);
     final lastDayOfMonth = DateTime(year, month + 1, 0);
-
-    // Loop through each day of the month, ensuring the last day is included
     for (
       var d = firstDayOfMonth;
       !d.isAfter(lastDayOfMonth);
       d = d.add(const Duration(days: 1))
     ) {
-      if (d.weekday != DateTime.sunday) {
-        totalDays++;
-      }
+      if (d.weekday != DateTime.sunday) totalDays++;
     }
     return totalDays;
   }
 
   Future<void> fetchDashboardData() async {
     try {
-      // Fetch Total Fees
       final feesResponse = await http
           .get(
             Uri.parse('${ApiConfig.baseUrl}/fees/student/${widget.envNumber}'),
             headers: {'Content-Type': 'application/json'},
           )
           .timeout(const Duration(seconds: 10));
-      print(
-        'Fees API Response: Status=${feesResponse.statusCode}, Body=${feesResponse.body}',
-      );
+
       if (feesResponse.statusCode == 200) {
         final feesData = jsonDecode(feesResponse.body);
         setState(() {
-          // Check for 'feeAmount' or 'amount' as per backend response
           totalFees =
               (feesData['feeAmount']?.toString() ??
                   feesData['amount']?.toString() ??
                   '0') +
-              " INR"; // Appending INR for clarity
-          if (totalFees == '0 INR') {
-            print(
-              'Warning: Total Fees is 0, check if fee record exists for envNumber=${widget.envNumber}',
-            );
-          }
+              " INR";
         });
       } else if (feesResponse.statusCode == 404) {
-        setState(() {
-          totalFees = 'No Fee Set'; // Specific message for 404
-        });
+        setState(() => totalFees = 'No Fee Set');
       } else {
-        print(
-          'Fees API Error: Status=${feesResponse.statusCode}, Response=${feesResponse.body}',
-        );
-        setState(() {
-          totalFees = 'Unavailable';
-        });
+        setState(() => totalFees = 'Unavailable');
       }
 
-      // Fetch Attendance for Current Month
       final now = DateTime.now();
-      final firstDayOfMonth = DateTime(now.year, now.month, 1);
-      final lastDayOfMonth = DateTime(
-        now.year,
-        now.month + 1,
-        0,
-      ); // Last day of current month
+      final firstDay = DateTime(now.year, now.month, 1);
+      final lastDay = DateTime(now.year, now.month + 1, 0);
 
       final attendanceResponse = await http
           .post(
-            Uri.parse(
-              '${ApiConfig.baseUrl}/students/attendance/by-date', // This route should map to getAttendancePercentageByDateRange
-            ),
+            Uri.parse('${ApiConfig.baseUrl}/students/attendance/by-date'),
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode({
               'envNumber': widget.envNumber,
-              'startDate': DateFormat('yyyy-MM-dd').format(firstDayOfMonth),
-              'endDate': DateFormat('yyyy-MM-dd').format(lastDayOfMonth),
+              'startDate': DateFormat('yyyy-MM-dd').format(firstDay),
+              'endDate': DateFormat('yyyy-MM-dd').format(lastDay),
             }),
           )
           .timeout(const Duration(seconds: 10));
-      print(
-        'Attendance API Response: Status=${attendanceResponse.statusCode}, Body=${attendanceResponse.body}',
-      );
+
       if (attendanceResponse.statusCode == 200) {
-        final attendanceData = jsonDecode(attendanceResponse.body);
+        final data = jsonDecode(attendanceResponse.body);
+        int presentDays = data['presentDays'] ?? 0;
+        int totalDays = _getTotalPossibleDaysInMonth(now.year, now.month);
+        double percentage = totalDays > 0 ? (presentDays / totalDays) * 100 : 0;
+
         setState(() {
-          int presentDays = 0;
-          if (attendanceData['presentDays'] != null) {
-            presentDays = attendanceData['presentDays'] as int;
-          }
-
-          final int totalPossibleDaysInCurrentMonth =
-              _getTotalPossibleDaysInMonth(now.year, now.month);
-
-          double calculatedPercentage = 0.0;
-          if (totalPossibleDaysInCurrentMonth > 0) {
-            calculatedPercentage =
-                (presentDays / totalPossibleDaysInCurrentMonth) * 100;
-          }
-
           attendance =
-              '${presentDays} / ${totalPossibleDaysInCurrentMonth} days (${calculatedPercentage.toStringAsFixed(1)}%)';
-
-          if (attendanceData['message'] != null &&
-              attendanceData['message'].contains("No attendance data")) {
-            attendance =
-                "No data this month"; // More specific for current month
+              '${presentDays} / $totalDays days (${percentage.toStringAsFixed(1)}%)';
+          if (data['message']?.contains("No attendance data") == true) {
+            attendance = "No data this month";
           }
         });
       } else {
-        print(
-          'Attendance API Error: Status=${attendanceResponse.statusCode}, Response=${attendanceResponse.body}',
-        );
-        setState(() {
-          attendance = 'Unavailable';
-        });
+        setState(() => attendance = 'Unavailable');
       }
 
-      // Fetch Notifications
-      final notificationsResponse = await http
+      final notifResponse = await http
           .get(
             Uri.parse('${ApiConfig.baseUrl}/notifications/view/Students'),
             headers: {'Content-Type': 'application/json'},
           )
           .timeout(const Duration(seconds: 10));
-      print(
-        'Notifications API Response: Status=${notificationsResponse.statusCode}, Body=${notificationsResponse.body}',
-      );
-      if (notificationsResponse.statusCode == 200) {
-        final notificationsData = jsonDecode(notificationsResponse.body);
-        setState(() {
-          notifications =
-              (notificationsData is List)
-                  ? notificationsData.length.toString()
-                  : '0';
-        });
-      } else {
-        print(
-          'Notifications API Error: Status=${notificationsResponse.statusCode}, Response=${notificationsResponse.body}',
+
+      if (notifResponse.statusCode == 200) {
+        final data = jsonDecode(notifResponse.body);
+        setState(
+          () => notifications = (data is List) ? data.length.toString() : '0',
         );
-        setState(() {
-          notifications = 'Unavailable';
-        });
+      } else {
+        setState(() => notifications = 'Unavailable');
       }
     } catch (e) {
-      print('Error fetching dashboard data: $e');
       setState(() {
-        totalFees = 'Unavailable';
-        attendance = 'Unavailable';
-        notifications = 'Unavailable';
+        totalFees = attendance = notifications = 'Unavailable';
       });
     }
   }
 
-  // A reusable widget to create a "Liquid Glass" style card
-  Widget _buildLiquidGlassCard({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required List<Color> gradientColors,
-    Color iconColor = Colors.white, // Default icon color
-    VoidCallback? onTap, // Added onTap callback
+  // GLASS CARD
+  Widget _glassCard({
+    required Widget content,
+    required List<Color> gradient,
+    VoidCallback? onTap,
   }) {
     return GestureDetector(
-      // Make the card tappable
       onTap: onTap,
       child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 8.0),
+        margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(25), // Increased rounded corners
+          borderRadius: BorderRadius.circular(24),
           child: BackdropFilter(
-            filter: ImageFilter.blur(
-              sigmaX: 15.0,
-              sigmaY: 15.0,
-            ), // Stronger blur effect
+            filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
             child: Container(
-              padding: const EdgeInsets.all(25), // Increased padding
+              padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors:
-                      gradientColors
-                          .map((color) => color.withOpacity(0.15))
-                          .toList(), // Slightly more transparent gradient
+                  colors: gradient.map((c) => c.withOpacity(0.22)).toList(),
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
-                borderRadius: BorderRadius.circular(25),
+                borderRadius: BorderRadius.circular(24),
                 border: Border.all(
-                  color: Colors.white.withOpacity(0.2),
-                ), // Lighter border
+                  color: Colors.white.withOpacity(0.25),
+                  width: 1.5,
+                ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(
-                      0.2,
-                    ), // Darker shadow for depth
-                    blurRadius: 25, // Increased blur radius
-                    spreadRadius: 3, // Increased spread radius
-                    offset: const Offset(8, 8), // More pronounced offset
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 20,
+                    offset: const Offset(4, 4),
                   ),
                   BoxShadow(
-                    // Inner light shadow for a subtle glow
-                    color: Colors.white.withOpacity(0.1),
+                    color: Colors.white.withOpacity(0.15),
                     blurRadius: 10,
-                    spreadRadius: 1,
-                    offset: Offset(-5, -5), // Top-left inner glow
+                    offset: const Offset(-3, -3),
                   ),
                 ],
               ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Icon(
-                    icon,
-                    size: 52, // Even larger icon size
-                    color: iconColor,
-                    shadows: [
-                      Shadow(
-                        blurRadius: 12.0, // More blur for icon shadow
-                        color: Colors.black.withOpacity(0.6),
-                        offset: Offset(3.0, 3.0),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12), // Increased spacing
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 24, // Larger title font size
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      shadows: [
-                        Shadow(
-                          blurRadius: 6.0,
-                          color: Colors.black45,
-                          offset: Offset(1.5, 1.5),
-                        ),
-                      ],
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 10), // Increased spacing
-                  Text(
-                    subtitle,
-                    style: const TextStyle(
-                      fontSize: 19, // Larger subtitle font size
-                      color: Colors.white70,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
+              child: content,
             ),
           ),
         ),
@@ -304,325 +182,382 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBodyBehindAppBar:
-          true, // Extend body behind app bar for full gradient
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: const Text(
-          "Student Dashboard", // Generic title for the dashboard
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          "Student Dashboard",
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+          ),
         ),
-        backgroundColor: Colors.deepPurple.shade700.withOpacity(
-          0.3,
-        ), // Even more transparent app bar
-        iconTheme: const IconThemeData(color: Colors.white),
-        elevation: 0, // Remove shadow for flat look
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         centerTitle: true,
-        flexibleSpace: ClipRect(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(
-              sigmaX: 10,
-              sigmaY: 10,
-            ), // Increased blur for app bar background
-            child: Container(
-              color: Colors.transparent, // Transparent to allow blur to show
+        leading: Builder(
+          builder:
+              (context) => IconButton(
+                icon: const Icon(Icons.menu, color: Colors.white),
+                onPressed: () => Scaffold.of(context).openDrawer(),
+              ),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.white),
+            onPressed: () {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const LoginScreen()),
+              );
+            },
+          ),
+        ],
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFF87CEEB), Color(0xFF4682B4)],
             ),
           ),
         ),
       ),
-      drawer: _buildDrawer(context), // The navigation drawer
+      drawer: _buildDrawer(context),
       body: Container(
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              Colors.deepPurple.shade900,
-              Colors.deepPurple.shade700,
-              Colors.deepPurple.shade500,
-            ], // Richer gradient background
-            stops: const [
-              0.0,
-              0.5,
-              1.0,
-            ], // Adjusted stops for smoother transition
+            colors: [Color(0xFF87CEEB), Color(0xFF4682B4), Color(0xFF1E90FF)],
+            stops: [0.0, 0.6, 1.0],
           ),
         ),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              SizedBox(
-                height: MediaQuery.of(context).padding.top + 20,
-              ), // Spacing below app bar
-              // Combined Student Name & Email Card
-              _buildLiquidGlassCard(
-                icon: Icons.person_outline,
-                title: "Welcome, ${widget.studentName}!",
-                subtitle: "Email: ${widget.studentEmail}",
-                gradientColors: [Colors.blue.shade300, Colors.cyan.shade600],
-                iconColor: Colors.lightBlueAccent.shade100,
-              ),
-              // Total Fees Card
-              _buildLiquidGlassCard(
-                icon: Icons.payments_outlined,
-                title: "Total Fees",
-                subtitle: totalFees,
-                gradientColors: [Colors.orange.shade300, Colors.red.shade600],
-                iconColor: Colors.orangeAccent.shade100,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder:
-                          (context) =>
-                              PreviewFeesScreen(envNumber: widget.envNumber),
-                    ),
-                  );
-                },
-              ),
-              // Attendance Card (now navigable to MonthlyAttendanceScreen)
-              _buildLiquidGlassCard(
-                icon: Icons.fingerprint,
-                title: "Attendance",
-                subtitle:
-                    "$currentMonthName Average: $attendance", // Display current month average
-                gradientColors: [Colors.purple.shade300, Colors.pink.shade600],
-                iconColor: Colors.purpleAccent.shade100,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder:
-                          (context) => MonthlyAttendanceScreen(
-                            envNumber: widget.envNumber,
-                          ),
-                    ),
-                  );
-                },
-              ),
-              // Notifications Card
-              _buildLiquidGlassCard(
-                icon: Icons.notifications_active_outlined,
-                title: "New Notifications",
-                subtitle: notifications,
-                gradientColors: [Colors.indigo.shade300, Colors.blue.shade600],
-                iconColor: Colors.blueAccent.shade100,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder:
-                          (context) =>
-                              ViewNotificationsScreen(userRole: 'Students'),
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDrawer(BuildContext context) {
-    return Drawer(
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Colors.deepPurple.shade900,
-              Colors.deepPurple.shade600,
-              Colors.deepPurple.shade400,
-            ], // Enhanced gradient for richer background
-            stops: const [0.0, 0.5, 1.0], // Smooth gradient transition
-          ),
-        ),
-        child: ListView(
-          padding: EdgeInsets.zero,
+        child: Column(
           children: [
-            // Liquid Glass Drawer Header
-            DrawerHeader(
-              margin: EdgeInsets.zero,
-              padding: const EdgeInsets.all(15), // Unified padding
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(
-                  20,
-                ), // Consistent rounded corners
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(
-                    sigmaX: 15.0,
-                    sigmaY: 15.0,
-                  ), // Strong blur effect
-                  child: Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.deepPurple.shade800.withOpacity(0.4),
-                          Colors.purple.shade400.withOpacity(0.4),
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.white.withOpacity(0.25)),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
-                          blurRadius: 15,
-                          spreadRadius: 2,
-                          offset: const Offset(5, 5),
-                        ),
-                        BoxShadow(
-                          color: Colors.white.withOpacity(0.1),
-                          blurRadius: 10,
-                          spreadRadius: 1,
-                          offset: const Offset(-5, -5), // Inner glow effect
-                        ),
-                      ],
-                    ),
-                    // Center the content in the container
-                    child: Center(
-                      child: Column(
-                        mainAxisAlignment:
-                            MainAxisAlignment.center, // Center vertically
-                        crossAxisAlignment:
-                            CrossAxisAlignment.center, // Center horizontally
+            // EXTRA SPACE ADDED HERE
+            const SizedBox(
+              height: kToolbarHeight + 50,
+            ), // Increased from +20 to +50
+
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // STUDENT INFO CARD
+                    _glassCard(
+                      gradient: [Colors.blue.shade400, Colors.cyan.shade500],
+                      content: Row(
                         children: [
-                          Text(
-                            widget.studentName,
-                            style: const TextStyle(
-                              fontSize: 24,
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              shadows: [
-                                Shadow(blurRadius: 6, color: Colors.black54),
+                          CircleAvatar(
+                            radius: 34,
+                            backgroundColor: Colors.white.withOpacity(0.25),
+                            child: Text(
+                              widget.studentName.isNotEmpty
+                                  ? widget.studentName
+                                      .trim()
+                                      .split(' ')
+                                      .first[0]
+                                      .toUpperCase()
+                                  : "S",
+                              style: const TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  widget.studentName,
+                                  style: const TextStyle(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  widget.studentEmail,
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.white70,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ],
                             ),
-                            textAlign:
-                                TextAlign.center, // Ensure text is centered
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            widget.studentEmail,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              color: Colors.white70,
-                              fontWeight: FontWeight.w400,
-                            ),
-                            textAlign:
-                                TextAlign.center, // Ensure text is centered
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            "Enrollment: ${widget.envNumber}",
-                            style: const TextStyle(
-                              fontSize: 14,
-                              color: Colors.white60,
-                              fontStyle: FontStyle.italic,
-                              fontWeight: FontWeight.w300,
-                            ),
-                            textAlign:
-                                TextAlign.center, // Ensure text is centered
                           ),
                         ],
                       ),
                     ),
-                  ),
-                ),
-              ),
-            ),
-            // Liquid Glass Drawer Items
-            // _buildDrawerItem(
-            //   Icons.check_circle_outline,
-            //   "Attendance",
-            //   "View your daily attendance records",
-            //   Colors.lightBlueAccent,
-            //   const FaceAttendanceScreen(),
-            // ),
-            _buildDrawerItem(
-              Icons.payment,
-              "Pay Fees",
-              "Manage and pay your bus fees",
-              Colors.greenAccent,
-              FeesPaymentScreen(envNumber: widget.envNumber),
-            ),
-            _buildDrawerItem(
-              Icons.notifications_none,
-              "Notifications",
-              "Check for new announcements and updates",
-              Colors.orangeAccent,
-              const ViewNotificationsScreen(userRole: 'Students'),
-            ),
-            _buildDrawerItem(
-              Icons.help_outline,
-              "Help & Support",
-              "Get assistance and contact support",
-              Colors.purpleAccent,
-              const HelpSupportScreen(),
-            ),
-            const Divider(color: Colors.white30, height: 20, thickness: 1),
-            // Logout item (can also be liquid glass if desired)
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 10.0,
-                vertical: 5.0,
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(15),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.red.shade400.withOpacity(0.15),
-                          Colors.red.shade700.withOpacity(0.15),
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(15),
-                      border: Border.all(color: Colors.red.withOpacity(0.2)),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.15),
-                          blurRadius: 10,
-                          spreadRadius: 1,
-                          offset: const Offset(4, 4),
-                        ),
-                      ],
-                    ),
-                    child: ListTile(
-                      leading: const Icon(
-                        Icons.logout,
-                        color: Colors.redAccent,
-                        size: 28,
-                      ),
-                      title: const Text(
-                        "Logout",
-                        style: TextStyle(
-                          fontSize: 17,
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          shadows: [
-                            Shadow(blurRadius: 3, color: Colors.black54),
-                          ],
-                        ),
-                      ),
-                      onTap: () {
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const LoginScreen(),
+
+                    const SizedBox(height: 16),
+
+                    // FEES + ATTENDANCE ROW
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        return IntrinsicHeight(
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Expanded(
+                                child: _glassCard(
+                                  gradient:
+                                      totalFees.contains("INR")
+                                          ? [
+                                            Colors.green.shade400,
+                                            Colors.green.shade700,
+                                          ]
+                                          : [
+                                            Colors.orange.shade400,
+                                            Colors.orange.shade700,
+                                          ],
+                                  onTap:
+                                      () => Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder:
+                                              (_) => PreviewFeesScreen(
+                                                envNumber: widget.envNumber,
+                                              ),
+                                        ),
+                                      ),
+                                  content: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const Icon(
+                                        Icons.payments,
+                                        size: 38,
+                                        color: Colors.white,
+                                      ),
+                                      const SizedBox(height: 10),
+                                      const Text(
+                                        "Fees Status",
+                                        style: TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 10),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 16,
+                                          vertical: 6,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color:
+                                              totalFees.contains("INR")
+                                                  ? Colors.green
+                                                  : Colors.orange,
+                                          borderRadius: BorderRadius.circular(
+                                            20,
+                                          ),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            if (totalFees.contains("INR"))
+                                              const Icon(
+                                                Icons.check_circle,
+                                                size: 16,
+                                                color: Colors.white,
+                                              ),
+                                            if (totalFees.contains("INR"))
+                                              const SizedBox(width: 4),
+                                            Text(
+                                              totalFees.contains("INR")
+                                                  ? "PAID"
+                                                  : totalFees,
+                                              style: const TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _glassCard(
+                                  gradient: [
+                                    Colors.purple.shade400,
+                                    Colors.pink.shade500,
+                                  ],
+                                  onTap:
+                                      () => Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder:
+                                              (_) => MonthlyAttendanceScreen(
+                                                envNumber: widget.envNumber,
+                                              ),
+                                        ),
+                                      ),
+                                  content: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      SizedBox(
+                                        width: 66,
+                                        height: 66,
+                                        child: Stack(
+                                          alignment: Alignment.center,
+                                          children: [
+                                            CircularProgressIndicator(
+                                              value:
+                                                  attendance.contains("%")
+                                                      ? (double.tryParse(
+                                                                attendance
+                                                                    .split("(")
+                                                                    .last
+                                                                    .replaceAll(
+                                                                      "%",
+                                                                      "",
+                                                                    )
+                                                                    .replaceAll(
+                                                                      ")",
+                                                                      "",
+                                                                    ),
+                                                              ) ??
+                                                              0) /
+                                                          100
+                                                      : 0,
+                                              strokeWidth: 5.5,
+                                              backgroundColor: Colors.white24,
+                                              valueColor:
+                                                  const AlwaysStoppedAnimation(
+                                                    Colors.white,
+                                                  ),
+                                            ),
+                                            Text(
+                                              attendance.contains("%")
+                                                  ? "${(double.tryParse(attendance.split("(").last.replaceAll("%", "").replaceAll(")", "")) ?? 0).toStringAsFixed(0)}%"
+                                                  : "N/A",
+                                              style: const TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(height: 10),
+                                      const Text(
+                                        "Attendance",
+                                        style: TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          _statusDot(Colors.white, "Present"),
+                                          const SizedBox(width: 6),
+                                          _statusDot(Colors.white38, "Absent"),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         );
                       },
                     ),
-                  ),
+
+                    const SizedBox(height: 16),
+
+                    // NOTIFICATIONS CARD
+                    _glassCard(
+                      gradient: [Colors.indigo.shade400, Colors.blue.shade600],
+                      onTap:
+                          () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder:
+                                  (_) => ViewNotificationsScreen(
+                                    userRole: 'Students',
+                                  ),
+                            ),
+                          ),
+                      content: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              const Icon(
+                                Icons.notifications_active,
+                                size: 46,
+                                color: Colors.white,
+                              ),
+                              if (notifications != "0" &&
+                                  notifications != "Unavailable")
+                                Positioned(
+                                  right: 0,
+                                  top: 0,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(3),
+                                    decoration: const BoxDecoration(
+                                      color: Colors.red,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Text(
+                                      notifications,
+                                      style: const TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          const Text(
+                            "New Notifications",
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            notifications == "0"
+                                ? "All caught up!"
+                                : "$notifications unread",
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: Colors.white70,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 20),
+                  ],
                 ),
               ),
             ),
@@ -632,97 +567,125 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     );
   }
 
-  Widget _buildDrawerItem(
-    IconData icon,
-    String title,
-    String description,
-    Color iconColor,
-    Widget screen,
-  ) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 10.0,
-        vertical: 5.0,
-      ), // Add padding for liquid glass cards
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(
-          15,
-        ), // Rounded corners for each drawer item
-        child: BackdropFilter(
-          filter: ImageFilter.blur(
-            sigmaX: 10.0,
-            sigmaY: 10.0,
-          ), // Blur effect for liquid glass
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Colors.white.withOpacity(0.1),
-                  Colors.deepPurple.shade300.withOpacity(0.1),
-                ], // Subtle gradient for drawer items
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(15),
-              border: Border.all(
-                color: Colors.white.withOpacity(0.15),
-              ), // Light border
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 10,
-                  spreadRadius: 1,
-                  offset: const Offset(4, 4),
-                ),
-              ],
-            ),
-            child: ListTile(
-              leading: Icon(
-                icon,
-                color: iconColor,
-                size: 28,
-              ), // Larger icon with specific color
-              title: Column(
-                // Wrap title and description in a Column
-                crossAxisAlignment:
-                    CrossAxisAlignment.start, // Align text to the left
+  Widget _statusDot(Color color, String label) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 7,
+          height: 7,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 3),
+        Text(label, style: const TextStyle(fontSize: 9, color: Colors.white70)),
+      ],
+    );
+  }
+
+  // DRAWER
+  Widget _buildDrawer(BuildContext context) {
+    return Drawer(
+      child: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF87CEEB), Color(0xFF4682B4)],
+          ),
+        ),
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            DrawerHeader(
+              margin: EdgeInsets.zero,
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 17,
-                      color: Colors.white, // White text for consistency
-                      fontWeight: FontWeight.bold,
-                      shadows: [
-                        Shadow(blurRadius: 3, color: Colors.black54),
-                      ], // Text shadow
+                  CircleAvatar(
+                    radius: 32,
+                    backgroundColor: Colors.white.withOpacity(0.2),
+                    child: Text(
+                      widget.studentName.isNotEmpty
+                          ? widget.studentName
+                              .trim()
+                              .split(' ')
+                              .first[0]
+                              .toUpperCase()
+                          : "S",
+                      style: const TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
-                  const SizedBox(
-                    height: 2,
-                  ), // Small spacing between title and description
-                  Text(
-                    description,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color:
-                          Colors
-                              .white70, // Slightly transparent white for description
+                  const SizedBox(height: 10),
+                  Flexible(
+                    child: Text(
+                      widget.studentName,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                      textAlign: TextAlign.center,
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Flexible(
+                    child: Text(
+                      widget.studentEmail,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: Colors.white70,
+                      ),
+                      textAlign: TextAlign.center,
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
                     ),
                   ),
                 ],
               ),
-              onTap: () {
-                Navigator.pop(context); // Close the drawer
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => screen),
-                );
-              },
             ),
-          ),
+            _drawerItem(
+              Icons.payment,
+              "Pay Fees",
+              FeesPaymentScreen(envNumber: widget.envNumber),
+            ),
+            _drawerItem(
+              Icons.notifications,
+              "Notifications",
+              const ViewNotificationsScreen(userRole: 'Students'),
+            ),
+            _drawerItem(
+              Icons.help,
+              "Help & Support",
+              const HelpSupportScreen(),
+            ),
+          ],
         ),
       ),
+    );
+  }
+
+  Widget _drawerItem(IconData icon, String title, Widget screen) {
+    return ListTile(
+      leading: Icon(icon, color: Colors.white, size: 24),
+      title: Text(
+        title,
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w600,
+          fontSize: 15,
+        ),
+      ),
+      onTap: () {
+        Navigator.pop(context);
+        Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
+      },
     );
   }
 }

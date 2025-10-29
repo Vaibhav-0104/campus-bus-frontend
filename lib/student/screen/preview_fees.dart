@@ -22,14 +22,26 @@ class PreviewFeesScreen extends StatefulWidget {
   _PreviewFeesScreenState createState() => _PreviewFeesScreenState();
 }
 
-class _PreviewFeesScreenState extends State<PreviewFeesScreen> {
+class _PreviewFeesScreenState extends State<PreviewFeesScreen>
+    with TickerProviderStateMixin {
   Map<String, dynamic>? feeData;
   bool isLoading = true;
   String errorMessage = '';
 
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnimation;
+
   @override
   void initState() {
     super.initState();
+    _pulseController = AnimationController(
+      duration: const Duration(milliseconds: 1500),
+      vsync: this,
+    );
+    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.04).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+    _pulseController.repeat(reverse: true);
     fetchFeeDetails();
   }
 
@@ -66,7 +78,6 @@ class _PreviewFeesScreenState extends State<PreviewFeesScreen> {
         });
       }
     } catch (e) {
-      print('Error fetching fee details: $e');
       setState(() {
         errorMessage = 'Network Error: Could not connect to the server.';
         isLoading = false;
@@ -80,80 +91,104 @@ class _PreviewFeesScreenState extends State<PreviewFeesScreen> {
     String title,
     String value,
   ) {
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 15.0, sigmaY: 15.0),
+    return AnimatedBuilder(
+      animation: _pulseAnimation,
+      builder: (context, child) {
+        return Transform.scale(
+          scale: 1.0 + (_pulseAnimation.value - 1.0) * 0.01,
           child: Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Colors.blueGrey.shade300.withOpacity(0.15),
-                  Colors.blueGrey.shade700.withOpacity(0.15),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.white.withOpacity(0.2)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.2),
-                  blurRadius: 25,
-                  spreadRadius: 3,
-                  offset: const Offset(8, 8),
-                ),
-                BoxShadow(
-                  color: Colors.white.withOpacity(0.1),
-                  blurRadius: 10,
-                  spreadRadius: 1,
-                  offset: const Offset(-5, -5),
-                ),
-              ],
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
+            margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(28),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+                child: Container(
+                  padding: const EdgeInsets.all(22),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(28),
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.35),
+                      width: 1.8,
+                    ),
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Colors.cyan.withOpacity(0.25),
+                        Colors.blue.withOpacity(0.15),
+                      ],
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.2),
+                        blurRadius: 30,
+                        offset: const Offset(0, 15),
+                      ),
+                      BoxShadow(
+                        color: Colors.cyan.withOpacity(0.3),
+                        blurRadius: 20,
+                        offset: const Offset(0, -10),
+                      ),
+                    ],
+                  ),
                   child: Row(
                     children: [
-                      Icon(icon, color: iconColor, size: 24),
-                      const SizedBox(width: 12),
-                      Flexible(
-                        child: Text(
-                          title,
-                          style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                            shadows: [
-                              Shadow(blurRadius: 3, color: Colors.black54),
-                            ],
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: iconColor.withOpacity(0.2),
+                          border: Border.all(
+                            color: iconColor.withOpacity(0.5),
+                            width: 1.5,
                           ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: iconColor.withOpacity(0.6),
+                              blurRadius: 15,
+                              spreadRadius: 1,
+                            ),
+                          ],
+                        ),
+                        child: Icon(icon, size: 26, color: Colors.white),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              title,
+                              style: const TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                                shadows: [
+                                  Shadow(color: Colors.cyan, blurRadius: 8),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              value,
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white70,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
                   ),
                 ),
-                Flexible(
-                  child: Text(
-                    value,
-                    style: const TextStyle(
-                      fontSize: 20,
-                      color: Colors.white70,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    textAlign: TextAlign.right,
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -163,7 +198,6 @@ class _PreviewFeesScreenState extends State<PreviewFeesScreen> {
         const SnackBar(
           content: Text("No fee data available to export."),
           backgroundColor: Colors.red,
-          duration: Duration(seconds: 2),
         ),
       );
       return;
@@ -171,63 +205,99 @@ class _PreviewFeesScreenState extends State<PreviewFeesScreen> {
 
     showDialog(
       context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          backgroundColor: Colors.deepPurple.shade700.withOpacity(0.8),
-          title: const Text(
-            "Export Fee Details",
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              shadows: [Shadow(blurRadius: 2, color: Colors.black54)],
+      builder:
+          (context) => AlertDialog(
+            // FIXED: Removed extra parentheses
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(28),
             ),
-          ),
-          content: Text(
-            "Do you want to export the fee details for ${widget.envNumber} as a PDF?",
-            style: TextStyle(color: Colors.white70, fontSize: 16),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: Text(
-                "No",
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.8),
-                  fontSize: 16,
-                ),
+            backgroundColor: Colors.white.withOpacity(0.97),
+            elevation: 20,
+            title: const Text(
+              "Export Fee Details",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Color(0xFF00D4FF),
+                fontWeight: FontWeight.bold,
+                fontSize: 22,
+                shadows: [Shadow(color: Colors.cyan, blurRadius: 10)],
               ),
             ),
-            ElevatedButton(
-              onPressed: () async {
-                Navigator.of(context).pop();
-                await generateAndOpenPdf();
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.lightBlueAccent,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(15),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      colors: [Colors.cyan.shade400, Colors.blue.shade600],
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.cyan.withOpacity(0.6),
+                        blurRadius: 20,
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.picture_as_pdf,
+                    size: 50,
+                    color: Colors.white,
+                  ),
                 ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 10,
+                const SizedBox(height: 20),
+                Text(
+                  "Export fee details for:",
+                  style: TextStyle(fontSize: 16, color: Colors.grey.shade700),
                 ),
-              ),
-              child: const Text(
-                "Yes, Export PDF",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
+                const SizedBox(height: 8),
+                Text(
+                  widget.envNumber,
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF00D4FF),
+                  ),
                 ),
-              ),
+                const SizedBox(height: 20),
+                const Text(
+                  "Generate PDF?",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 16, color: Colors.black87),
+                ),
+              ],
             ),
-          ],
-        );
-      },
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text(
+                  "Cancel",
+                  style: TextStyle(
+                    color: Colors.red,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  Navigator.pop(context);
+                  await generateAndOpenPdf();
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.cyan.shade600,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  elevation: 8,
+                ),
+                child: const Text(
+                  "Export PDF",
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
     );
   }
 
@@ -236,7 +306,6 @@ class _PreviewFeesScreenState extends State<PreviewFeesScreen> {
       const SnackBar(
         content: Text("Generating PDF..."),
         backgroundColor: Colors.blue,
-        duration: Duration(seconds: 2),
       ),
     );
 
@@ -278,102 +347,101 @@ class _PreviewFeesScreenState extends State<PreviewFeesScreen> {
       pdf.addPage(
         pw.Page(
           pageFormat: PdfPageFormat.a4,
-          build: (context) {
-            return pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                pw.Center(
-                  child: pw.Text(
-                    'UTU Student PassYojna',
+          build:
+              (context) => pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Center(
+                    child: pw.Text(
+                      'UTU Student PassYojna',
+                      style: pw.TextStyle(
+                        font: ttf,
+                        fontSize: 30,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColors.cyan900,
+                      ),
+                    ),
+                  ),
+                  pw.Center(
+                    child: pw.Text(
+                      'Bus Pass Fee Details',
+                      style: pw.TextStyle(
+                        font: ttf,
+                        fontSize: 18,
+                        color: PdfColors.cyan700,
+                      ),
+                    ),
+                  ),
+                  pw.SizedBox(height: 20),
+                  pw.Divider(color: PdfColors.cyan400, thickness: 1),
+                  pw.SizedBox(height: 20),
+                  pw.Text(
+                    'Student Information:',
                     style: pw.TextStyle(
                       font: ttf,
-                      fontSize: 30,
+                      fontSize: 22,
                       fontWeight: pw.FontWeight.bold,
-                      color: PdfColors.deepPurple900,
+                      color: PdfColors.blueGrey800,
                     ),
                   ),
-                ),
-                pw.Center(
-                  child: pw.Text(
-                    'Bus Pass Fee Details',
+                  pw.SizedBox(height: 10),
+                  pw.Text(
+                    'Name: ${feeData?['studentName'] ?? 'N/A'}',
+                    style: pw.TextStyle(font: ttf, fontSize: 16),
+                  ),
+                  pw.Text(
+                    'Enrollment Number: ${widget.envNumber}',
+                    style: pw.TextStyle(font: ttf, fontSize: 16),
+                  ),
+                  pw.SizedBox(height: 30),
+                  pw.Text(
+                    'Fee Breakdown:',
                     style: pw.TextStyle(
                       font: ttf,
-                      fontSize: 18,
-                      color: PdfColors.deepPurple700,
+                      fontSize: 22,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.blueGrey800,
                     ),
                   ),
-                ),
-                pw.SizedBox(height: 20),
-                pw.Divider(color: PdfColors.grey400, thickness: 1),
-                pw.SizedBox(height: 20),
-                pw.Text(
-                  'Student Information:',
-                  style: pw.TextStyle(
-                    font: ttf,
-                    fontSize: 22,
-                    fontWeight: pw.FontWeight.bold,
-                    color: PdfColors.blueGrey800,
-                  ),
-                ),
-                pw.SizedBox(height: 10),
-                pw.Text(
-                  'Name: ${feeData?['studentName'] ?? 'N/A'}',
-                  style: pw.TextStyle(font: ttf, fontSize: 16),
-                ),
-                pw.Text(
-                  'Enrollment Number: ${widget.envNumber}',
-                  style: pw.TextStyle(font: ttf, fontSize: 16),
-                ),
-                pw.SizedBox(height: 30),
-                pw.Text(
-                  'Fee Breakdown:',
-                  style: pw.TextStyle(
-                    font: ttf,
-                    fontSize: 22,
-                    fontWeight: pw.FontWeight.bold,
-                    color: PdfColors.blueGrey800,
-                  ),
-                ),
-                pw.SizedBox(height: 10),
-                pw.Table.fromTextArray(
-                  headers: tableData[0],
-                  data: tableData.sublist(1),
-                  border: pw.TableBorder.all(
-                    color: PdfColors.grey400,
-                    width: 1,
-                  ),
-                  headerStyle: pw.TextStyle(
-                    font: ttf,
-                    fontWeight: pw.FontWeight.bold,
-                    color: PdfColors.white,
-                    fontSize: 14,
-                  ),
-                  cellStyle: pw.TextStyle(font: ttf, fontSize: 12),
-                  headerDecoration: const pw.BoxDecoration(
-                    color: PdfColors.deepPurple,
-                  ),
-                  cellAlignment: pw.Alignment.centerLeft,
-                  columnWidths: {
-                    0: const pw.FlexColumnWidth(2),
-                    1: const pw.FlexColumnWidth(3),
-                  },
-                  cellPadding: const pw.EdgeInsets.all(8),
-                ),
-                pw.Expanded(child: pw.SizedBox()),
-                pw.Align(
-                  alignment: pw.Alignment.bottomRight,
-                  child: pw.Text(
-                    'Generated on: ${DateFormat('MMM dd, yyyy - hh:mm a').format(DateTime.now())}',
-                    style: pw.TextStyle(
+                  pw.SizedBox(height: 10),
+                  pw.Table.fromTextArray(
+                    headers: tableData[0],
+                    data: tableData.sublist(1),
+                    border: pw.TableBorder.all(
+                      color: PdfColors.cyan400,
+                      width: 1,
+                    ),
+                    headerStyle: pw.TextStyle(
                       font: ttf,
-                      fontSize: 10,
-                      color: PdfColors.grey,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.white,
+                      fontSize: 14,
+                    ),
+                    cellStyle: pw.TextStyle(font: ttf, fontSize: 12),
+                    headerDecoration: const pw.BoxDecoration(
+                      color: PdfColors.cyan,
+                    ),
+                    cellAlignment: pw.Alignment.centerLeft,
+                    columnWidths: {
+                      0: const pw.FlexColumnWidth(2),
+                      1: const pw.FlexColumnWidth(3),
+                    },
+                    cellPadding: const pw.EdgeInsets.all(8),
+                  ),
+                  pw.Expanded(child: pw.SizedBox()),
+                  pw.Align(
+                    alignment: pw.Alignment.bottomRight,
+                    child: pw.Text(
+                      'Generated on: ${DateFormat('MMM dd, yyyy - hh:mm a').format(DateTime.now())}',
+                      style: pw.TextStyle(
+                        font: ttf,
+                        fontSize: 10,
+                        color: PdfColors.grey,
+                      ),
                     ),
                   ),
-                ),
-              ],
-            );
-          },
+                ],
+              ),
         ),
       );
 
@@ -397,11 +465,16 @@ class _PreviewFeesScreenState extends State<PreviewFeesScreen> {
         );
       }
     } catch (e) {
-      print('Error generating or opening PDF: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error generating or opening PDF: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    super.dispose();
   }
 
   @override
@@ -411,48 +484,60 @@ class _PreviewFeesScreenState extends State<PreviewFeesScreen> {
       appBar: AppBar(
         title: const Text(
           'Fee Details',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+            fontSize: 20,
+          ),
         ),
-        backgroundColor: Colors.deepPurple.shade700.withOpacity(0.3),
-        iconTheme: const IconThemeData(color: Colors.white),
+        backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white, size: 28),
+          onPressed: () => Navigator.pop(context),
+        ),
         flexibleSpace: ClipRect(
           child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-            child: Container(color: Colors.transparent),
+            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+            child: Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFF87CEEB), Color(0xFF4682B4)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+            ),
           ),
         ),
       ),
       body: Container(
-        decoration: BoxDecoration(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              Colors.deepPurple.shade900,
-              Colors.deepPurple.shade700,
-              Colors.deepPurple.shade500,
-            ],
-            stops: const [0.0, 0.5, 1.0],
+            colors: [Color(0xFF87CEEB), Color(0xFF4682B4), Color(0xFF1E90FF)],
+            stops: [0.0, 0.6, 1.0],
           ),
         ),
         child:
             isLoading
                 ? const Center(
-                  child: CircularProgressIndicator(color: Colors.white),
+                  child: CircularProgressIndicator(color: Colors.cyan),
                 )
                 : errorMessage.isNotEmpty
                 ? Center(
                   child: Padding(
-                    padding: const EdgeInsets.all(20.0),
+                    padding: const EdgeInsets.all(20),
                     child: Text(
                       errorMessage,
                       textAlign: TextAlign.center,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 18,
-                        color: Colors.redAccent.shade100,
-                        fontWeight: FontWeight.w500,
+                        color: Colors.redAccent,
                       ),
                     ),
                   ),
@@ -462,27 +547,22 @@ class _PreviewFeesScreenState extends State<PreviewFeesScreen> {
                   child: Text(
                     'No fee details available for Enrollment Number: ${widget.envNumber}',
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      color: Colors.white70,
-                      fontWeight: FontWeight.w500,
-                    ),
+                    style: const TextStyle(fontSize: 18, color: Colors.white70),
                   ),
                 )
                 : SingleChildScrollView(
                   padding: EdgeInsets.only(
                     top:
-                        AppBar().preferredSize.height +
+                        kToolbarHeight +
                         MediaQuery.of(context).padding.top +
-                        5,
-                    bottom: 5.0,
+                        20,
+                    bottom: 30,
                   ),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       _buildLiquidGlassDetailCard(
                         Icons.tag,
-                        Colors.lightBlueAccent,
+                        Colors.cyanAccent,
                         'Env Number',
                         widget.envNumber,
                       ),
@@ -515,14 +595,14 @@ class _PreviewFeesScreenState extends State<PreviewFeesScreen> {
                       _buildLiquidGlassDetailCard(
                         Icons.check_circle_outline,
                         feeData!['isPaid'] == true
-                            ? Colors.lightGreenAccent
+                            ? Colors.greenAccent
                             : Colors.redAccent,
                         'Paid Status',
                         feeData!['isPaid'] == true ? "Yes" : "No",
                       ),
                       if (feeData!['paymentDate'] != null)
                         _buildLiquidGlassDetailCard(
-                          Icons.calendar_today,
+                          Icons.event,
                           Colors.purpleAccent,
                           'Payment Date',
                           DateFormat('MMM dd, yyyy').format(
@@ -537,49 +617,28 @@ class _PreviewFeesScreenState extends State<PreviewFeesScreen> {
                           'Transaction ID',
                           feeData!['transactionId'],
                         ),
-                      const SizedBox(height: 5),
+                      const SizedBox(height: 20),
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                        child: ElevatedButton(
+                        padding: const EdgeInsets.symmetric(horizontal: 32),
+                        child: ElevatedButton.icon(
                           onPressed: _showExportPdfConfirmationDialog,
+                          icon: const Icon(Icons.picture_as_pdf, size: 28),
+                          label: const Text(
+                            "Export as PDF",
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.deepPurple.shade600
-                                .withOpacity(0.8),
+                            backgroundColor: Colors.cyan.shade600,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 18),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(30),
-                              side: BorderSide(
-                                color: Colors.white.withOpacity(0.3),
-                                width: 1,
-                              ),
                             ),
-                            padding: const EdgeInsets.symmetric(vertical: 18),
-                            shadowColor: Colors.black.withOpacity(0.4),
-                            elevation: 10,
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: const [
-                              Icon(
-                                Icons.picture_as_pdf,
-                                color: Colors.white,
-                                size: 28,
-                              ),
-                              SizedBox(width: 10),
-                              Text(
-                                "Export as PDF",
-                                style: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                  shadows: [
-                                    Shadow(
-                                      blurRadius: 5,
-                                      color: Colors.black54,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
+                            elevation: 15,
+                            shadowColor: Colors.cyan.withOpacity(0.7),
                           ),
                         ),
                       ),
