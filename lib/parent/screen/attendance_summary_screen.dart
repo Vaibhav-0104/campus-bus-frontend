@@ -3,42 +3,38 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:ui';
-import 'dart:developer' as developer;
-import 'view_detailed_attendance_screen.dart';
-import 'package:campus_bus_management/config/api_config.dart'; // Centralized URL
+import 'package:campus_bus_management/config/api_config.dart';
 
 /// Configuration class for attendance summary
 class AttendanceSummaryConfig {
   static const String screenTitle = 'Attendance Summary';
   static const String headerTitle = 'Weekly Attendance';
-  static const List<int> dateRangeOptions = [7, 14, 30]; // Days for dropdown
+  static const List<int> dateRangeOptions = [7, 14, 30];
 }
 
-/// Theme-related constants
+/// Purple Theme (Matches Dashboard)
 class AppTheme {
-  static const Color primaryColor = Color(0xFF1E88E5); // Bright Blue
-  static const Color backgroundColor = Color(0xFF0C1337); // Very Dark Blue
-  static const Color accentColor = Color(0xFF80D8FF); // Light Cyan/Blue Accent
-  static const Color successColor = Colors.green;
-  static const Color absentColor = Color(0xFFFF5252); // Red for absences
-  static const Color cardBackground = Color(
-    0xFF16204C,
-  ); // Darker Blue for cards
-  static const Color iconColor1 = Color(0xFF69F0AE); // Green for icons
-  static const Color iconColor2 = Color(0xFFFFC107); // Amber for icons
-  static const Color iconColor3 = Color(0xFFFF5252); // Red for icons
-  static const double cardBorderRadius = 20.0;
-  static const double blurSigma = 12.0; // Slightly increased for smoother blur
+  static const Color primary = Color(0xFF6A1B9A); // Deep Purple
+  static const Color lightPurple = Color(0xFFCE93D8); // Light Purple Accent
+  static const Color background = Color(0xFFF8F5FF); // Light Purple BG
+  static const Color cardBg = Colors.white; // White cards
+  static const Color textPrimary = Color(0xFF4A148C); // Dark Purple Text
+  static const Color textSecondary = Color(0xFF7E57C2);
+  static const Color successColor = Color(0xFF66BB6A); // Green
+  static const Color absentColor = Color(0xFFFF5252); // Red
+
+  static const double borderRadius = 20.0;
+  static const double blur = 12.0;
   static const double cardPadding = 16.0;
   static const double spacing = 16.0;
-  static const double elevation = 8.0;
   static const double iconSize = 28.0;
+
   static const List<Color> studentColors = [
-    Color(0xFF69F0AE), // Green
-    Color(0xFFFFC107), // Amber
-    Color(0xFFFF5252), // Red
-    Color(0xFF80D8FF), // Cyan
-  ]; // Colors for multiple students
+    Color(0xFF6A1B9A),
+    Color(0xFFCE93D8),
+    Color(0xFFFF5252),
+    Color(0xFF66BB6A),
+  ];
 }
 
 /// Reusable alert card widget
@@ -54,37 +50,29 @@ class AlertCard extends StatelessWidget {
       duration: const Duration(milliseconds: 200),
       curve: Curves.easeInOut,
       margin: const EdgeInsets.symmetric(vertical: AppTheme.spacing / 2),
-      decoration: BoxDecoration(
-        color: AppTheme.cardBackground,
-        borderRadius: BorderRadius.circular(AppTheme.cardBorderRadius),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.2),
-            offset: const Offset(4, 4),
-            blurRadius: AppTheme.blurSigma,
-          ),
-          BoxShadow(
-            color: Colors.white.withValues(alpha: 0.05),
-            offset: const Offset(-4, -4),
-            blurRadius: AppTheme.blurSigma,
-          ),
-        ],
-      ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppTheme.cardBorderRadius),
+        borderRadius: BorderRadius.circular(AppTheme.borderRadius),
         child: BackdropFilter(
           filter: ImageFilter.blur(
-            sigmaX: AppTheme.blurSigma,
-            sigmaY: AppTheme.blurSigma,
+            sigmaX: AppTheme.blur,
+            sigmaY: AppTheme.blur,
           ),
           child: Container(
             padding: const EdgeInsets.all(AppTheme.cardPadding),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.102), // 26/255
+              color: AppTheme.cardBg.withValues(alpha: 0.9),
+              borderRadius: BorderRadius.circular(AppTheme.borderRadius),
               border: Border.all(
-                color: Colors.white.withValues(alpha: 0.298),
+                color: Colors.white.withValues(alpha: 0.3),
                 width: 1.5,
-              ), // 76/255
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 12,
+                  offset: const Offset(0, 6),
+                ),
+              ],
             ),
             child: ListTile(
               leading: Icon(
@@ -94,16 +82,16 @@ class AlertCard extends StatelessWidget {
               ),
               title: Text(
                 title,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: Colors.white,
+                style: const TextStyle(
+                  color: AppTheme.textPrimary,
                   fontWeight: FontWeight.bold,
                   fontSize: 18,
                 ),
               ),
               subtitle: Text(
                 subtitle,
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: Colors.white.withValues(alpha: 0.8), // 204/255
+                style: TextStyle(
+                  color: AppTheme.textSecondary.withValues(alpha: 0.8),
                   fontSize: 16,
                 ),
               ),
@@ -115,7 +103,7 @@ class AlertCard extends StatelessWidget {
   }
 }
 
-/// Screen to display attendance summary with chart and alerts
+/// Attendance Summary Screen
 class AttendanceSummaryScreen extends StatefulWidget {
   final String parentContact;
   final String parentEmail;
@@ -136,10 +124,10 @@ class _AttendanceSummaryScreenState extends State<AttendanceSummaryScreen> {
   String? _errorMessage;
   List<Map<String, dynamic>> _students = [];
   String? _selectedStudentId;
-  int _selectedDateRange = 7; // Default to 7 days
+  int _selectedDateRange = 7;
   Map<String, List<AttendanceData>> _attendanceData = {};
   Map<String, List<Map<String, String>>> _alerts = {};
-  bool _showAllStudents = true; // Toggle to show all students or one
+  bool _showAllStudents = true;
 
   @override
   void initState() {
@@ -147,7 +135,6 @@ class _AttendanceSummaryScreenState extends State<AttendanceSummaryScreen> {
     _fetchAttendanceData();
   }
 
-  // Fetch attendance data from backend
   Future<void> _fetchAttendanceData() async {
     if (!mounted) return;
 
@@ -156,12 +143,11 @@ class _AttendanceSummaryScreenState extends State<AttendanceSummaryScreen> {
       _errorMessage = null;
       _attendanceData = {};
       _alerts = {};
-      _selectedStudentId = null; // Reset selected student
+      _selectedStudentId = null;
     });
 
     final client = http.Client();
     try {
-      // Step 1: Fetch students by parent contact and email
       final parentResponse = await client
           .post(
             Uri.parse('${ApiConfig.baseUrl}/students/parent-login'),
@@ -173,26 +159,18 @@ class _AttendanceSummaryScreenState extends State<AttendanceSummaryScreen> {
           )
           .timeout(const Duration(seconds: 10));
 
-      if (!mounted) {
-        setState(() => _isLoading = false);
-        client.close();
-        return;
-      }
+      if (!mounted) return;
 
       if (parentResponse.statusCode != 200) {
         setState(() {
           _isLoading = false;
-          _errorMessage =
-              parentResponse.statusCode == 404
-                  ? 'No children found for this parent. Please verify your email and contact number or contact support.'
-                  : 'Failed to load data (Status: ${parentResponse.statusCode}): ${parentResponse.body}';
+          _errorMessage = 'Failed to load data';
         });
         client.close();
         return;
       }
 
-      final parentData =
-          jsonDecode(parentResponse.body) as Map<String, dynamic>;
+      final parentData = jsonDecode(parentResponse.body);
       final students =
           (parentData['students'] as List<dynamic>? ?? [])
               .cast<Map<String, dynamic>>();
@@ -200,13 +178,12 @@ class _AttendanceSummaryScreenState extends State<AttendanceSummaryScreen> {
       if (students.isEmpty) {
         setState(() {
           _isLoading = false;
-          _errorMessage = 'No children found for this parent';
+          _errorMessage = 'No children found';
         });
         client.close();
         return;
       }
 
-      // Step 2: Fetch attendance for the selected date range for all students
       final Map<String, List<AttendanceData>> attendanceData = {};
       final Map<String, List<Map<String, String>>> alerts = {};
       final today = DateTime.now();
@@ -235,16 +212,11 @@ class _AttendanceSummaryScreenState extends State<AttendanceSummaryScreen> {
 
           int present = 0;
           if (attendanceResponse.statusCode == 200) {
-            final attendanceRecords =
+            final records =
                 jsonDecode(attendanceResponse.body) as List<dynamic>;
-            if (attendanceRecords.isNotEmpty) {
-              present = attendanceRecords[0]['status'] == 'Present' ? 1 : 0;
+            if (records.isNotEmpty && records[0]['status'] == 'Present') {
+              present = 1;
             }
-          } else {
-            developer.log(
-              'Attendance API failed for $dateStr (Status: ${attendanceResponse.statusCode}): ${attendanceResponse.body}',
-              name: 'AttendanceSummaryScreen',
-            );
           }
 
           final dayName = days[date.weekday % 7];
@@ -258,15 +230,14 @@ class _AttendanceSummaryScreenState extends State<AttendanceSummaryScreen> {
           }
         }
 
-        // Generate alerts for consecutive absences
+        // Consecutive absences
         for (int i = 0; i <= studentAttendance.length - 3; i++) {
           if (studentAttendance[i].present == 0 &&
               studentAttendance[i + 1].present == 0 &&
               studentAttendance[i + 2].present == 0) {
             studentAlerts.add({
               'title': 'Consecutive Absences',
-              'subtitle':
-                  '$studentName missed 3+ days starting ${studentAttendance[i].day}, ${studentAttendance[i].date}',
+              'subtitle': '$studentName missed 3+ days',
             });
             break;
           }
@@ -276,38 +247,23 @@ class _AttendanceSummaryScreenState extends State<AttendanceSummaryScreen> {
         alerts[studentId] = studentAlerts;
       }
 
-      if (!mounted) {
-        setState(() => _isLoading = false);
-        client.close();
-        return;
-      }
-
       setState(() {
         _students = students;
-        _selectedStudentId = students.first['_id'] as String; // Initialize here
+        _selectedStudentId = students.first['_id'];
         _attendanceData = attendanceData;
         _alerts = alerts;
         _isLoading = false;
       });
     } catch (e) {
-      if (!mounted) {
-        client.close();
-        return;
-      }
-      developer.log(
-        'Exception in _fetchAttendanceData: $e',
-        name: 'AttendanceSummaryScreen',
-      );
       setState(() {
         _isLoading = false;
-        _errorMessage = 'Failed to load attendance data: $e';
+        _errorMessage = 'Network error';
       });
     } finally {
       client.close();
     }
   }
 
-  // Create line chart data for all or selected students
   List<LineChartBarData> _createChartData() {
     final List<LineChartBarData> lineBars = [];
     final studentsToShow =
@@ -318,14 +274,12 @@ class _AttendanceSummaryScreenState extends State<AttendanceSummaryScreen> {
     for (var i = 0; i < studentsToShow.length; i++) {
       final student = studentsToShow[i];
       final studentId = student['_id'] as String;
-      final studentAttendance = _attendanceData[studentId] ?? [];
+      final attendance = _attendanceData[studentId] ?? [];
       final color = AppTheme.studentColors[i % AppTheme.studentColors.length];
 
       final spots =
-          studentAttendance.asMap().entries.map((entry) {
-            final index = entry.key;
-            final attendance = entry.value;
-            return FlSpot(index.toDouble(), attendance.present.toDouble());
+          attendance.asMap().entries.map((e) {
+            return FlSpot(e.key.toDouble(), e.value.present.toDouble());
           }).toList();
 
       lineBars.add(
@@ -338,7 +292,7 @@ class _AttendanceSummaryScreenState extends State<AttendanceSummaryScreen> {
           dotData: FlDotData(
             show: true,
             getDotPainter:
-                (spot, percent, bar, index) => FlDotCirclePainter(
+                (spot, _, __, ___) => FlDotCirclePainter(
                   radius: 6,
                   color:
                       spot.y == 1.0
@@ -352,10 +306,8 @@ class _AttendanceSummaryScreenState extends State<AttendanceSummaryScreen> {
             show: true,
             gradient: LinearGradient(
               colors: [
-                color.withValues(
-                  alpha: 0.4,
-                ), // Slightly more opaque for visibility
-                color.withValues(alpha: 0.1),
+                color.withValues(alpha: 0.3),
+                color.withValues(alpha: 0.05),
               ],
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
@@ -364,754 +316,315 @@ class _AttendanceSummaryScreenState extends State<AttendanceSummaryScreen> {
         ),
       );
     }
-
     return lineBars;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBodyBehindAppBar: true,
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
         title: const Text(
           AttendanceSummaryConfig.screenTitle,
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
-        backgroundColor: AppTheme.backgroundColor.withValues(alpha: 0.3),
+        backgroundColor: AppTheme.primary,
+        foregroundColor: Colors.white,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
-        flexibleSpace: ClipRect(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(
-              sigmaX: AppTheme.blurSigma,
-              sigmaY: AppTheme.blurSigma,
-            ),
-            child: Container(color: Colors.transparent),
-          ),
-        ),
         actions: [
           IconButton(
-            icon: Icon(
-              Icons.refresh,
-              color: AppTheme.iconColor1,
-              size: AppTheme.iconSize,
-            ),
+            icon: const Icon(Icons.refresh, color: Colors.white),
             onPressed: _fetchAttendanceData,
-            tooltip: 'Refresh Data',
           ),
         ],
       ),
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        color: AppTheme.backgroundColor,
-        child: SafeArea(
-          child:
-              _isLoading
-                  ? Center(
-                    child: Container(
-                      padding: const EdgeInsets.all(AppTheme.cardPadding),
-                      decoration: BoxDecoration(
-                        color: AppTheme.cardBackground,
-                        borderRadius: BorderRadius.circular(
-                          AppTheme.cardBorderRadius,
+      body: SafeArea(
+        child:
+            _isLoading
+                ? const Center(
+                  child: CircularProgressIndicator(color: AppTheme.primary),
+                )
+                : _errorMessage != null
+                ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        _errorMessage!,
+                        style: const TextStyle(color: AppTheme.textPrimary),
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: _fetchAttendanceData,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primary,
                         ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.2),
-                            offset: const Offset(4, 4),
-                            blurRadius: AppTheme.blurSigma,
-                          ),
-                        ],
+                        child: const Text(
+                          'Retry',
+                          style: TextStyle(color: Colors.white),
+                        ),
                       ),
-                      child: CircularProgressIndicator(
-                        color: AppTheme.accentColor,
-                      ),
-                    ),
-                  )
-                  : _errorMessage != null
-                  ? Center(
+                    ],
+                  ),
+                )
+                : Padding(
+                  padding: const EdgeInsets.all(AppTheme.cardPadding),
+                  child: SingleChildScrollView(
                     child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          _errorMessage!,
-                          style: Theme.of(
-                            context,
-                          ).textTheme.bodyLarge?.copyWith(
-                            color: Colors.white.withValues(alpha: 0.8),
-                            fontSize: 16,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: AppTheme.spacing),
-                        ElevatedButton(
-                          onPressed: _fetchAttendanceData,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.accentColor,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(
-                                AppTheme.cardBorderRadius,
-                              ),
-                            ),
-                          ),
-                          child: const Text('Retry'),
-                        ),
-                      ],
-                    ),
-                  )
-                  : Padding(
-                    padding: const EdgeInsets.all(AppTheme.cardPadding),
-                    child: SingleChildScrollView(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Toggle for showing all students or one
-                          if (_students.length > 1)
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: AppTheme.cardPadding,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppTheme.cardBackground,
-                                borderRadius: BorderRadius.circular(
-                                  AppTheme.cardBorderRadius,
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    'Show All Students',
-                                    style: Theme.of(
-                                      context,
-                                    ).textTheme.bodyLarge?.copyWith(
-                                      color: Colors.white,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                  Switch(
-                                    value: _showAllStudents,
-                                    onChanged: (value) {
-                                      setState(() {
-                                        _showAllStudents = value;
-                                        if (!value && _students.isNotEmpty) {
-                                          _selectedStudentId =
-                                              _students.first['_id'] as String;
-                                        }
-                                      });
-                                    },
-                                    activeColor: AppTheme.accentColor,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          if (_students.length > 1 && !_showAllStudents)
-                            const SizedBox(height: AppTheme.spacing),
-                          // Student Selection Dropdown
-                          if (_students.length > 1 && !_showAllStudents)
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: AppTheme.cardPadding,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppTheme.cardBackground,
-                                borderRadius: BorderRadius.circular(
-                                  AppTheme.cardBorderRadius,
-                                ),
-                              ),
-                              child: DropdownButton<String>(
-                                value: _selectedStudentId,
-                                isExpanded: true,
-                                dropdownColor: AppTheme.cardBackground,
-                                icon: Icon(
-                                  Icons.arrow_drop_down,
-                                  color: AppTheme.iconColor1,
-                                ),
-                                underline: const SizedBox(),
-                                items:
-                                    _students.map((student) {
-                                      return DropdownMenuItem<String>(
-                                        value: student['_id'] as String,
-                                        child: Text(
-                                          student['name'] as String? ??
-                                              'Unknown',
-                                          style: Theme.of(
-                                            context,
-                                          ).textTheme.bodyLarge?.copyWith(
-                                            color: Colors.white,
-                                            fontSize: 16,
-                                          ),
-                                        ),
-                                      );
-                                    }).toList(),
-                                onChanged: (value) {
-                                  setState(() {
-                                    _selectedStudentId = value;
-                                  });
-                                },
-                              ),
-                            ),
-                          const SizedBox(height: AppTheme.spacing),
-                          // Date Range Selector
+                        // Show All Students Toggle
+                        if (_students.length > 1)
                           Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: AppTheme.cardPadding,
-                            ),
+                            padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: AppTheme.cardBackground,
+                              color: AppTheme.cardBg,
                               borderRadius: BorderRadius.circular(
-                                AppTheme.cardBorderRadius,
+                                AppTheme.borderRadius,
                               ),
-                            ),
-                            child: DropdownButton<int>(
-                              value: _selectedDateRange,
-                              isExpanded: true,
-                              dropdownColor: AppTheme.cardBackground,
-                              icon: Icon(
-                                Icons.arrow_drop_down,
-                                color: AppTheme.iconColor1,
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.3),
                               ),
-                              underline: const SizedBox(),
-                              items:
-                                  AttendanceSummaryConfig.dateRangeOptions.map((
-                                    days,
-                                  ) {
-                                    return DropdownMenuItem<int>(
-                                      value: days,
-                                      child: Text(
-                                        'Last $days Days',
-                                        style: Theme.of(
-                                          context,
-                                        ).textTheme.bodyLarge?.copyWith(
-                                          color: Colors.white,
-                                          fontSize: 16,
-                                        ),
-                                      ),
-                                    );
-                                  }).toList(),
-                              onChanged: (value) {
-                                if (value != null) {
-                                  setState(() {
-                                    _selectedDateRange = value;
-                                  });
-                                  _fetchAttendanceData();
-                                }
-                              },
-                            ),
-                          ),
-                          const SizedBox(height: AppTheme.spacing * 1.5),
-                          // Header with View Details Button
-                          Container(
-                            padding: const EdgeInsets.all(AppTheme.cardPadding),
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: [
-                                  AppTheme.backgroundColor,
-                                  AppTheme.primaryColor,
-                                ],
-                              ),
-                              borderRadius: BorderRadius.circular(
-                                AppTheme.cardBorderRadius,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.2),
-                                  offset: const Offset(4, 4),
-                                  blurRadius: AppTheme.blurSigma,
-                                ),
-                              ],
                             ),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text(
-                                  AttendanceSummaryConfig.headerTitle,
-                                  style: Theme.of(
-                                    context,
-                                  ).textTheme.headlineSmall?.copyWith(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 20,
-                                  ),
+                                const Text(
+                                  'Show All Students',
+                                  style: TextStyle(color: AppTheme.textPrimary),
                                 ),
-                                ElevatedButton(
-                                  onPressed: () {
-                                    final studentId =
-                                        _showAllStudents
-                                            ? (_students.isNotEmpty
-                                                ? _students.first['_id']
-                                                    as String
-                                                : '')
-                                            : _selectedStudentId ?? '';
-                                    final studentName =
-                                        _showAllStudents
-                                            ? (_students.isNotEmpty
-                                                ? _students.first['name']
-                                                        as String? ??
-                                                    'Unknown'
-                                                : 'Unknown')
-                                            : _students.firstWhere(
-                                                      (s) =>
-                                                          s['_id'] ==
-                                                          _selectedStudentId,
-                                                      orElse:
-                                                          () => {
-                                                            'name': 'Unknown',
-                                                          },
-                                                    )['name']
-                                                    as String? ??
-                                                'Unknown';
+                                Switch(
+                                  value: _showAllStudents,
+                                  onChanged:
+                                      (v) =>
+                                          setState(() => _showAllStudents = v),
+                                  activeColor: AppTheme.lightPurple,
+                                ),
+                              ],
+                            ),
+                          ),
+                        if (_students.length > 1 && !_showAllStudents)
+                          const SizedBox(height: 12),
 
-                                    if (studentId.isNotEmpty) {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder:
-                                              (context) =>
-                                                  ViewDetailedAttendanceScreen(
-                                                    studentId: studentId,
-                                                    childName: studentName,
-                                                  ),
-                                        ),
-                                      );
-                                    } else {
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        SnackBar(
-                                          content: const Text(
-                                            'No student selected',
-                                          ),
-                                          backgroundColor: AppTheme.absentColor,
-                                        ),
-                                      );
-                                    }
-                                  },
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppTheme.accentColor,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(
-                                        AppTheme.cardBorderRadius / 2,
-                                      ),
-                                    ),
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 16,
-                                      vertical: 8,
-                                    ),
-                                  ),
-                                  child: Text(
-                                    'View Details',
-                                    style: Theme.of(
-                                      context,
-                                    ).textTheme.bodyLarge?.copyWith(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                ),
-                              ],
+                        // Student Dropdown
+                        if (_students.length > 1 && !_showAllStudents)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 4,
                             ),
-                          ),
-                          const SizedBox(height: AppTheme.spacing * 1.5),
-                          // Line Chart
-                          AnimatedContainer(
-                            duration: const Duration(milliseconds: 500),
-                            curve: Curves.easeInOut,
-                            padding: const EdgeInsets.all(AppTheme.cardPadding),
                             decoration: BoxDecoration(
-                              color: AppTheme.cardBackground,
+                              color: AppTheme.cardBg,
                               borderRadius: BorderRadius.circular(
-                                AppTheme.cardBorderRadius,
+                                AppTheme.borderRadius,
                               ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.2),
-                                  offset: const Offset(4, 4),
-                                  blurRadius: AppTheme.blurSigma,
-                                ),
-                                BoxShadow(
-                                  color: Colors.white.withValues(alpha: 0.05),
-                                  offset: const Offset(-4, -4),
-                                  blurRadius: AppTheme.blurSigma,
-                                ),
-                              ],
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.3),
+                              ),
                             ),
-                            height: 400, // Increased for better visibility
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(
-                                AppTheme.cardBorderRadius,
-                              ),
-                              child: BackdropFilter(
-                                filter: ImageFilter.blur(
-                                  sigmaX: AppTheme.blurSigma,
-                                  sigmaY: AppTheme.blurSigma,
-                                ),
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withValues(
-                                      alpha: 0.102,
-                                    ),
-                                    border: Border.all(
-                                      color: Colors.white.withValues(
-                                        alpha: 0.298,
-                                      ),
-                                      width: 1.5,
-                                    ),
-                                  ),
-                                  child: Column(
-                                    children: [
-                                      // Legend
-                                      if (_showAllStudents &&
-                                          _students.length > 1)
-                                        Padding(
-                                          padding: const EdgeInsets.only(
-                                            bottom: AppTheme.spacing,
-                                          ),
-                                          child: Wrap(
-                                            spacing: 12,
-                                            runSpacing: 8,
-                                            children:
-                                                _students.asMap().entries.map((
-                                                  entry,
-                                                ) {
-                                                  final index = entry.key;
-                                                  final student = entry.value;
-                                                  return Row(
-                                                    mainAxisSize:
-                                                        MainAxisSize.min,
-                                                    children: [
-                                                      Container(
-                                                        width: 14,
-                                                        height: 14,
-                                                        decoration: BoxDecoration(
-                                                          shape:
-                                                              BoxShape.circle,
-                                                          color:
-                                                              AppTheme
-                                                                  .studentColors[index %
-                                                                  AppTheme
-                                                                      .studentColors
-                                                                      .length],
-                                                        ),
-                                                      ),
-                                                      const SizedBox(width: 6),
-                                                      Text(
-                                                        student['name']
-                                                                as String? ??
-                                                            'Unknown',
-                                                        style: Theme.of(context)
-                                                            .textTheme
-                                                            .bodyMedium
-                                                            ?.copyWith(
-                                                              color:
-                                                                  Colors.white,
-                                                              fontSize: 14,
-                                                            ),
-                                                      ),
-                                                    ],
-                                                  );
-                                                }).toList(),
-                                          ),
-                                        ),
-                                      Expanded(
-                                        child: LineChart(
-                                          LineChartData(
-                                            lineBarsData: _createChartData(),
-                                            clipData: const FlClipData(
-                                              top: true,
-                                              bottom: true,
-                                              left: true,
-                                              right: true,
-                                            ), // Enable clipping for zoom
-                                            gridData: FlGridData(
-                                              show: true,
-                                              drawVerticalLine: true,
-                                              drawHorizontalLine: true,
-                                              horizontalInterval:
-                                                  0.25, // Finer grid
-                                              verticalInterval: 1,
-                                              getDrawingHorizontalLine: (
-                                                value,
-                                              ) {
-                                                return FlLine(
-                                                  color: Colors.white
-                                                      .withValues(alpha: 0.2),
-                                                  strokeWidth: 1,
-                                                  dashArray: [5, 5],
-                                                );
-                                              },
-                                              getDrawingVerticalLine: (value) {
-                                                return FlLine(
-                                                  color: Colors.white
-                                                      .withValues(alpha: 0.2),
-                                                  strokeWidth: 1,
-                                                  dashArray: [5, 5],
-                                                );
-                                              },
-                                            ),
-                                            titlesData: FlTitlesData(
-                                              leftTitles: AxisTitles(
-                                                sideTitles: SideTitles(
-                                                  showTitles: true,
-                                                  reservedSize: 50,
-                                                  interval: 0.5,
-                                                  getTitlesWidget: (
-                                                    value,
-                                                    meta,
-                                                  ) {
-                                                    return Text(
-                                                      value == 1.0
-                                                          ? 'Present'
-                                                          : value == 0.0
-                                                          ? 'Absent'
-                                                          : '',
-                                                      style: Theme.of(context)
-                                                          .textTheme
-                                                          .bodyLarge
-                                                          ?.copyWith(
-                                                            color: Colors.white
-                                                                .withValues(
-                                                                  alpha: 0.8,
-                                                                ),
-                                                            fontSize: 12,
-                                                          ),
-                                                    );
-                                                  },
-                                                ),
-                                              ),
-                                              rightTitles: const AxisTitles(
-                                                sideTitles: SideTitles(
-                                                  showTitles: false,
-                                                ),
-                                              ),
-                                              topTitles: const AxisTitles(
-                                                sideTitles: SideTitles(
-                                                  showTitles: false,
-                                                ),
-                                              ),
-                                              bottomTitles: AxisTitles(
-                                                sideTitles: SideTitles(
-                                                  showTitles: true,
-                                                  reservedSize: 50,
-                                                  interval:
-                                                      _selectedDateRange > 14
-                                                          ? 2
-                                                          : 1,
-                                                  getTitlesWidget: (
-                                                    value,
-                                                    meta,
-                                                  ) {
-                                                    final data =
-                                                        _attendanceData[_students
-                                                                .isNotEmpty
-                                                            ? _students
-                                                                .first['_id']
-                                                            : ''];
-                                                    if (data == null ||
-                                                        value.toInt() >=
-                                                            data.length) {
-                                                      return const Text('');
-                                                    }
-                                                    final day =
-                                                        data[value.toInt()];
-                                                    final label =
-                                                        _selectedDateRange > 7
-                                                            ? day.date
-                                                                .split('-')
-                                                                .sublist(1)
-                                                                .join('/')
-                                                            : day.day;
-                                                    return Transform.rotate(
-                                                      angle:
-                                                          -45 * 3.14159 / 180,
-                                                      child: Text(
-                                                        label,
-                                                        style: Theme.of(context)
-                                                            .textTheme
-                                                            .bodyLarge
-                                                            ?.copyWith(
-                                                              color: Colors
-                                                                  .white
-                                                                  .withValues(
-                                                                    alpha: 0.8,
-                                                                  ),
-                                                              fontSize: 12,
-                                                            ),
-                                                      ),
-                                                    );
-                                                  },
-                                                ),
-                                              ),
-                                            ),
-                                            borderData: FlBorderData(
-                                              show: true,
-                                              border: Border.all(
-                                                color: Colors.white.withValues(
-                                                  alpha: 0.2,
-                                                ),
-                                                width: 1,
-                                              ),
-                                            ),
-                                            minY:
-                                                -0.1, // Slight padding for zoom
-                                            maxY: 1.1,
-                                            lineTouchData: LineTouchData(
-                                              enabled: true,
-                                              handleBuiltInTouches: true,
-                                              touchTooltipData: LineTouchTooltipData(
-                                                getTooltipColor:
-                                                    (_) =>
-                                                        AppTheme.cardBackground,
-                                                tooltipPadding:
-                                                    const EdgeInsets.all(8),
-                                                tooltipRoundedRadius: 8,
-                                                getTooltipItems: (
-                                                  touchedSpots,
-                                                ) {
-                                                  return touchedSpots.map((
-                                                    spot,
-                                                  ) {
-                                                    final studentIndex =
-                                                        spot.barIndex;
-                                                    final student =
-                                                        _students[studentIndex %
-                                                            _students.length];
-                                                    final data =
-                                                        _attendanceData[student['_id']] ??
-                                                        [];
-                                                    if (spot.x.toInt() >=
-                                                        data.length) {
-                                                      return null;
-                                                    }
-                                                    final attendance =
-                                                        data[spot.x.toInt()];
-                                                    return LineTooltipItem(
-                                                      '${student['name']}\n'
-                                                      'Date: ${attendance.date}\n'
-                                                      'Day: ${attendance.day}\n'
-                                                      'Status: ${attendance.present == 1 ? 'Present' : 'Absent'}',
-                                                      Theme.of(context)
-                                                              .textTheme
-                                                              .bodyLarge
-                                                              ?.copyWith(
-                                                                color:
-                                                                    Colors
-                                                                        .white,
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .bold,
-                                                                fontSize: 14,
-                                                              ) ??
-                                                          const TextStyle(),
-                                                    );
-                                                  }).toList();
-                                                },
-                                              ),
-                                              touchCallback: (
-                                                FlTouchEvent event,
-                                                LineTouchResponse? response,
-                                              ) {
-                                                if (event
-                                                    .isInterestedForInteractions) {
-                                                  setState(
-                                                    () {},
-                                                  ); // Refresh for smooth zoom/pan
-                                                }
-                                              },
-                                            ),
-                                            extraLinesData: ExtraLinesData(
-                                              horizontalLines: [
-                                                HorizontalLine(
-                                                  y: 1.0,
-                                                  color: AppTheme.successColor
-                                                      .withValues(alpha: 0.5),
-                                                  strokeWidth: 1,
-                                                  dashArray: [5, 5],
-                                                ),
-                                                HorizontalLine(
-                                                  y: 0.0,
-                                                  color: AppTheme.absentColor
-                                                      .withValues(alpha: 0.5),
-                                                  strokeWidth: 1,
-                                                  dashArray: [5, 5],
-                                                ),
-                                              ],
-                                            ),
-                                          ),
+                            child: DropdownButton<String>(
+                              value: _selectedStudentId,
+                              isExpanded: true,
+                              items:
+                                  _students.map((s) {
+                                    return DropdownMenuItem<String>(
+                                      value: s['_id'] as String,
+                                      child: Text(
+                                        s['name'] ?? 'Unknown',
+                                        style: const TextStyle(
+                                          color: AppTheme.textPrimary,
                                         ),
                                       ),
-                                    ],
+                                    );
+                                  }).toList(),
+                              onChanged:
+                                  (v) => setState(() => _selectedStudentId = v),
+                              dropdownColor: AppTheme.cardBg,
+                              style: const TextStyle(
+                                color: AppTheme.textPrimary,
+                              ),
+                              icon: const Icon(
+                                Icons.arrow_drop_down,
+                                color: AppTheme.primary,
+                              ),
+                              underline: const SizedBox(),
+                            ),
+                          ),
+
+                        const SizedBox(height: 16),
+
+                        // Date Range Dropdown
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppTheme.cardBg,
+                            borderRadius: BorderRadius.circular(
+                              AppTheme.borderRadius,
+                            ),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.3),
+                            ),
+                          ),
+                          child: DropdownButton<int>(
+                            value: _selectedDateRange,
+                            isExpanded: true,
+                            items:
+                                AttendanceSummaryConfig.dateRangeOptions.map((
+                                  d,
+                                ) {
+                                  return DropdownMenuItem<int>(
+                                    value: d,
+                                    child: Text(
+                                      'Last $d Days',
+                                      style: const TextStyle(
+                                        color: AppTheme.textPrimary,
+                                      ),
+                                    ),
+                                  );
+                                }).toList(),
+                            onChanged: (v) {
+                              if (v != null) {
+                                setState(() => _selectedDateRange = v);
+                                _fetchAttendanceData();
+                              }
+                            },
+                            dropdownColor: AppTheme.cardBg,
+                            style: const TextStyle(color: AppTheme.textPrimary),
+                            icon: const Icon(
+                              Icons.arrow_drop_down,
+                              color: AppTheme.primary,
+                            ),
+                            underline: const SizedBox(),
+                          ),
+                        ),
+
+                        const SizedBox(height: 24),
+
+                        // Line Chart
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: AppTheme.cardBg,
+                            borderRadius: BorderRadius.circular(
+                              AppTheme.borderRadius,
+                            ),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.3),
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.05),
+                                blurRadius: 12,
+                                offset: const Offset(0, 6),
+                              ),
+                            ],
+                          ),
+                          height: 400,
+                          child: LineChart(
+                            LineChartData(
+                              lineBarsData: _createChartData(),
+                              gridData: FlGridData(show: true),
+                              titlesData: FlTitlesData(
+                                leftTitles: AxisTitles(
+                                  sideTitles: SideTitles(
+                                    showTitles: true,
+                                    getTitlesWidget:
+                                        (v, _) => Text(
+                                          v == 1
+                                              ? 'Present'
+                                              : v == 0
+                                              ? 'Absent'
+                                              : '',
+                                          style: const TextStyle(
+                                            color: AppTheme.textPrimary,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                  ),
+                                ),
+                                bottomTitles: AxisTitles(
+                                  sideTitles: SideTitles(
+                                    showTitles: true,
+                                    interval: 1,
+                                    getTitlesWidget: (v, _) {
+                                      final data =
+                                          _attendanceData[_students
+                                              .firstOrNull?['_id']];
+                                      if (data == null ||
+                                          v.toInt() >= data.length)
+                                        return const Text('');
+                                      return Text(
+                                        data[v.toInt()].day,
+                                        style: const TextStyle(
+                                          color: AppTheme.textPrimary,
+                                          fontSize: 12,
+                                        ),
+                                      );
+                                    },
                                   ),
                                 ),
                               ),
-                            ),
-                          ),
-                          const SizedBox(height: AppTheme.spacing * 1.5),
-                          // Alerts Section
-                          Text(
-                            'Alerts',
-                            style: Theme.of(
-                              context,
-                            ).textTheme.titleLarge?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18,
-                            ),
-                          ),
-                          const SizedBox(height: AppTheme.spacing),
-                          _alerts.isEmpty
-                              ? Center(
-                                child: Text(
-                                  'No Alerts',
-                                  style: Theme.of(
-                                    context,
-                                  ).textTheme.bodyLarge?.copyWith(
-                                    color: Colors.white.withValues(alpha: 0.8),
-                                    fontSize: 16,
+                              borderData: FlBorderData(
+                                show: true,
+                                border: Border.all(
+                                  color: AppTheme.primary.withValues(
+                                    alpha: 0.3,
                                   ),
                                 ),
-                              )
-                              : Column(
-                                children:
-                                    _showAllStudents
-                                        ? _students
-                                            .asMap()
-                                            .entries
-                                            .expand(
-                                              (entry) => (_alerts[entry
-                                                          .value['_id']] ??
-                                                      [])
-                                                  .map(
-                                                    (alert) => AlertCard(
-                                                      title: alert['title']!,
-                                                      subtitle:
-                                                          alert['subtitle']!,
-                                                    ),
-                                                  ),
-                                            )
-                                            .toList()
-                                        : (_alerts[_selectedStudentId] ?? [])
-                                            .asMap()
-                                            .entries
-                                            .map(
-                                              (entry) => AlertCard(
-                                                title: entry.value['title']!,
-                                                subtitle:
-                                                    entry.value['subtitle']!,
-                                              ),
-                                            )
-                                            .toList(),
                               ),
-                        ],
-                      ),
+                              minY: -0.1,
+                              maxY: 1.1,
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 24),
+
+                        // Alerts
+                        const Text(
+                          'Alerts',
+                          style: TextStyle(
+                            color: AppTheme.textPrimary,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        _alerts.isEmpty
+                            ? const Text(
+                              'No Alerts',
+                              style: TextStyle(color: AppTheme.textSecondary),
+                            )
+                            : Column(
+                              children:
+                                  _showAllStudents
+                                      ? _students
+                                          .expand(
+                                            (s) => _alerts[s['_id']] ?? [],
+                                          )
+                                          .map(
+                                            (a) => AlertCard(
+                                              title: a['title']!,
+                                              subtitle: a['subtitle']!,
+                                            ),
+                                          )
+                                          .toList()
+                                      : (_alerts[_selectedStudentId] ?? [])
+                                          .map(
+                                            (a) => AlertCard(
+                                              title: a['title']!,
+                                              subtitle: a['subtitle']!,
+                                            ),
+                                          )
+                                          .toList(),
+                            ),
+                      ],
                     ),
                   ),
-        ),
+                ),
       ),
     );
   }
@@ -1119,8 +632,8 @@ class _AttendanceSummaryScreenState extends State<AttendanceSummaryScreen> {
 
 class AttendanceData {
   final String day;
-  final int present; // 1 for present, 0 for absent
-  final String date; // ISO date string (e.g., "2025-07-28")
+  final int present;
+  final String date;
 
   AttendanceData(this.day, this.present, this.date);
 }
