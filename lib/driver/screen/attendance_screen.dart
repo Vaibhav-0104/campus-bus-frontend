@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:ui'; // Required for ImageFilter for blur effects
+import 'dart:ui';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:campus_bus_management/config/api_config.dart'; // Import centralized URL
+import 'package:campus_bus_management/config/api_config.dart';
 
 class FaceAttendanceScreen extends StatefulWidget {
   const FaceAttendanceScreen({super.key});
@@ -48,12 +48,11 @@ class _FaceAttendanceScreenState extends State<FaceAttendanceScreen>
       _cameras = await availableCameras();
       if (_cameras == null || _cameras!.isEmpty) {
         setState(() {
-          _message = '❌ No cameras available!';
+          _message = 'No cameras available!';
         });
         return;
       }
 
-      // Select the front-facing camera
       CameraDescription? frontCamera;
       for (var camera in _cameras!) {
         if (camera.lensDirection == CameraLensDirection.front) {
@@ -64,7 +63,7 @@ class _FaceAttendanceScreenState extends State<FaceAttendanceScreen>
 
       if (frontCamera == null) {
         setState(() {
-          _message = '❌ No front camera available!';
+          _message = 'No front camera available!';
         });
         return;
       }
@@ -84,7 +83,7 @@ class _FaceAttendanceScreenState extends State<FaceAttendanceScreen>
       });
     } catch (e) {
       setState(() {
-        _message = '❌ Camera initialization failed: $e';
+        _message = 'Camera initialization failed: $e';
       });
     }
   }
@@ -99,7 +98,7 @@ class _FaceAttendanceScreenState extends State<FaceAttendanceScreen>
 
     setState(() {
       _isProcessing = true;
-      _message = '🔄 Starting real-time face recognition...';
+      _message = 'Starting real-time face recognition...';
     });
 
     _frameTimer = Timer.periodic(const Duration(milliseconds: 1000), (
@@ -126,7 +125,6 @@ class _FaceAttendanceScreenState extends State<FaceAttendanceScreen>
         _isLoading = true;
       });
 
-      // Use centralized baseUrl from ApiConfig
       final uri = Uri.parse('${ApiConfig.baseUrl}/students/attendance');
       final request = http.MultipartRequest('POST', uri)
         ..files.add(
@@ -145,20 +143,20 @@ class _FaceAttendanceScreenState extends State<FaceAttendanceScreen>
       if (response.statusCode == 200) {
         final jsonResponse = json.decode(responseBody);
         _showSnackBar(
-          '✅ Attendance marked for ${jsonResponse['student']}!',
+          'Attendance marked for ${jsonResponse['student']}!',
           isSuccess: true,
         );
         _stopRecognition();
       } else {
         final jsonResponse = json.decode(responseBody);
-        _showSnackBar('❌ ${jsonResponse['message'] ?? 'Face not recognized'}');
+        _showSnackBar('${jsonResponse['message'] ?? 'Face not recognized'}');
       }
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
       });
-      _showSnackBar('❌ Error: $e');
+      _showSnackBar('Error: $e');
     }
   }
 
@@ -193,97 +191,79 @@ class _FaceAttendanceScreenState extends State<FaceAttendanceScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBodyBehindAppBar:
-          true, // Extend body behind app bar for full gradient
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         title: const Text(
           'Face Attendance',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
-        ),
-        backgroundColor: Colors.deepPurple.shade700.withOpacity(
-          0.3,
-        ), // Liquid glass app bar
-        iconTheme: const IconThemeData(color: Colors.white),
-        elevation: 0,
-        centerTitle: true,
-      ),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Colors.deepPurple.shade900,
-              Colors.deepPurple.shade700,
-              Colors.deepPurple.shade500,
-            ],
-            stops: const [0.0, 0.5, 1.0],
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+            fontSize: 22,
           ),
         ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              SizedBox(
-                height: MediaQuery.of(context).padding.top + 70,
-              ), // Spacing below app bar
-              AspectRatio(
-                // Enforce square aspect ratio for the camera view
-                aspectRatio: 1.0,
-                child: ClipRRect(
-                  // Clip for liquid glass effect
-                  borderRadius: BorderRadius.circular(
-                    25,
-                  ), // Increased rounded corners
+        centerTitle: true,
+        iconTheme: const IconThemeData(color: Colors.white),
+        flexibleSpace: ClipRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            child: Container(color: Colors.transparent),
+          ),
+        ),
+      ),
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF1A1A1A), Color(0xFF2D2D2D), Color(0xFF121212)],
+          ),
+        ),
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                const SizedBox(height: 20),
+
+                // Camera Preview Card (Same Glassmorphism)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(25),
                   child: BackdropFilter(
-                    filter: ImageFilter.blur(
-                      sigmaX: 18.0,
-                      sigmaY: 18.0,
-                    ), // Stronger blur effect
+                    filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
                     child: Container(
+                      width: double.infinity,
+                      height: 380,
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: [
-                            Colors.white.withOpacity(
-                              0.18,
-                            ), // Slightly more opaque
-                            Colors.purple.shade200.withOpacity(
-                              0.18,
-                            ), // Slightly more opaque
+                            Colors.white.withOpacity(0.15),
+                            Colors.white.withOpacity(0.05),
                           ],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
                         borderRadius: BorderRadius.circular(25),
                         border: Border.all(
-                          color: Colors.white.withOpacity(0.3),
-                        ), // More prominent border
+                          color: Colors.white.withOpacity(0.2),
+                        ),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(
-                              0.3,
-                            ), // Darker shadow for depth
-                            blurRadius: 30, // Increased blur radius
-                            spreadRadius: 4, // Increased spread radius
-                            offset: const Offset(
-                              10,
-                              10,
-                            ), // More pronounced offset
+                            color: Colors.black.withOpacity(0.3),
+                            blurRadius: 25,
+                            offset: const Offset(8, 8),
                           ),
                           BoxShadow(
-                            // Inner light shadow for a subtle glow
-                            color: Colors.white.withOpacity(
-                              0.15,
-                            ), // Brighter inner glow
+                            color: Colors.white.withOpacity(0.1),
                             blurRadius: 15,
-                            spreadRadius: 2,
-                            offset: const Offset(-8, -8), // Top-left inner glow
+                            offset: const Offset(-5, -5),
                           ),
                         ],
                       ),
                       child: Center(
-                        // Center content within the card
                         child:
                             _cameraController == null ||
                                     !_cameraController!.value.isInitialized
@@ -292,10 +272,8 @@ class _FaceAttendanceScreenState extends State<FaceAttendanceScreen>
                                       ? 'Loading Camera...'
                                       : _message,
                                   style: TextStyle(
-                                    color: Colors.white.withOpacity(
-                                      0.9,
-                                    ), // Brighter text
-                                    fontSize: 20, // Larger font size
+                                    color: Colors.white.withOpacity(0.9),
+                                    fontSize: 20,
                                     fontWeight: FontWeight.w600,
                                     shadows: [
                                       Shadow(
@@ -312,12 +290,11 @@ class _FaceAttendanceScreenState extends State<FaceAttendanceScreen>
                                     CameraPreview(_cameraController!),
                                     if (_isLoading)
                                       Container(
-                                        color: Colors.black.withOpacity(
-                                          0.6,
-                                        ), // Darker overlay
+                                        color: Colors.black.withOpacity(0.6),
                                         child: const Center(
                                           child: CircularProgressIndicator(
-                                            color: Colors.white,
+                                            color: Colors.amber,
+                                            strokeWidth: 3,
                                           ),
                                         ),
                                       ),
@@ -327,123 +304,98 @@ class _FaceAttendanceScreenState extends State<FaceAttendanceScreen>
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 30), // Increased spacing
-              ElevatedButton.icon(
-                onPressed:
-                    _isProcessing
-                        ? _stopRecognition
-                        : _startRealTimeRecognition,
-                icon: Icon(
-                  _isProcessing ? Icons.stop : Icons.camera_alt,
-                  size: 28, // Larger icon
-                ),
-                label: Text(
-                  _isProcessing ? 'Stop Recognition' : 'Start Recognition',
-                  style: const TextStyle(
-                    fontSize: 20, // Larger font size for button text
-                    fontWeight: FontWeight.bold,
+
+                const SizedBox(height: 24),
+
+                // Start/Stop Button (Same Yellow Style)
+                ElevatedButton.icon(
+                  onPressed:
+                      _isProcessing
+                          ? _stopRecognition
+                          : _startRealTimeRecognition,
+                  icon: Icon(
+                    _isProcessing ? Icons.stop : Icons.camera_alt,
+                    size: 28,
+                    color: Colors.black87,
+                  ),
+                  label: Text(
+                    _isProcessing ? 'Stop Recognition' : 'Start Recognition',
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.amber.shade600,
+                    foregroundColor: Colors.black87,
+                    padding: const EdgeInsets.symmetric(vertical: 20),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    elevation: 10,
+                    shadowColor: Colors.black.withOpacity(0.6),
+                  ).copyWith(
+                    overlayColor: MaterialStateProperty.resolveWith((states) {
+                      return states.contains(MaterialState.pressed)
+                          ? Colors.amber.shade800
+                          : Colors.amber.shade700;
+                    }),
                   ),
                 ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor:
-                      Colors.transparent, // Transparent background for button
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 20,
-                  ), // Increased vertical padding
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(
-                      18,
-                    ), // Even more rounded
-                    side: BorderSide(
-                      color: Colors.white.withOpacity(0.4),
-                      width: 2,
-                    ), // More prominent border
-                  ),
-                  elevation: 10, // More elevation for button
-                  shadowColor: Colors.black.withOpacity(
-                    0.6,
-                  ), // Darker shadow color
-                ).copyWith(
-                  overlayColor: MaterialStateProperty.resolveWith((states) {
-                    if (states.contains(MaterialState.pressed)) {
-                      return Colors.purple.shade900.withOpacity(
-                        0.4,
-                      ); // Pressed state overlay
-                    }
-                    return Colors.deepPurple.shade700.withOpacity(
-                      0.2,
-                    ); // Default overlay
-                  }),
-                  // Custom background color as a gradient
-                  backgroundColor: MaterialStateProperty.resolveWith((states) {
-                    if (states.contains(MaterialState.disabled)) {
-                      return Colors.grey.withOpacity(0.6);
-                    }
-                    return Colors.deepPurple.shade800.withOpacity(
-                      0.6,
-                    ); // Semi-transparent purple
-                  }),
-                ),
-              ),
-              const SizedBox(height: 20), // Increased spacing
-              AnimatedOpacity(
-                opacity: _message.isNotEmpty ? 1.0 : 0.0,
-                duration: const Duration(milliseconds: 300),
-                child: ClipRRect(
-                  // Clip for liquid glass effect
-                  borderRadius: BorderRadius.circular(
-                    18,
-                  ), // Matched button radius
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(
-                      sigmaX: 12.0,
-                      sigmaY: 12.0,
-                    ), // Stronger blur
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            Colors.white.withOpacity(0.15),
-                            Colors.blue.shade100.withOpacity(0.15),
-                          ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(
-                          color: Colors.white.withOpacity(0.2),
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.15),
-                            blurRadius: 15,
-                            spreadRadius: 2,
-                            offset: const Offset(6, 6),
+
+                const SizedBox(height: 20),
+
+                // Message Card (Same Glass Style)
+                AnimatedOpacity(
+                  opacity: _message.isNotEmpty ? 1.0 : 0.0,
+                  duration: const Duration(milliseconds: 300),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(18),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              Colors.white.withOpacity(0.15),
+                              Colors.amber.withOpacity(0.1),
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
                           ),
-                        ],
-                      ),
-                      padding: const EdgeInsets.all(20), // Increased padding
-                      child: Text(
-                        _message.isEmpty ? ' ' : _message,
-                        style: TextStyle(
-                          fontSize: 18, // Larger font
-                          color: Colors.white.withOpacity(
-                            0.95,
-                          ), // Brighter text
-                          height: 1.5,
-                          shadows: [
-                            Shadow(blurRadius: 4, color: Colors.black54),
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.2),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.15),
+                              blurRadius: 15,
+                              offset: const Offset(6, 6),
+                            ),
                           ],
                         ),
-                        textAlign: TextAlign.center,
+                        child: Text(
+                          _message.isEmpty ? ' ' : _message,
+                          style: TextStyle(
+                            fontSize: 18,
+                            color: Colors.white.withOpacity(0.95),
+                            height: 1.5,
+                            shadows: [
+                              Shadow(blurRadius: 4, color: Colors.black54),
+                            ],
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geocoding/geocoding.dart';
@@ -6,10 +7,10 @@ import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:campus_bus_management/config/api_config.dart'; // Import centralized API config
+import 'package:campus_bus_management/config/api_config.dart';
 
 class LiveLocationShareScreen extends StatefulWidget {
-  final String driverId; // Required to identify the driver
+  final String driverId;
   const LiveLocationShareScreen({super.key, required this.driverId});
 
   @override
@@ -37,7 +38,7 @@ class _LiveLocationShareScreenState extends State<LiveLocationShareScreen>
     )..repeat(reverse: true);
 
     _checkPermissionAndFetch();
-    _fetchSharingStatus(); // Fetch initial sharing status
+    _fetchSharingStatus();
   }
 
   @override
@@ -49,12 +50,16 @@ class _LiveLocationShareScreenState extends State<LiveLocationShareScreen>
   }
 
   // --- Utility Methods ---
-
   void _showSnackbar(String message, {Color color = Colors.black87}) {
     if (mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message), backgroundColor: color));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message, style: const TextStyle(fontSize: 16)),
+          backgroundColor: color,
+          duration: const Duration(seconds: 3),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
   }
 
@@ -71,7 +76,6 @@ class _LiveLocationShareScreenState extends State<LiveLocationShareScreen>
   }
 
   // --- Backend API Calls ---
-
   Future<void> _fetchSharingStatus() async {
     try {
       final response = await http.get(
@@ -80,9 +84,6 @@ class _LiveLocationShareScreenState extends State<LiveLocationShareScreen>
         ),
         headers: {'Content-Type': 'application/json'},
       );
-
-      print('Status Endpoint Response Status: ${response.statusCode}');
-      print('Status Endpoint Response Body: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -100,16 +101,12 @@ class _LiveLocationShareScreenState extends State<LiveLocationShareScreen>
         }
       } else {
         _showSnackbar(
-          'Failed to fetch sharing status: ${response.statusCode}',
+          'Failed to fetch sharing status',
           color: Colors.red.shade700,
         );
       }
     } catch (e) {
-      print('Error fetching sharing status: $e');
-      _showSnackbar(
-        'Error fetching sharing status: $e',
-        color: Colors.red.shade700,
-      );
+      _showSnackbar('Error fetching status: $e', color: Colors.red.shade700);
     }
   }
 
@@ -126,9 +123,6 @@ class _LiveLocationShareScreenState extends State<LiveLocationShareScreen>
         }),
       );
 
-      print('Start Sharing Response Status: ${response.statusCode}');
-      print('Start Sharing Response Body: ${response.body}');
-
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         setState(() => isSharing = data['shareStatus'] ?? true);
@@ -142,15 +136,10 @@ class _LiveLocationShareScreenState extends State<LiveLocationShareScreen>
         );
       }
     } catch (e) {
-      print('Error starting location sharing: $e');
-      _showSnackbar(
-        'Error starting location sharing: $e',
-        color: Colors.red.shade700,
-      );
+      _showSnackbar('Error starting sharing: $e', color: Colors.red.shade700);
     }
 
     if (isSharing) {
-      // Start location stream
       const LocationSettings locationSettings = LocationSettings(
         accuracy: LocationAccuracy.bestForNavigation,
         distanceFilter: 0,
@@ -159,16 +148,10 @@ class _LiveLocationShareScreenState extends State<LiveLocationShareScreen>
       positionStream = Geolocator.getPositionStream(
         locationSettings: locationSettings,
       ).listen(
-        (Position position) async {
-          await _updateLocation(position);
-        },
+        (Position position) async => await _updateLocation(position),
         onError: (e) {
-          print("Location Stream Error: $e");
           _stopSharing();
-          _showSnackbar(
-            "Location stream failed. Sharing stopped.",
-            color: Colors.orange,
-          );
+          _showSnackbar("Location stream failed.", color: Colors.orange);
         },
       );
     }
@@ -181,9 +164,6 @@ class _LiveLocationShareScreenState extends State<LiveLocationShareScreen>
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'driverId': widget.driverId}),
       );
-
-      print('Stop Sharing Response Status: ${response.statusCode}');
-      print('Stop Sharing Response Body: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -199,11 +179,7 @@ class _LiveLocationShareScreenState extends State<LiveLocationShareScreen>
         );
       }
     } catch (e) {
-      print('Error stopping location sharing: $e');
-      _showSnackbar(
-        'Error stopping location sharing: $e',
-        color: Colors.red.shade700,
-      );
+      _showSnackbar('Error stopping sharing: $e', color: Colors.red.shade700);
     }
   }
 
@@ -213,7 +189,6 @@ class _LiveLocationShareScreenState extends State<LiveLocationShareScreen>
     setState(() {
       currentLocation = LatLng(position.latitude, position.longitude);
     });
-
     _mapController.moveAndRotate(currentLocation!, 16.5, 0);
 
     try {
@@ -237,7 +212,6 @@ class _LiveLocationShareScreenState extends State<LiveLocationShareScreen>
         }
       });
 
-      // Send location update to backend
       if (isSharing) {
         final response = await http.post(
           Uri.parse('${ApiConfig.baseUrl}/driver-locations/update-location'),
@@ -250,18 +224,11 @@ class _LiveLocationShareScreenState extends State<LiveLocationShareScreen>
           }),
         );
 
-        print('Update Location Response Status: ${response.statusCode}');
-        print('Update Location Response Body: ${response.body}');
-
         if (response.statusCode != 200) {
           final data = jsonDecode(response.body);
           _showSnackbar(
             data['message'] ?? 'Failed to update location',
             color: Colors.red.shade700,
-          );
-        } else {
-          print(
-            "✅ Update: Lat: ${position.latitude.toStringAsFixed(6)}, Lng: ${position.longitude.toStringAsFixed(6)} | Address: $currentAddress",
           );
         }
       }
@@ -278,36 +245,27 @@ class _LiveLocationShareScreenState extends State<LiveLocationShareScreen>
     }
   }
 
-  // --- Geolocation Methods ---
-
+  // --- Geolocation ---
   Future<void> _checkPermissionAndFetch() async {
-    LocationPermission permission;
-
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
       await Geolocator.openLocationSettings();
-      _showSnackbar(
-        'Location services are disabled!',
-        color: Colors.red.shade700,
-      );
+      _showSnackbar('Location services disabled!', color: Colors.red.shade700);
       return;
     }
 
-    permission = await Geolocator.checkPermission();
+    LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
-        _showSnackbar(
-          'Location permission denied!',
-          color: Colors.red.shade700,
-        );
+        _showSnackbar('Permission denied!', color: Colors.red.shade700);
         return;
       }
     }
 
     if (permission == LocationPermission.deniedForever) {
       _showSnackbar(
-        'Location permission permanently denied!',
+        'Permission permanently denied!',
         color: Colors.red.shade700,
       );
       return;
@@ -325,16 +283,11 @@ class _LiveLocationShareScreenState extends State<LiveLocationShareScreen>
       );
       _updateLocation(position);
     } catch (e) {
-      print("Initial location error: $e");
-      _showSnackbar(
-        'Error fetching initial location: $e',
-        color: Colors.red.shade700,
-      );
+      _showSnackbar('Error fetching location: $e', color: Colors.red.shade700);
     }
   }
 
-  // --- UI Builder Methods ---
-
+  // --- UI ---
   Widget _buildBlinkingIndicator() {
     return AnimatedBuilder(
       animation: _blinkController,
@@ -370,10 +323,26 @@ class _LiveLocationShareScreenState extends State<LiveLocationShareScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: const Text("🚌 Live Bus Tracker"),
-        backgroundColor: Colors.deepPurple.shade900,
-        foregroundColor: Colors.white,
+        backgroundColor: const Color.fromARGB(255, 41, 41, 41),
+        elevation: 0,
+        title: const Text(
+          "Live Bus Tracker",
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+            fontSize: 22,
+          ),
+        ),
+        centerTitle: true,
+        iconTheme: const IconThemeData(color: Colors.white),
+        flexibleSpace: ClipRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            child: Container(color: Colors.transparent),
+          ),
+        ),
         actions: [
           Center(
             child: Row(
@@ -392,124 +361,184 @@ class _LiveLocationShareScreenState extends State<LiveLocationShareScreen>
           ),
         ],
       ),
-      body: Stack(
-        children: [
-          currentLocation == null
-              ? Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    CircularProgressIndicator(
-                      color: Colors.deepPurple.shade700,
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF1A1A1A), Color(0xFF2D2D2D), Color(0xFF121212)],
+          ),
+        ),
+        child: Stack(
+          children: [
+            currentLocation == null
+                ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      CircularProgressIndicator(color: Colors.amber),
+                      const SizedBox(height: 16),
+                      Text(
+                        currentAddress,
+                        style: const TextStyle(color: Colors.white70),
+                      ),
+                    ],
+                  ),
+                )
+                : FlutterMap(
+                  mapController: _mapController,
+                  options: MapOptions(
+                    initialCenter: currentLocation!,
+                    initialZoom: 16.5,
+                    interactionOptions: const InteractionOptions(
+                      flags: InteractiveFlag.pinchZoom | InteractiveFlag.drag,
                     ),
-                    const SizedBox(height: 10),
-                    Text(currentAddress),
+                  ),
+                  children: [
+                    TileLayer(
+                      urlTemplate:
+                          "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+                    ),
+                    MarkerLayer(
+                      markers: [
+                        Marker(
+                          point: currentLocation!,
+                          width: 60,
+                          height: 60,
+                          child: Icon(
+                            Icons.directions_bus,
+                            color: Colors.amber.shade700,
+                            size: 45,
+                            shadows: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.6),
+                                blurRadius: 6,
+                                offset: const Offset(2, 2),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
-              )
-              : FlutterMap(
-                mapController: _mapController,
-                options: MapOptions(
-                  initialCenter: currentLocation!,
-                  initialZoom: 15,
-                  interactionOptions: const InteractionOptions(
-                    flags: InteractiveFlag.pinchZoom | InteractiveFlag.drag,
-                  ),
-                ),
-                children: [
-                  TileLayer(
-                    urlTemplate:
-                        "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-                    userAgentPackageName: 'com.example.live_location_share',
-                  ),
-                  MarkerLayer(
-                    markers: [
-                      Marker(
-                        point: currentLocation!,
-                        width: 60,
-                        height: 60,
-                        child: Icon(
-                          Icons.directions_bus,
-                          color: Colors.yellow.shade800,
-                          size: 45,
-                          shadows: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.5),
-                              blurRadius: 4,
-                              offset: const Offset(1, 1),
-                            ),
+
+            // Bottom Glass Card
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: Container(
+                margin: const EdgeInsets.all(16),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(25),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                    child: Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            const Color.fromARGB(
+                              255,
+                              40,
+                              40,
+                              40,
+                            ).withOpacity(0.15),
+                            const Color.fromARGB(
+                              255,
+                              39,
+                              39,
+                              39,
+                            ).withOpacity(0.05),
                           ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
                         ),
+                        borderRadius: BorderRadius.circular(25),
+                        border: Border.all(
+                          color: const Color.fromARGB(
+                            255,
+                            39,
+                            39,
+                            39,
+                          ).withOpacity(0.2),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.3),
+                            blurRadius: 25,
+                            offset: const Offset(8, 8),
+                          ),
+                          BoxShadow(
+                            color: const Color.fromARGB(
+                              255,
+                              35,
+                              35,
+                              35,
+                            ).withOpacity(0.1),
+                            blurRadius: 15,
+                            offset: const Offset(-5, -5),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                ],
-              ),
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: Container(
-              margin: const EdgeInsets.all(12),
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(15),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.15),
-                    blurRadius: 15,
-                    offset: const Offset(0, 5),
-                  ),
-                ],
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "Current Bus Location",
-                    style: TextStyle(
-                      color: Colors.deepPurple.shade700,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Current Bus Location",
+                            style: TextStyle(
+                              color: Colors.amber.shade300,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          _buildInfoRow(
+                            icon: Icons.location_on,
+                            title: "Address",
+                            value: currentAddress,
+                          ),
+                          _buildInfoRow(
+                            icon: Icons.alt_route,
+                            title: "Coordinates",
+                            value:
+                                currentLocation == null
+                                    ? "N/A"
+                                    : "${currentLocation!.latitude.toStringAsFixed(6)}, ${currentLocation!.longitude.toStringAsFixed(6)}",
+                          ),
+                          const SizedBox(height: 20),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildActionButton(
+                                  icon: Icons.play_arrow,
+                                  label: "Start Sharing",
+                                  color: Colors.amber.shade600,
+                                  onPressed: isSharing ? null : _startSharing,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _buildActionButton(
+                                  icon: Icons.stop,
+                                  label: "Stop",
+                                  color: Colors.red.shade600,
+                                  onPressed: isSharing ? _stopSharing : null,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                  const Divider(color: Colors.deepPurpleAccent),
-                  _buildInfoRow(
-                    icon: Icons.map,
-                    title: "Address",
-                    value: currentAddress,
-                  ),
-                  _buildInfoRow(
-                    icon: Icons.alt_route,
-                    title: "Coordinates",
-                    value:
-                        currentLocation == null
-                            ? "N/A"
-                            : "${currentLocation!.latitude.toStringAsFixed(6)}, ${currentLocation!.longitude.toStringAsFixed(6)}",
-                  ),
-                  const SizedBox(height: 15),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      _buildActionButton(
-                        icon: Icons.play_arrow,
-                        label: "Start Sharing",
-                        color: Colors.green.shade600,
-                        onPressed: isSharing ? null : _startSharing,
-                      ),
-                      _buildActionButton(
-                        icon: Icons.stop,
-                        label: "Stop",
-                        color: Colors.red.shade600,
-                        onPressed: isSharing ? _stopSharing : null,
-                      ),
-                    ],
-                  ),
-                ],
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -520,33 +549,32 @@ class _LiveLocationShareScreenState extends State<LiveLocationShareScreen>
     required String value,
   }) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: Colors.deepPurpleAccent, size: 20),
-          const SizedBox(width: 8),
+          Icon(icon, color: Colors.amber, size: 20),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "$title:",
-                  style: const TextStyle(
-                    color: Colors.black54,
-                    fontSize: 13,
+                  title,
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 14,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
+                const SizedBox(height: 2),
                 Text(
                   value,
                   style: const TextStyle(
-                    color: Colors.black,
-                    fontSize: 15,
+                    color: Colors.white,
+                    fontSize: 16,
                     fontWeight: FontWeight.w600,
                   ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
@@ -562,23 +590,29 @@ class _LiveLocationShareScreenState extends State<LiveLocationShareScreen>
     required Color color,
     required VoidCallback? onPressed,
   }) {
-    return Expanded(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 5.0),
-        child: ElevatedButton.icon(
-          onPressed: onPressed,
-          icon: Icon(icon),
-          label: Text(label),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: onPressed != null ? color : Colors.grey.shade400,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-            elevation: 5,
-          ),
+    return ElevatedButton.icon(
+      onPressed: onPressed,
+      icon: Icon(icon, color: Colors.black87),
+      label: Text(
+        label,
+        style: const TextStyle(
+          color: Colors.black87,
+          fontWeight: FontWeight.bold,
         ),
+      ),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: onPressed != null ? color : Colors.grey.shade600,
+        foregroundColor: Colors.black87,
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        elevation: 10,
+        shadowColor: Colors.black.withOpacity(0.6),
+      ).copyWith(
+        overlayColor: MaterialStateProperty.resolveWith((states) {
+          return states.contains(MaterialState.pressed)
+              ? color.withOpacity(0.8)
+              : null;
+        }),
       ),
     );
   }

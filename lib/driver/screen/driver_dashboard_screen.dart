@@ -1,9 +1,10 @@
 import 'dart:convert';
-import 'dart:ui'; // For ImageFilter
+import 'dart:ui';
 import 'package:campus_bus_management/driver/screen/live_location_share_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
-import 'package:campus_bus_management/config/api_config.dart'; // Import centralized URL
+import 'package:campus_bus_management/config/api_config.dart';
 import 'package:campus_bus_management/driver/screen/attendance_screen.dart';
 import 'package:campus_bus_management/driver/screen/view_notification_screen.dart';
 import 'package:campus_bus_management/driver/screen/view_student_attendance_screen.dart';
@@ -26,7 +27,6 @@ class DriverDashboardScreen extends StatefulWidget {
 
 class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
   int totalStudents = 0;
-  String driverEmail = ""; // Fetch dynamically
   int totalNotifications = 0;
 
   @override
@@ -37,7 +37,7 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
 
   Future<void> _fetchDashboardData() async {
     try {
-      // Fetch allocations to get total students
+      // Fetch total students
       final allocationResponse = await http.get(
         Uri.parse(
           '${ApiConfig.baseUrl}/allocations/allocations/driver/${widget.driverId}',
@@ -48,11 +48,9 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
         setState(() {
           totalStudents = allocations.length;
         });
-      } else {
-        print('Failed to fetch allocations: ${allocationResponse.statusCode}');
       }
 
-      // Fetch notifications for driver role
+      // Fetch total notifications
       final notificationResponse = await http.get(
         Uri.parse('${ApiConfig.baseUrl}/notifications/view/Drivers'),
       );
@@ -61,32 +59,9 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
         setState(() {
           totalNotifications = notifications.length;
         });
-      } else {
-        print(
-          'Failed to fetch notifications: ${notificationResponse.statusCode}',
-        );
-      }
-
-      // Fetch driver email
-      final driverResponse = await http.get(
-        Uri.parse('${ApiConfig.baseUrl}/drivers/${widget.driverId}'),
-      );
-      if (driverResponse.statusCode == 200) {
-        final driverData = jsonDecode(driverResponse.body);
-        setState(() {
-          driverEmail = driverData['email'] ?? "No Email";
-        });
-      } else {
-        print('Failed to fetch driver email: ${driverResponse.statusCode}');
-        setState(() {
-          driverEmail = "No Email";
-        });
       }
     } catch (e) {
       print('Error fetching dashboard data: $e');
-      setState(() {
-        driverEmail = "No Email";
-      });
     }
   }
 
@@ -95,68 +70,214 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         title: const Text(
           "Driver Dashboard",
           style: TextStyle(
             fontWeight: FontWeight.bold,
-            fontSize: 22,
             color: Colors.white,
+            fontSize: 22,
           ),
         ),
-        backgroundColor: Colors.deepPurple.shade800.withOpacity(0.3),
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
         centerTitle: true,
+        iconTheme: const IconThemeData(color: Colors.white),
         flexibleSpace: ClipRect(
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
             child: Container(color: Colors.transparent),
           ),
         ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(30),
+                splashColor: Colors.amber.withOpacity(0.4),
+                highlightColor: Colors.amber.withOpacity(0.2),
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  Navigator.pushReplacement(
+                    context,
+                    _fadeRoute(const LoginScreen()),
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.amber, width: 1.5),
+                  ),
+                  child: const Icon(
+                    Icons.logout,
+                    color: Colors.amber,
+                    size: 24,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
       drawer: _buildDrawer(context),
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Colors.deepPurple.shade900,
-              Colors.deepPurple.shade700,
-              Colors.deepPurple.shade500,
-            ],
-            stops: const [0.0, 0.5, 1.0],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF1A1A1A), Color(0xFF2D2D2D), Color(0xFF121212)],
           ),
         ),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                const SizedBox(height: 20),
+
+                // CARD 1: Welcome
+                _glassCard(
+                  gradientColors: [
+                    Colors.amber.shade600,
+                    Colors.amber.shade800,
+                  ],
+                  icon: Icons.person_outline,
+                  iconColor: Colors.black87,
+                  title: "Welcome, ${widget.driverName}!",
+                  subtitle: "Have a safe journey!",
+                ),
+                const SizedBox(height: 16),
+
+                // CARD 2: Total Students → CLICKABLE
+                InkWell(
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    Navigator.push(
+                      context,
+                      _fadeRoute(
+                        ViewStudentDetailsScreen(driverId: widget.driverId),
+                      ),
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(25),
+                  splashColor: Colors.amber.withOpacity(0.3),
+                  child: _glassCard(
+                    icon: Icons.group,
+                    iconColor: Colors.amber,
+                    title: "Total Students",
+                    subtitle: "$totalStudents",
+                    textColor: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // CARD 3: Total Notifications → CLICKABLE
+                InkWell(
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    Navigator.push(
+                      context,
+                      _fadeRoute(
+                        const ViewNotificationsScreen(userRole: 'Drivers'),
+                      ),
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(25),
+                  splashColor: Colors.amber.withOpacity(0.3),
+                  child: _glassCard(
+                    icon: Icons.notifications_active,
+                    iconColor: Colors.amber,
+                    title: "Total Notifications",
+                    subtitle: "$totalNotifications",
+                    textColor: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Reusable Glass Card
+  Widget _glassCard({
+    IconData? icon,
+    Color? iconColor,
+    required String title,
+    required String subtitle,
+    List<Color>? gradientColors,
+    Color? textColor,
+  }) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(25),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors:
+                  gradientColors ??
+                  [
+                    Colors.white.withOpacity(0.15),
+                    Colors.white.withOpacity(0.05),
+                  ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(25),
+            border: Border.all(color: Colors.white.withOpacity(0.2)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.3),
+                blurRadius: 25,
+                offset: const Offset(8, 8),
+              ),
+              BoxShadow(
+                color: Colors.white.withOpacity(0.1),
+                blurRadius: 15,
+                offset: const Offset(-5, -5),
+              ),
+            ],
+          ),
           child: Column(
             children: [
-              SizedBox(
-                height:
-                    MediaQuery.of(context).padding.top +
-                    AppBar().preferredSize.height +
-                    16,
+              if (icon != null) ...[
+                Icon(icon, size: 48, color: iconColor),
+                const SizedBox(height: 12),
+              ],
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w600,
+                  color: textColor ?? Colors.black87,
+                  shadows: [
+                    Shadow(
+                      blurRadius: 4,
+                      color: Colors.black.withOpacity(0.4),
+                      offset: const Offset(1, 1),
+                    ),
+                  ],
+                ),
+                textAlign: TextAlign.center,
               ),
-              _buildLiquidGlassCard(
-                icon: Icons.person_outline,
-                title: "Welcome, ${widget.driverName}!",
-                gradientColors: [
-                  Colors.purple.shade300,
-                  Colors.deepPurple.shade600,
-                ],
-                iconColor: Colors.purpleAccent.shade100,
-                subtitle: '',
-              ),
-              const SizedBox(height: 16),
-              _statCard("Total Students", "$totalStudents", Icons.group),
-              const SizedBox(height: 16),
-              _statCard(
-                "Total Notifications",
-                "$totalNotifications",
-                Icons.notifications,
+              const SizedBox(height: 8),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                  color: textColor ?? Colors.black,
+                ),
+                textAlign: TextAlign.center,
               ),
             ],
           ),
@@ -165,107 +286,84 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
     );
   }
 
+  // Drawer
   Widget _buildDrawer(BuildContext context) {
     return Drawer(
       child: Container(
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           gradient: LinearGradient(
+            colors: [Color(0xFF2D2D2D), Color(0xFF1A1A1A)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Colors.deepPurple.shade800, Colors.deepPurple.shade600],
           ),
         ),
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
-            DrawerHeader(
+            Container(
+              height: 120,
+              padding: const EdgeInsets.fromLTRB(20, 40, 20, 16),
               decoration: BoxDecoration(
-                color: Colors.deepPurple.shade900.withOpacity(0.4),
-                image: DecorationImage(
-                  image: NetworkImage(
-                    'https://placehold.co/600x400/311B92/FFFFFF?text=Driver+Dashboard',
-                  ),
-                  fit: BoxFit.cover,
-                  colorFilter: ColorFilter.mode(
-                    Colors.black.withOpacity(0.4),
-                    BlendMode.darken,
-                  ),
+                color: Colors.black.withOpacity(0.3),
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(20),
+                  bottomRight: Radius.circular(20),
                 ),
               ),
-              child: ClipRect(
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-                  child: Container(
-                    color: Colors.transparent,
-                    alignment: Alignment.bottomLeft,
-                    padding: const EdgeInsets.only(bottom: 16.0, left: 16.0),
-                    child: Text(
-                      'Driver Menu\nName : ${widget.driverName}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        shadows: [
-                          Shadow(
-                            blurRadius: 5.0,
-                            color: Colors.black54,
-                            offset: Offset(2.0, 2.0),
-                          ),
-                        ],
-                      ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    "Driver Menu",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-                ),
+                  const SizedBox(height: 6),
+                  Text(
+                    "Name: ${widget.driverName}",
+                    style: const TextStyle(
+                      color: Colors.amber,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
               ),
             ),
-            _buildDrawerItem(
-              context,
+            _drawerItem(
               Icons.person,
               "View Student Details",
               ViewStudentDetailsScreen(driverId: widget.driverId),
             ),
-            _buildDrawerItem(
-              context,
+            _drawerItem(
               Icons.check_circle_outline,
               "Attendance",
               const FaceAttendanceScreen(),
             ),
-            _buildDrawerItem(
-              context,
+            _drawerItem(
               Icons.notifications,
               "View Notifications",
               const ViewNotificationsScreen(userRole: 'Drivers'),
             ),
-            _buildDrawerItem(
-              context,
+            _drawerItem(
               Icons.calendar_today,
               "View Attendance",
               ViewAttendanceScreen(driverId: widget.driverId),
             ),
-            _buildDrawerItem(
-              context,
+            _drawerItem(
               Icons.location_on,
               "Live Location",
-              LiveLocationShareScreen(
-                driverId: widget.driverId,
-              ), // Fixed: Added driverId
+              LiveLocationShareScreen(driverId: widget.driverId),
             ),
-            const Divider(color: Colors.white54, thickness: 1),
-            ListTile(
-              leading: const Icon(Icons.logout, color: Colors.white),
-              title: const Text(
-                "Logout",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              onTap: () {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (context) => const LoginScreen()),
-                );
-              },
+            const Divider(color: Colors.white24, height: 1),
+            _drawerItem(
+              Icons.logout,
+              "Logout",
+              const LoginScreen(),
+              pushReplacement: true,
             ),
           ],
         ),
@@ -273,188 +371,61 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
     );
   }
 
-  Widget _buildDrawerItem(
-    BuildContext context,
+  Widget _drawerItem(
     IconData icon,
     String title,
-    Widget screen,
-  ) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(15),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
-          child: ListTile(
-            leading: Icon(icon, color: Colors.white.withOpacity(0.9)),
-            title: Text(
-              title,
-              style: TextStyle(
-                fontWeight: FontWeight.w500,
-                color: Colors.white.withOpacity(0.9),
-                fontSize: 16,
-              ),
-            ),
-            tileColor: Colors.white.withOpacity(0.08),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => screen),
-              );
-            },
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _statCard(String title, String subtitle, IconData icon) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(25),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 20.0, sigmaY: 20.0),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(25),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                Colors.white.withOpacity(0.1),
-                Colors.white.withOpacity(0.05),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(25),
-            border: Border.all(color: Colors.white.withOpacity(0.2)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.3),
-                blurRadius: 30,
-                spreadRadius: 5,
-                offset: const Offset(10, 10),
-              ),
-              BoxShadow(
-                color: Colors.white.withOpacity(0.15),
-                blurRadius: 15,
-                spreadRadius: 2,
-                offset: const Offset(-8, -8),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Icon(icon, color: Colors.amberAccent.shade200, size: 48),
-              const SizedBox(height: 10),
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white.withOpacity(0.95),
-                  shadows: [
-                    Shadow(
-                      blurRadius: 5.0,
-                      color: Colors.black.withOpacity(0.5),
-                      offset: Offset(2.0, 2.0),
-                    ),
-                  ],
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                subtitle,
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.normal,
-                  color: Colors.white.withOpacity(0.8),
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLiquidGlassCard({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required List<Color> gradientColors,
-    required Color iconColor,
+    Widget screen, {
+    bool pushReplacement = false,
   }) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(25),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 20.0, sigmaY: 20.0),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(25),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: gradientColors,
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          splashColor: Colors.amber.withOpacity(0.5),
+          highlightColor: Colors.amber.withOpacity(0.25),
+          onTap: () {
+            HapticFeedback.lightImpact();
+            Navigator.pop(context);
+            Future.delayed(const Duration(milliseconds: 180), () {
+              if (pushReplacement) {
+                Navigator.pushReplacement(context, _fadeRoute(screen));
+              } else {
+                Navigator.push(context, _fadeRoute(screen));
+              }
+            });
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            child: Row(
+              children: [
+                Icon(icon, color: Colors.amber, size: 26),
+                const SizedBox(width: 16),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
             ),
-            borderRadius: BorderRadius.circular(25),
-            border: Border.all(color: Colors.white.withOpacity(0.2)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.3),
-                blurRadius: 30,
-                spreadRadius: 5,
-                offset: const Offset(10, 10),
-              ),
-              BoxShadow(
-                color: Colors.white.withOpacity(0.15),
-                blurRadius: 15,
-                spreadRadius: 2,
-                offset: const Offset(-8, -8),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Icon(icon, color: iconColor, size: 48),
-              const SizedBox(height: 10),
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white.withOpacity(0.95),
-                  shadows: [
-                    Shadow(
-                      blurRadius: 5.0,
-                      color: Colors.black.withOpacity(0.5),
-                      offset: Offset(2.0, 2.0),
-                    ),
-                  ],
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                subtitle,
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.normal,
-                  color: Colors.white.withOpacity(0.8),
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
           ),
         ),
       ),
+    );
+  }
+
+  Route _fadeRoute(Widget page) {
+    return PageRouteBuilder(
+      pageBuilder: (context, animation, secondaryAnimation) => page,
+      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+        return FadeTransition(opacity: animation, child: child);
+      },
+      transitionDuration: const Duration(milliseconds: 300),
     );
   }
 }
